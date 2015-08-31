@@ -77,7 +77,7 @@ namespace NonBlocking
             _topTable = new Entry[capacity + 1];
             _topTable[capacity].value = new TableInfo(new Counter());
         }
-        
+
         protected sealed override bool putIfMatch(TKey key, object newVal, ValueMatch match)
         {
             // TODO: take out to callers
@@ -160,12 +160,12 @@ namespace NonBlocking
 
         protected abstract bool keyEqual(TKey key, TKeyStore entryKey);
 
-        protected sealed override bool TryGet(TKey key, out object value)
+        protected sealed override bool tryGetValue(TKey key, out object value)
         {
             Entry[] table = this._topTable;
             int fullHash = this.hash(key);
 
-        tailCall: 
+            tailCall:
 
             var lenMask = GetTableLength(table) - 1;
             int idx = fullHash & lenMask;
@@ -187,7 +187,7 @@ namespace NonBlocking
                 }
 
                 // Key-compare
-                if (fullHash == entryHash && 
+                if (fullHash == entryHash &&
                     key != null &&
                     keyEqual(key, entryKey))
                 {
@@ -217,8 +217,8 @@ namespace NonBlocking
                 // needs to force a table-resize for a too-long key-reprobe sequence.
                 // hitting reprobe limit or finding TOMBPRIMEHASH mean there are no
                 // more keys in this bucket, but there could be more in the new table
-                if (++reprobeCnt >= ReprobeLimit(lenMask) | 
-                    entryHash == TOMBPRIMEHASH) 
+                if (++reprobeCnt >= ReprobeLimit(lenMask) |
+                    entryHash == TOMBPRIMEHASH)
                 {
                     table = GetTableInfo(table)._newTable;
                     if (table != null)
@@ -234,7 +234,7 @@ namespace NonBlocking
                 }
 
                 // quadratic reprobe
-                idx = (idx + reprobeCnt) & lenMask;   
+                idx = (idx + reprobeCnt) & lenMask;
             }
 
             value = null;
@@ -250,7 +250,7 @@ namespace NonBlocking
 
         internal abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter slots);
         internal abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
-        
+
         // 1) finds or creates a slot for the key
         // 2) sets the slot value to the putval if original value meets expVal condition
         // 3) returns true if the value was actually changed 
@@ -260,13 +260,13 @@ namespace NonBlocking
         {
             int fullhash = hash(key);
 
-          tailCall:
+            tailCall:
 
             Debug.Assert(putval != null);
             Debug.Assert(!(putval is Prime));
 
             int lenMask = GetTableLength(table) - 1;
-            var tableInfo = GetTableInfo(table); 
+            var tableInfo = GetTableInfo(table);
             int idx = fullhash & lenMask;
 
             object entryValue;
@@ -321,7 +321,7 @@ namespace NonBlocking
                 // and must reprobe or resize
 
                 // get and put must have the same key lookup logic!
-                if (++reprobe_cnt >= ReprobeLimit(lenMask) | 
+                if (++reprobe_cnt >= ReprobeLimit(lenMask) |
                     entryHash == TOMBPRIMEHASH)
                 {
                     table = tableInfo.Resize(this, table);
@@ -364,7 +364,7 @@ namespace NonBlocking
                  entryValue is Prime))
             {
                 // Force the new table copy to start
-                newTable = tableInfo.Resize(this, table); 
+                newTable = tableInfo.Resize(this, table);
                 Debug.Assert(tableInfo._newTable != null);
             }
 
@@ -392,7 +392,7 @@ namespace NonBlocking
                         break;
 
                     case ValueMatch.NullOrDead:
-                        if (entryValue == null | entryValue == TOMBSTONE )
+                        if (entryValue == null | entryValue == TOMBSTONE)
                         {
                             break;
                         }
@@ -410,7 +410,7 @@ namespace NonBlocking
                 if (putval == entryValue)
                 {
                     // Do not update!
-                    return false; 
+                    return false;
                 }
 
                 // Actually change the Value in the Key,Value pair
@@ -581,8 +581,8 @@ namespace NonBlocking
                 if (entryValue != null)
                 {
                     return false;
-                }                
-                
+                }
+
                 // Actually change the Value in the Key,Value pair
                 if (Interlocked.CompareExchange(ref table[idx].value, putval, null) == null)
                 {
@@ -639,7 +639,7 @@ namespace NonBlocking
             // new table.
             //
             // count of threads attempting an initial resize
-            volatile int _resizers; 
+            volatile int _resizers;
 
             // The next part of the table to copy.  It monotonically transits from zero
             // to table.length.  Visitors to the table can claim 'work chunks' by
@@ -666,14 +666,14 @@ namespace NonBlocking
             public bool tableFull(int reprobe_cnt, int len)
             {
                 return
-                    /*
-                                      // Do the cheap check first: we allow some number of reprobes always
-                                      reprobe_cnt >= REPROBE_LIMIT &&
-                                      // More expensive check: see if the table is > 1/4 full.
-                                      _slots.estimate_get() >= ReprobeLimit(len);
-                    */
+                /*
+                                  // Do the cheap check first: we allow some number of reprobes always
+                                  reprobe_cnt >= REPROBE_LIMIT &&
+                                  // More expensive check: see if the table is > 1/4 full.
+                                  _slots.estimate_get() >= ReprobeLimit(len);
+                */
 
-                    // 80% utilization, switch to a bigger table
+                // 80% utilization, switch to a bigger table
                 _slots.estimate_get() > (len * 3) / 4;
                 //_slots.estimate_get() > (len * 4) / 5;
             }
@@ -697,7 +697,7 @@ namespace NonBlocking
                 int panic_start = -1;
                 int copyidx = -1;
                 while (_copyDone < oldlen)
-                { 
+                {
                     // Still needing to copy?
                     // Carve out a chunk of work.  The counter wraps around so every
                     // thread eventually tries to copy every slot repeatedly.
@@ -716,7 +716,7 @@ namespace NonBlocking
                                !(Interlocked.CompareExchange(ref _copyIdx, copyidx + MIN_COPY_WORK, copyidx) == copyidx))
                         {
                             // Re-read
-                            copyidx = (int)_copyIdx;      
+                            copyidx = (int)_copyIdx;
                         }
 
                         if (!(copyidx < (oldlen << 1)))  // Panic!
@@ -731,7 +731,7 @@ namespace NonBlocking
                     for (int i = 0; i < MIN_COPY_WORK; i++)
                     {
                         // Made an oldtable slot go dead?
-                        if (CopySlot(topmap, (copyidx + i) & (oldlen - 1), oldTable, newTable)) 
+                        if (CopySlot(topmap, (copyidx + i) & (oldlen - 1), oldTable, newTable))
                         {
                             workdone++;
                         }
@@ -750,7 +750,7 @@ namespace NonBlocking
                     if (!copy_all && panic_start == -1) // No panic?
                     {
                         // Then done copying after doing MIN_COPY_WORK
-                        return;       
+                        return;
                     }
                 }
 
@@ -773,7 +773,7 @@ namespace NonBlocking
                         copyDone = _copyDone; // Reload, retry
                         Debug.Assert((copyDone + workdone) <= oldlen);
                     }
-               }
+                }
 
                 // Check for copy being ALL done, and promote.  Note that we might have
                 // nested in-progress copies and manage to finish a nested copy before
@@ -804,7 +804,7 @@ namespace NonBlocking
                 Debug.Assert(topmap.GetTableInfo(oldTable) == this);
 
                 // VOLATILE READ
-                var newTable = _newTable; 
+                var newTable = _newTable;
 
                 // We're only here because the caller saw a Prime, which implies a
                 // table-copy is in progress.
@@ -856,8 +856,8 @@ namespace NonBlocking
                 object oldval = oldTable[idx].value; // Read OLD table
                 while (!(oldval is Prime))
                 {
-                    Prime box = (oldval == null | oldval == TOMBSTONE) ? 
-                        TOMBPRIME : 
+                    Prime box = (oldval == null | oldval == TOMBSTONE) ?
+                        TOMBPRIME :
                         new Prime(oldval);
 
                     // CAS down a box'd version of oldval
@@ -887,7 +887,7 @@ namespace NonBlocking
                 if (oldval == TOMBPRIME)
                 {
                     // Copy already complete here!
-                    return false; 
+                    return false;
                 }
 
                 // Copy the value into the new table, but only if we overwrite a null.
@@ -928,7 +928,7 @@ namespace NonBlocking
                 if (newTable != null)
                 {
                     // Use the new table already
-                    return newTable;           
+                    return newTable;
                 }
 
                 // No copy in-progress, so start one.  First up: compute new table size.
@@ -992,9 +992,9 @@ namespace NonBlocking
                 // TODO: some tuning may be needed
                 int kBs4 = (((newsz << 1) + 4) << 3/*word to bytes*/) >> 12/*kBs4*/;
                 if (r >= 2 && kBs4 > 0)
-                {  
+                {
                     // Already 2 guys trying; wait and see
-                    newTable = this._newTable;         
+                    newTable = this._newTable;
                     // See if resize is already in progress
                     if (newTable != null)
                     {
@@ -1015,7 +1015,7 @@ namespace NonBlocking
 
                 // add 1 for table info
                 // This can get expensive for big arrays
-                newTable = new Entry[newsz + 1]; 
+                newTable = new Entry[newsz + 1];
                 newTable[newTable.Length - 1].value = new TableInfo(_size);
 
 #if DEBUG
@@ -1028,7 +1028,7 @@ namespace NonBlocking
                 if (curNewTable != null)
                 {
                     // Use the new table already
-                    return curNewTable;         
+                    return curNewTable;
                 }
 
                 // The new table must be CAS'd in to ensure only 1 winner

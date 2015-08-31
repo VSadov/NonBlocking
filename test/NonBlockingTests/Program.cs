@@ -24,7 +24,24 @@ namespace NonBlockingTests
             ContinuityOfRemove001();
             ContinuityOfRemove002();
 
+            Relativity001();
+            Relativity002();
+
             System.Console.WriteLine("PASS");
+        }
+
+        private static void TimeIt(Action a)
+        {
+            a();
+
+            for (int i = 0; i < 10; i++)
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                a();
+                sw.Stop();
+
+                System.Console.WriteLine(sw.ElapsedMilliseconds);
+            }
         }
 
         private static void AddSetRemove()
@@ -185,24 +202,24 @@ namespace NonBlockingTests
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
+                {
+                    dict[i] = 0;
+                    if (i % 2 == 0)
                     {
-                        dict[i] = 0;
-                        if (i % 2 == 0)
+                        // increment slot
+                        for (int j = 0; j < 10000; j++)
                         {
-                            // increment slot
-                            for (int j = 0; j < 10000; j++)
-                            {
-                                dict[i] += 1;
-                            }
+                            dict[i] += 1;
+                        }
 
-                            if (dict[i] != 10000) throw new Exception();
-                        }
-                        else
-                        {
-                            //add more slots
-                            dict[i] = i;
-                        }
-                    });
+                        if (dict[i] != 10000) throw new Exception();
+                    }
+                    else
+                    {
+                        //add more slots
+                        dict[i] = i;
+                    }
+                });
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                     (i) =>
@@ -294,7 +311,7 @@ namespace NonBlockingTests
                         // flip/flop slot
                         for (int j = 0; j < 9999; j++)
                         {
-                            if (dict.TryGet(i, out val))
+                            if (dict.TryGetValue(i, out val))
                             {
                                 dict.Remove(i);
                             }
@@ -304,7 +321,7 @@ namespace NonBlockingTests
                             }
                         }
 
-                        if (!dict.TryGet(i, out val))
+                        if (!dict.TryGetValue(i, out val))
                             throw new Exception();
                     }
                     else
@@ -323,7 +340,7 @@ namespace NonBlockingTests
                             // flip/flop slot
                             for (int j = 0; j < 9999; j++)
                             {
-                                if (dict.TryGet(i, out val))
+                                if (dict.TryGetValue(i, out val))
                                 {
                                     dict.Remove(i);
                                 }
@@ -344,7 +361,7 @@ namespace NonBlockingTests
                     (i) =>
                     {
                         int val;
-                        if (i % 2 == 0 && dict.TryGet(i, out val)) throw new Exception();
+                        if (i % 2 == 0 && dict.TryGetValue(i, out val)) throw new Exception();
                     });
         }
 
@@ -361,7 +378,7 @@ namespace NonBlockingTests
                         // flip/flop slot
                         for (int j = 0; j < 9999; j++)
                         {
-                            if (dict.TryGet(i, out val))
+                            if (dict.TryGetValue(i, out val))
                             {
                                 dict.Remove(i);
                             }
@@ -371,7 +388,7 @@ namespace NonBlockingTests
                             }
                         }
 
-                        if (!dict.TryGet(i, out val))
+                        if (!dict.TryGetValue(i, out val))
                             throw new Exception();
                     }
                     else
@@ -390,7 +407,7 @@ namespace NonBlockingTests
                             // flip/flop slot
                             for (int j = 0; j < 9999; j++)
                             {
-                                if (dict.TryGet(i, out val))
+                                if (dict.TryGetValue(i, out val))
                                 {
                                     dict.Remove(i);
                                 }
@@ -411,8 +428,96 @@ namespace NonBlockingTests
                     (i) =>
                     {
                         int val;
-                        if (i % 2 == 0 && dict.TryGet(i, out val)) throw new Exception();
+                        if (i % 2 == 0 && dict.TryGetValue(i, out val)) throw new Exception();
                     });
+        }
+
+        private static void Relativity001()
+        {
+            var dict = NonBlockingDictionary.Create<int, int>();
+
+            Parallel.ForEach(Enumerable.Range(0, 10001),
+                (i) =>
+                {
+                    if (i % 2 == 0)
+                    {
+                        // maintain "dict[i] < dict[i+1]"
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            dict[i + 1] = j + 1;
+                            dict[i] = j;
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            int first;
+                            int second;
+                            if (dict.TryGetValue(i - 1, out first))
+                            {
+                                if (dict.TryGetValue(i, out second))
+                                {
+                                    if (first >= second)
+                                    {
+                                        throw new Exception("value relation is incorrect");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new Exception("value must exist");
+                                }
+                            }
+                        }
+                    }
+
+                    // just add an item
+                    dict[10000 + i] = 0;
+                });
+        }
+
+        private static void Relativity002()
+        {
+            var dict = NonBlockingDictionary.Create<object, int>();
+
+            Parallel.ForEach(Enumerable.Range(0, 10001),
+                (i) =>
+                {
+                    if (i % 2 == 0)
+                    {
+                        // maintain "dict[i] < dict[i+1]"
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            dict[i + 1] = j + 1;
+                            dict[i] = j;
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            int first;
+                            int second;
+                            if (dict.TryGetValue(i - 1, out first))
+                            {
+                                if (dict.TryGetValue(i, out second))
+                                {
+                                    if (first >= second)
+                                    {
+                                        throw new Exception("value relation is incorrect");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new Exception("value must exist");
+                                }
+                            }
+                        }
+                    }
+
+                    // just add an item
+                    dict[10000 + i] = 0;
+                });
         }
 
     }

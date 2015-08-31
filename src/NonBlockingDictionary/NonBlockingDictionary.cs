@@ -16,9 +16,9 @@ namespace NonBlocking
         {
             NonBlockingDictionary<TKey, TValue> result;
 
-            if (default(TKey) == null) 
+            if (default(TKey) == null)
             {
-                if (typeof(TKey)==typeof(ValueType) ||
+                if (typeof(TKey) == typeof(ValueType) ||
                     !(default(TKey) is ValueType))
                 {
                     return CreateRefUnsafe<TKey, TValue>(comparer);
@@ -59,7 +59,7 @@ namespace NonBlocking
         internal static NonBlockingDictionary<TKey, TValue> CreateRefUnsafe<TKey, TValue>(IEqualityComparer<TKey> comparer = null)
         {
             return (NonBlockingDictionary<TKey, TValue>)typeof(NonBlockingDictionary).
-                GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic| System.Reflection.BindingFlags.Static).
+                GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
                 MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) }).
                 Invoke(null, new object[] { comparer });
 
@@ -71,7 +71,7 @@ namespace NonBlocking
         }
 
         internal static NonBlockingDictionary<TKey, TValue> CreateRef<TKey, TValue>(IEqualityComparer<TKey> comparer = null)
-            where TKey: class
+            where TKey : class
         {
             var result = new NonBlockingDictionaryRef<TKey, TKey, TValue>();
             result.keyComparer = comparer ?? EqualityComparer<TKey>.Default;
@@ -123,10 +123,10 @@ namespace NonBlocking
             return putIfMatch(key, value, ValueMatch.NullOrDead);
         }
 
-        public bool TryGet(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, out TValue value)
         {
             object objValue;
-            var found = this.TryGet(key, out objValue);
+            var found = this.tryGetValue(key, out objValue);
 
             Debug.Assert(!(objValue is Prime));
 
@@ -147,7 +147,7 @@ namespace NonBlocking
             get
             {
                 object objValue;
-                var found = this.TryGet(key, out objValue);
+                var found = this.tryGetValue(key, out objValue);
 
                 Debug.Assert(!(objValue is Prime));
 
@@ -167,6 +167,6 @@ namespace NonBlocking
         public abstract void Clear();
 
         protected abstract bool putIfMatch(TKey key, object newVal, ValueMatch match);
-        protected abstract bool TryGet(TKey key, out object value);
+        protected abstract bool tryGetValue(TKey key, out object value);
     }
 }
