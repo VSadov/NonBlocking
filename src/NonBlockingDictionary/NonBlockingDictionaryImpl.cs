@@ -951,25 +951,24 @@ namespace NonBlocking
 
                 // This heuristic in the next 2 lines leads to a much denser table
                 // with a higher reprobe rate
-                //if (sz >= (oldlen >> 1))
-                //{
-                //    // If we are >50% full of keys then...
-                //    newsz = oldlen << 1;    // Double size
-                //}
+                if (sz >= (oldlen >> 1))
+                {
+                    // If we are >50% full of keys then...
+                    newsz = oldlen << 1;    // Double size
+                }
 
-                //// Last (re)size operation was very recent?  Then double again; slows
-                //// down resize operations for tables subject to a high key churn rate.
-                //long tm = CurrentTimeMillis();
-                //int q = 0;
-                //if (newsz <= oldlen && // New table would shrink or hold steady?
-                //    tm <= topmap._lastResizeMilli + 10000 && // Recent resize (less than 1 sec ago)
-                //    (q = _slots.estimate_get()) >= (sz << 1)) // 1/2 of keys are dead?
-                //{
-                //    newsz = oldlen << 1;      // Double the existing size
-                //}
-
-                //TODO: (vsadov) just double the actual size for now
-                newsz <<= 1;
+                // New table would shrink or hold steady?
+                // Last (re)size operation was very recent?  
+                // table has > 50% dead slots ?
+                // 
+                // Then double again; 
+                // slows down resize operations for tables subject to a high key churn rate.
+                if (newsz <= oldlen && // 
+                    _slots.estimate_get() >= (sz << 1) && 
+                    CurrentTimeMillis() <= topmap._lastResizeMilli + 1000)
+                {
+                    newsz = oldlen << 1;      // Double the existing size
+                }
 
                 // Do not shrink, ever
                 //TODO: (vsadov) really?

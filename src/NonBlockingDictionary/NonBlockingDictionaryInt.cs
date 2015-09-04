@@ -101,9 +101,26 @@ namespace NonBlocking
 
         internal override int hash(int key)
         {
-            return (key == 0)? 
-                ZEROHASH: 
-                key | REGULAR_HASH_BITS;
+            //return (key == 0) ?
+            //    ZEROHASH :
+            //    key | REGULAR_HASH_BITS;
+
+            if (key == 0) return ZEROHASH;
+
+            // variant of FNV-1a hash.
+            const uint FnvOffsetBias = 2166136261;
+            const uint FnvPrime = 16777619;
+
+            uint origHash = (uint)key;
+            uint hashCode = FnvOffsetBias;
+
+            hashCode = (hashCode ^ (origHash & 0xFF)) * FnvPrime;
+            hashCode = (hashCode ^ ((origHash >> 8) & 0xFF)) * FnvPrime;
+            hashCode = (hashCode ^ ((origHash >> 16) & 0xFF)) * FnvPrime;
+            hashCode = (hashCode ^ ((origHash >> 24))) * FnvPrime;
+
+            // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
+            return (int)hashCode | REGULAR_HASH_BITS;
         }
 
         protected override bool keyEqual(int key, int entryKey)
