@@ -40,7 +40,7 @@ namespace NonBlocking
         // NOTE: Not Staitc For perf reasons
         private TableInfo GetTableInfo(Entry[] table)
         {
-            return table[table.Length - 1].value as TableInfo;
+            return (TableInfo)table[table.Length - 1].value;
         }
 
         // NOTE: Not Staitc For perf reasons
@@ -385,6 +385,7 @@ namespace NonBlocking
             while (true)
             {
                 Debug.Assert(!(entryValue is Prime));
+                var entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
 
                 switch (expVal)
                 {
@@ -392,7 +393,7 @@ namespace NonBlocking
                         break;
 
                     case ValueMatch.NullOrDead:
-                        if (entryValue == null | entryValue == TOMBSTONE)
+                        if (entryValueNullOrDead)
                         {
                             break;
                         }
@@ -400,7 +401,7 @@ namespace NonBlocking
                         return false;
 
                     case ValueMatch.NotNullOrDead:
-                        if (entryValue == null | entryValue == TOMBSTONE)
+                        if (entryValueNullOrDead)
                         {
                             return false;
                         }
@@ -418,7 +419,7 @@ namespace NonBlocking
                 {
                     // CAS succeeded - we did the update!
                     // Adjust sizes
-                    if (entryValue == null || entryValue == TOMBSTONE)
+                    if (entryValueNullOrDead)
                     {
                         if (putval != TOMBSTONE)
                         {

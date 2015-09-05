@@ -12,15 +12,15 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
-            GetBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
+            AssignBenchSmall();
         }
 
         private static void GetBench()
@@ -82,6 +82,33 @@ namespace NonBlockingTests
             for (int j = 0; j < 5000; j++)
             {
                 Parallel.For(0, 50000, (i) => { var dummy = dict[list[i]]; });
+            }
+
+            sw.Stop();
+            System.Console.WriteLine(sw.ElapsedMilliseconds);
+        }
+
+        private static void AssignBenchSmall()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            var listV = new List<string>();
+            for (int i = 0; i < 10000; i++)
+            {
+                listV.Add(i.ToString());
+            }
+
+            Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 10000; j++)
+            {
+                Parallel.For(1, 10000, (i) => dict[i - 1] = listV[i]);
+                Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
+                // dict.print();
+                //string value;
+                //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
             }
 
             sw.Stop();
