@@ -1,4 +1,9 @@
-﻿//
+﻿// Copyright (c) Vladimir Sadov. All rights reserved.
+//
+// This file is distributed under the MIT License. See LICENSE.md for details.
+
+
+//
 // Heavily based on Cliff Click's Non-Blocking HashTable (public domain)
 //
 
