@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using NonBlocking;
+using System.Threading;
 
 namespace NonBlockingTests
 {
@@ -16,15 +17,17 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
-            AssignBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+            GetBenchSmall();
+
+            //ChurnSequential();
         }
 
         private static void GetBench()
@@ -177,6 +180,26 @@ namespace NonBlockingTests
 
             sw.Stop();
             System.Console.WriteLine(sw.ElapsedMilliseconds);
+        }
+
+        private static void ChurnSequential()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+
+            for (int i = 0; i < 10000; i++)
+            {
+                dict.Add(i, "dummy");
+                dict.Remove(i);
+                //Thread.Sleep(10);
+            }
+
+            for (int i = 0; i < 10000; i++)
+            {
+                dict.Add(i, "dummy");
+                dict.Remove(i);
+                Thread.Sleep(10);
+            }
+
         }
     }
 

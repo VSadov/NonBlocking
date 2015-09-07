@@ -129,7 +129,7 @@ namespace NonBlocking
                 uint origHash = (uint)keyComparer.GetHashCode(key);
 
                 // being an open addressed, this hashtable has some sensitivity
-                // to clastering behavior of the provided hash, so in theory
+                // to clustering behavior of the provided hash, so in theory
                 // it makes sense to mix the hash bits.
                 //
                 // In practice, however, this may make hash worse,
@@ -357,8 +357,8 @@ namespace NonBlocking
             // of new table once per key-compare (not really free, but paid-for by the
             // time we get here).
             var newTable = tableInfo._newTable;
-            if (newTable == null &&       // New table-copy already spotted?
-                ((entryValue == null && tableInfo.tableFull(reprobe_cnt, lenMask + 1)) ||
+            if (newTable == null &&       
+                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) ||
                  // Or we found a Prime, but the VM allowed reordering such that we
                  // did not spot the new table (very rare race here: the writing
                  // thread did a CAS of new table then a CAS store of a Prime.  This thread
@@ -541,7 +541,8 @@ namespace NonBlocking
             // fail this fast cutout and fall into the check for table-full.
             if (putval == entryValue)
             {
-                return false; // Fast cutout for no-change
+                // Fast cutout for no-change
+                return false; 
             }
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
@@ -551,7 +552,7 @@ namespace NonBlocking
             // time we get here).
             var newTable = tableInfo._newTable;
             if (newTable == null &&
-                ((entryValue == null && tableInfo.tableFull(reprobe_cnt, lenMask + 1)) ||
+                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) ||
                  // Or we found a Prime, but the VM allowed reordering such that we
                  // did not spot the new table (very rare race here: the writing
                  // thread did a CAS of new table then a CAS store of a Prime.  This thread
@@ -611,7 +612,6 @@ namespace NonBlocking
             }
         }
 
-
         // Help along an existing resize operation.  This is just a fast cut-out
         // wrapper, to encourage inlining for the fast no-copy-in-progress case.  We
         // always help the top-most table copy, even if there are nested table
@@ -669,19 +669,10 @@ namespace NonBlocking
             public int size() { return (int)_size.get(); }
             public int slots() { return (int)_slots.get(); }
 
-            public bool tableFull(int reprobe_cnt, int len)
+            public bool tableIsCrowded(int len)
             {
-                return
-                /*
-                                  // Do the cheap check first: we allow some number of reprobes always
-                                  reprobe_cnt >= REPROBE_LIMIT &&
-                                  // More expensive check: see if the table is > 1/4 full.
-                                  _slots.estimate_get() >= ReprobeLimit(len);
-                */
-
                 // 80% utilization, switch to a bigger table
-                _slots.estimate_get() > (len * 3) / 4;
-                //_slots.estimate_get() > (len * 4) / 5;
+                return _slots.estimate_get() > (len >> 2) * 3;
             }
 
             // Help along an existing resize operation.  We hope its the top-level
@@ -924,68 +915,51 @@ namespace NonBlocking
             // Since this routine has a fast cutout for copy-already-started, callers
             // MUST 'help_copy' lest we have a path which forever runs through
             // 'resize' only to discover a copy-in-progress which never progresses.
-            public Entry[] Resize(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] tabe)
+            public Entry[] Resize(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] table)
             {
-                Debug.Assert(topmap.GetTableInfo(tabe) == this);
+                Debug.Assert(topmap.GetTableInfo(table) == this);
 
                 // Check for resize already in progress, probably triggered by another thread
-                var newTable = this._newTable; // VOLATILE READ
+                // VOLATILE READ
+                var newTable = this._newTable; 
+
                 // See if resize is already in progress
                 if (newTable != null)
                 {
                     // Use the new table already
                     return newTable;
                 }
+                
+                // No copy in-progress, so start one.  
+                //First up: compute new table size.
+                int oldlen = topmap.GetTableLength(table);    
+                int sz = size();
+                const int MAX_SIZE = 1 << 30;
 
-                // No copy in-progress, so start one.  First up: compute new table size.
-                int oldlen = topmap.GetTableLength(tabe);    // Old count of K,V pairs allowed
-                int sz = size();          // Get current table count of active K,V pairs
-                int newsz = sz;           // First size estimate
+                // First size estimate is 2x of size
+                int newsz = Math.Max(sz < MAX_SIZE? sz << 1 : sz  , MIN_SIZE);
 
-                // Heuristic to determine new size.  We expect plenty of dead-slots-with-keys
-                // and we need some decent padding to avoid endless reprobing.
-
-                //if (sz >= (oldlen >> 2))
-                //{ // If we are >25% full of keys then...
-                //    newsz = oldlen << 1;      // Double size
-                //    // If we are >50% full of keys then...
-                //    if (sz >= (oldlen >> 1))
-                //    {
-                //        newsz = oldlen << 2;    // Double double size
-                //    }
-                //}
-
-                // This heuristic in the next 2 lines leads to a much denser table
-                // with a higher reprobe rate
-                if (sz >= (oldlen >> 1))
+                // if new table would shrink or hold steady, 
+                // we must be resizing because of churn.
+                // target churn based resize rate to be about 1 per second
+                if (newsz <= oldlen)
                 {
-                    // If we are >50% full of keys then...
-                    newsz = oldlen << 1;    // Double size
+                    var resizeSpan = CurrentTimeMillis() - topmap._lastResizeMilli;
+                    if (resizeSpan < 1000)
+                    {
+                        // last resize too recent, expand
+                        newsz = oldlen < MAX_SIZE ? oldlen << 1 : oldlen;
+                    }
+                    else
+                    {
+                        // do not allow shrink too fast
+                        newsz = Math.Max(newsz, (int)(oldlen * 1000 / resizeSpan));
+                    }
                 }
 
-                // New table would shrink or hold steady?
-                // Last (re)size operation was very recent?  
-                // table has > 50% dead slots ?
-                // 
-                // Then double again; 
-                // slows down resize operations for tables subject to a high key churn rate.
-                if (newsz <= oldlen && // 
-                    _slots.estimate_get() >= (sz << 1) && 
-                    CurrentTimeMillis() <= topmap._lastResizeMilli + 1000)
-                {
-                    newsz = oldlen << 1;      // Double the existing size
-                }
-
-                // Do not shrink, ever
-                //TODO: (vsadov) really?
-                if (newsz < oldlen)
-                {
-                    newsz = oldlen;
-                }
-
-                // Convert to power-of-2
+                // Align up to a power of 2
                 newsz = AlignToPowerOfTwo(newsz);
-
+                                
                 // Now limit the number of threads actually allocating memory to a
                 // handful - lest we have 750 threads all trying to allocate a giant
                 // resized array.
@@ -1037,7 +1011,19 @@ namespace NonBlocking
                 }
 
                 // The new table must be CAS'd in to ensure only 1 winner
-                return Interlocked.CompareExchange(ref this._newTable, newTable, null) ?? newTable;
+                //return Interlocked.CompareExchange(ref this._newTable, newTable, null) ?? newTable;
+
+                var prev = Interlocked.CompareExchange(ref this._newTable, newTable, null);
+
+                if (prev != null)
+                {
+                    return prev;
+                }
+                else
+                {
+                    // Console.WriteLine("resized: " + newsz);
+                    return newTable;
+                }
             }
         }
     }
