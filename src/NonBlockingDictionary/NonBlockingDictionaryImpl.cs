@@ -99,7 +99,6 @@ namespace NonBlocking
 
         public sealed override void Clear()
         {
-            // Smack a new empty table down
             var newTable = CreateNew()._topTable;
             Volatile.Write(ref _topTable, newTable);
         }
@@ -175,13 +174,12 @@ namespace NonBlocking
             var lenMask = GetTableLength(table) - 1;
             int idx = fullHash & lenMask;
 
-            // Main spin/reprobe loop, looking for a Key hit
+            // Main spin/reprobe loop
             int reprobeCnt = 0;
             while (true)
             {
-                // TODO: volatile ?
-                //       note that hash, key and value are all CAS-ed down
-                //       and follow a specific sequence of states.
+                // hash, key and value are all CAS-ed down and follow a specific sequence of states.
+                // hence the order of these reads is irrelevant and they do not need to be volatile    
                 var entryHash = table[idx].hash;
                 var entryKey = table[idx].key;
 
@@ -191,26 +189,27 @@ namespace NonBlocking
                     break;
                 }
 
-                // Key-compare
+                // is this our slot?
                 if (fullHash == entryHash &&
                     key != null &&
                     keyEqual(key, entryKey))
                 {
                     var entryValue = table[idx].value;
+
+                    if (entryValue == null | entryValue == TOMBSTONE)
+                    {
+                        break;
+                    }
+
                     if (!(entryValue is Prime))
                     {
-                        if (entryValue == null | entryValue == TOMBSTONE)
-                        {
-                            break;
-                        }
-
                         value = entryValue;
                         return true;
                     }
 
-                    // copying started
-                    // all new values go to the new table
-                    // Help with copying and retry in the new table
+                    // found a prime, that means copying has started 
+                    // and all new values go to the new table
+                    // help with copying and retry in the new table
                     var tableInfo = GetTableInfo(table);
                     table = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
 
@@ -218,10 +217,10 @@ namespace NonBlocking
                     goto tailCall;
                 }
 
-                // get and put must have the same key lookup logic!  But only 'put'
-                // needs to force a table-resize for a too-long key-reprobe sequence.
-                // hitting reprobe limit or finding TOMBPRIMEHASH mean there are no
-                // more keys in this bucket, but there could be more in the new table
+                // get and put must have the same key lookup logic.
+                // But only 'put'needs to force a table-resize for a too-long key-reprobe sequence
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // but there could be more in the new table
                 if (++reprobeCnt >= ReprobeLimit(lenMask) |
                     entryHash == TOMBPRIMEHASH)
                 {
@@ -246,13 +245,6 @@ namespace NonBlocking
             return false;
         }
 
-        protected enum KeyClaimResult
-        {
-            Failed,
-            GotExisting,
-            ClaimedNew
-        }
-
         internal abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter slots);
         internal abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
 
@@ -274,21 +266,17 @@ namespace NonBlocking
             var tableInfo = GetTableInfo(table);
             int idx = fullhash & lenMask;
 
-            object entryValue;
+            // Spin till we get a slot for the key or force a resizing.
             int reprobe_cnt = 0;
-
-            // Spin till we get a Key slot or force a resizing.
             while (true)
             {
-                var entry = table[idx];
-                var entryHash = entry.hash;
-                var entryKey = entry.key;
-                entryValue = entry.value;
-
+                // hash, key and value are all CAS-ed down and follow a specific sequence of states.
+                // hence the order of their reads is irrelevant and they do not need to be volatile    
+                var entryHash = table[idx].hash;
                 if (entryHash == 0)
                 {
                     // Found an unassigned slot - which means this 
-                    // Key has never been in this table.
+                    // key has never been in this table.
                     if (putval == TOMBSTONE)
                     {
                         Debug.Assert(expVal == ValueMatch.NotNullOrDead);
@@ -314,7 +302,7 @@ namespace NonBlocking
 
                 if (entryHash == fullhash)
                 {
-                    // hash is good, one way or another 
+                    // hash is good, one way or another, 
                     // try claiming the slot for the key
                     if (TryClaimSlotForPut(ref table[idx].key, key, tableInfo._slots))
                     {
@@ -324,11 +312,12 @@ namespace NonBlocking
 
                 // here we know that this slot does not map to our key
                 // and must reprobe or resize
-
-                // get and put must have the same key lookup logic!
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // but there could be more in the new table
                 if (++reprobe_cnt >= ReprobeLimit(lenMask) |
-                    entryHash == TOMBPRIMEHASH)
+                entryHash == TOMBPRIMEHASH)
                 {
+                    // start resize or get new table if resize is already in progress
                     table = tableInfo.Resize(this, table);
 
                     // help along an existing copy
@@ -342,9 +331,16 @@ namespace NonBlocking
                 idx = (idx + reprobe_cnt) & lenMask;
             }
 
-            // Found the proper Key slot, now update the matching Value slot.  We
-            // never put a null, so Value slots monotonically move from null to
+            // Found the proper Key slot, now update the Value.  
+            // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
+            //
+            // TODO: VS would it be better to volatile read here so that we do not need the isPrime check below?
+            //       "is Prime" may cause cache miss since we otherwise do not need to touch entryValue and will always be false on x86/64.
+            //
+            //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
+            //       is DMB more costly than "is Prime"?
+            var entryValue = table[idx].value;
             if (putval == entryValue)
             {
                 //the exact same value is already there
@@ -353,20 +349,17 @@ namespace NonBlocking
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
             // We only check on the initial set of a Value from null to
-            // not-null (i.e., once per key-insert).  Of course we got a 'free' check
-            // of new table once per key-compare (not really free, but paid-for by the
-            // time we get here).
+            // not-null (i.e., once per key-insert).
+            // Or we found a Prime, but the VM allowed reordering such that we
+            // did not spot the new table (very rare race here: the writing
+            // thread did a CAS of new table then a CAS store of a Prime.  This thread
+            // does regular read of the Prime, then volatile read of new table - 
+            // but the read of Prime was so delayed (or the read of new table was 
+            // so accelerated) that they swapped and we still read a null new table.  
+            // The resize call below will do a CAS on new table forcing the read.
             var newTable = tableInfo._newTable;
             if (newTable == null &&       
-                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) ||
-                 // Or we found a Prime, but the VM allowed reordering such that we
-                 // did not spot the new table (very rare race here: the writing
-                 // thread did a CAS of new table then a CAS store of a Prime.  This thread
-                 // does regular read of the Prime, then volatile read of new table - 
-                 // but the read of Prime was so delayed (or the read of new table was 
-                 // so accelerated) that they swapped and we still read a null new table.  
-                 // The resize call below will do a CAS on new table forcing the read.
-                 entryValue is Prime))
+                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) || entryValue is Prime))
             {
                 // Force the new table copy to start
                 newTable = tableInfo.Resize(this, table);
@@ -385,7 +378,6 @@ namespace NonBlocking
                 goto tailCall;
             }
 
-            // ---
             // We are finally prepared to update the existing table
             while (true)
             {
@@ -419,8 +411,9 @@ namespace NonBlocking
                     return false;
                 }
 
-                // Actually change the Value in the Key,Value pair
-                if (Interlocked.CompareExchange(ref table[idx].value, putval, entryValue) == entryValue)
+                // Actually change the Value 
+                var prev = Interlocked.CompareExchange(ref table[idx].value, putval, entryValue);
+                if (prev == entryValue)
                 {
                     // CAS succeeded - we did the update!
                     // Adjust sizes
@@ -443,13 +436,8 @@ namespace NonBlocking
                 }
                 // Else CAS failed
 
-                // Get new value
-                entryValue = table[idx].value;
-
-                // If a Prime'd value got installed, we need to re-run the put on the
-                // new table.  Otherwise we lost the CAS to another racing put.
-                // Simply retry from the start.
-                if (entryValue is Prime)
+                // If a Prime'd value got installed, we need to re-run the put on the new table.  
+                if (prev is Prime)
                 {
                     newTable = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
 
@@ -457,10 +445,14 @@ namespace NonBlocking
                     table = newTable;
                     goto tailCall;
                 }
+
+                // Otherwise we lost the CAS to another racing put.
+                // Simply retry from the start.
+                entryValue = prev;
             }
         }
 
-        private bool copyIfMatch(Entry[] table, TKeyStore key, object putval, int fullhash)
+        private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullhash)
         {
             Debug.Assert(putval != TOMBSTONE);
 
@@ -473,19 +465,11 @@ namespace NonBlocking
             var tableInfo = GetTableInfo(table);
             int idx = fullhash & lenMask;
 
-            // ---
-            // Key-Claim stanza: spin till we can claim a Key (or force a resizing).
-            object entryValue;
+            // Spin till we get a slot for the key or force a resizing.
             int reprobe_cnt = 0;
-
-            // Spin till we get a Key slot
             while (true)
             {
-                var entry = table[idx];
-                var entryHash = entry.hash;
-                var entryKey = entry.key;
-                entryValue = entry.value;
-
+                var entryHash = table[idx].hash;
                 if (entryHash == 0)
                 {
                     // Slot is completely clean, claim the hash
@@ -514,15 +498,14 @@ namespace NonBlocking
 
                 // this slot contains a different key
 
-                // get and put must have the same key lookup logic!  Lest 'get' give
-                // up looking too soon.
-                if (++reprobe_cnt >= ReprobeLimit(lenMask) | // too many probes or
+                // here we know that this slot does not map to our key
+                // and must reprobe or resize
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that 
+                // we will not find an appropriate slot in this table
+                // but there could be more in the new one
+                if (++reprobe_cnt >= ReprobeLimit(lenMask) |
                     entryHash == TOMBPRIMEHASH)
                 {
-                    // found a TOMBPRIMEHASH, means no more keys
-                    // We simply must have a new table to do a 'put'.  At this point a
-                    // 'get' will also go to the new table (if any).  We do not need
-                    // to claim a key slot (indeed, we cannot find a free one to claim!).
                     var resized = tableInfo.Resize(this, table);
 
                     // return this.putIfMatch(resized, key, putval, expVal);
@@ -535,34 +518,20 @@ namespace NonBlocking
 
             } // End of spinning till we get a Key slot
 
-            // Found the proper Key slot, now update the matching Value slot.  We
-            // never put a null, so Value slots monotonically move from null to
-            // not-null (deleted Values use Tombstone).  Thus if 'V' is null we
-            // fail this fast cutout and fall into the check for table-full.
-            if (putval == entryValue)
+            // Found the proper Key slot, now update the Value. 
+            var entryValue = table[idx].value;
+            if (entryValue != null)
             {
-                // Fast cutout for no-change
+                // someone else copied, not us
                 return false; 
             }
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
-            // We only check on the initial set of a Value from null to
-            // not-null (i.e., once per key-insert).  Of course we got a 'free' check
-            // of new table once per key-compare (not really free, but paid-for by the
-            // time we get here).
+            // We only check on the initial set of a Value from null to not-null
             var newTable = tableInfo._newTable;
-            if (newTable == null &&
-                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) ||
-                 // Or we found a Prime, but the VM allowed reordering such that we
-                 // did not spot the new table (very rare race here: the writing
-                 // thread did a CAS of new table then a CAS store of a Prime.  This thread
-                 // does regular read of the Prime, then volatile read of new table - 
-                 // but the read of Prime was so delayed (or the read of new table was 
-                 // so accelerated) that they swapped and we still read a null new table.  
-                 // The resize call below will do a CAS on new table forcing the read.
-                 entryValue is Prime))
+            if (newTable == null && tableInfo.tableIsCrowded(lenMask))
             {
-                newTable = tableInfo.Resize(this, table); // Force the new table copy to start
+                newTable = tableInfo.Resize(this, table); 
                 Debug.Assert(tableInfo._newTable != null);
             }
 
@@ -578,38 +547,14 @@ namespace NonBlocking
                 goto tailCall;
             }
 
-            // ---
             // We are finally prepared to update the existing table
-            while (true)
-            {
-                Debug.Assert(!(entryValue is Prime));
+            Debug.Assert(entryValue == null);
 
-                // is there already a value in the new table?
-                if (entryValue != null)
-                {
-                    return false;
-                }
-
-                // Actually change the Value in the Key,Value pair
-                if (Interlocked.CompareExchange(ref table[idx].value, putval, null) == null)
-                {
-                    // CAS succeeded - we did the update!
-                    // table-copy does not (effectively) increase the number of live k/v pairs.
-                    return true;
-                }
-
-                // Get new value
-                entryValue = table[idx].value;
-
-                // If a Prime'd value got installed, we need to re-run the put on the
-                // new table.  Otherwise we lost the CAS to another racing put.
-                // Simply retry from the start.
-                if (entryValue is Prime)
-                {
-                    table = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: false);
-                    goto tailCall;
-                }
-            }
+            // if CAS succeeded - we did the update!
+            // table-copy does not (effectively) increase the number of live k/v pairs
+            // so no need to update size
+            // otherwise someone else copied the value
+            return Interlocked.CompareExchange(ref table[idx].value, putval, null) == null;
         }
 
         // Help along an existing resize operation.  This is just a fast cut-out
@@ -898,7 +843,7 @@ namespace NonBlocking
                 // since we have a real value, there must be a nontrivial key in the table
                 var key = oldTable[idx].key;
 
-                bool copiedIntoNew = topmap.copyIfMatch(newTable, key, originalValue, hash);
+                bool copiedIntoNew = topmap.copySlot(newTable, key, originalValue, hash);
 
                 // Finally, now that any old value is exposed in the new table, we can
                 // forever hide the old-table value by slapping a TOMBPRIME down.  This
