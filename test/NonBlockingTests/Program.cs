@@ -22,6 +22,9 @@ namespace NonBlockingTests
             AddSetRemoveConcurrentInt();
             AddSetRemoveConcurrentStruct();
 
+            NullValueRef();
+            NullValueNub();
+
             Continuity001();
             Continuity002();
 
@@ -45,6 +48,60 @@ namespace NonBlockingTests
                 sw.Stop();
 
                 System.Console.WriteLine(sw.ElapsedMilliseconds);
+            }
+        }
+
+        private static void NullValueRef()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+
+            string s;
+            if (dict.TryGetValue(0, out s))
+            {
+                throw new Exception();
+            }
+
+            dict.Add(0, null);
+            if (!dict.TryGetValue(0, out s) || s != null)
+            {
+                throw new Exception();
+            }
+
+            if (!dict.Remove(0))
+            {
+                throw new Exception();
+            }
+
+            if (dict.TryGetValue(0, out s))
+            {
+                throw new Exception();
+            }
+        }
+
+        private static void NullValueNub()
+        {
+            var dict = NonBlockingDictionary.Create<int, int?>();
+
+            int? s;
+            if (dict.TryGetValue(0, out s))
+            {
+                throw new Exception();
+            }
+
+            dict.Add(0, null);
+            if (!dict.TryGetValue(0, out s) || s != null)
+            {
+                throw new Exception();
+            }
+
+            if (!dict.Remove(0))
+            {
+                throw new Exception();
+            }
+
+            if (dict.TryGetValue(0, out s))
+            {
+                throw new Exception();
             }
         }
 

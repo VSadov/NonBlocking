@@ -96,6 +96,7 @@ namespace NonBlocking
 
         internal static readonly object TOMBSTONE = new object();
         internal static readonly Prime TOMBPRIME = new Prime(TOMBSTONE);
+        internal static readonly object NULLVALUE = new object();
     }
 
     public abstract class NonBlockingDictionary<TKey, TValue>

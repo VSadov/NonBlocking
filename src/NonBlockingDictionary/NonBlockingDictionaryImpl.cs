@@ -83,18 +83,6 @@ namespace NonBlocking
             _topTable[capacity].value = new TableInfo(new Counter());
         }
 
-        protected sealed override bool putIfMatch(TKey key, object newVal, ValueMatch match)
-        {
-            // TODO: take out to callers
-            if (newVal == null)
-            {
-                throw new ArgumentNullException();
-            }
-
-            // TODO: merge in
-            return this.putIfMatch(this._topTable, key, newVal, match);
-        }
-
         protected abstract NonBlockingDictionary<TKey, TKeyStore, TValue> CreateNew();
 
         public sealed override void Clear()
@@ -203,7 +191,10 @@ namespace NonBlocking
 
                     if (!(entryValue is Prime))
                     {
-                        value = entryValue;
+                        value = entryValue == NULLVALUE? 
+                            null : 
+                            entryValue;
+
                         return true;
                     }
 
@@ -253,14 +244,20 @@ namespace NonBlocking
         // 3) returns true if the value was actually changed 
         // Note that pre-existence of the slot is irrelevant 
         // since slot without a value is as good as no slot at all
-        private bool putIfMatch(Entry[] table, TKey key, object putval, ValueMatch expVal)
+        protected sealed override bool putIfMatch(TKey key, object newVal, ValueMatch match)
         {
+            if (newVal == null)
+            {
+                newVal = NULLVALUE;
+            }
+
+            var table = this._topTable;
             int fullhash = hash(key);
 
             tailCall:
 
-            Debug.Assert(putval != null);
-            Debug.Assert(!(putval is Prime));
+            Debug.Assert(newVal != null);
+            Debug.Assert(!(newVal is Prime));
 
             int lenMask = GetTableLength(table) - 1;
             var tableInfo = GetTableInfo(table);
@@ -277,9 +274,9 @@ namespace NonBlocking
                 {
                     // Found an unassigned slot - which means this 
                     // key has never been in this table.
-                    if (putval == TOMBSTONE)
+                    if (newVal == TOMBSTONE)
                     {
-                        Debug.Assert(expVal == ValueMatch.NotNullOrDead);
+                        Debug.Assert(match == ValueMatch.NotNullOrDead);
                         return false;
                     }
                     else
@@ -341,7 +338,7 @@ namespace NonBlocking
             //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
             //       is DMB more costly than "is Prime"?
             var entryValue = table[idx].value;
-            if (putval == entryValue)
+            if (newVal == entryValue)
             {
                 //the exact same value is already there
                 return false;
@@ -384,7 +381,7 @@ namespace NonBlocking
                 Debug.Assert(!(entryValue is Prime));
                 var entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
 
-                switch (expVal)
+                switch (match)
                 {
                     case ValueMatch.Any:
                         break;
@@ -405,28 +402,28 @@ namespace NonBlocking
                         break;
                 }
 
-                if (putval == entryValue)
+                if (newVal == entryValue)
                 {
                     // Do not update!
                     return false;
                 }
 
                 // Actually change the Value 
-                var prev = Interlocked.CompareExchange(ref table[idx].value, putval, entryValue);
+                var prev = Interlocked.CompareExchange(ref table[idx].value, newVal, entryValue);
                 if (prev == entryValue)
                 {
                     // CAS succeeded - we did the update!
                     // Adjust sizes
                     if (entryValueNullOrDead)
                     {
-                        if (putval != TOMBSTONE)
+                        if (newVal != TOMBSTONE)
                         {
                             tableInfo._size.increment();
                         }
                     }
                     else
                     {
-                        if (putval == TOMBSTONE)
+                        if (newVal == TOMBSTONE)
                         {
                             tableInfo._size.decrement();
                         }
