@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using NonBlocking;
 using System.Collections.Concurrent;
+using Xunit;
 
 namespace NonBlockingTests
 {
@@ -51,6 +52,7 @@ namespace NonBlockingTests
             }
         }
 
+        [Fact()]
         private static void NullValueRef()
         {
             var dict = NonBlockingDictionary.Create<int, string>();
@@ -78,6 +80,7 @@ namespace NonBlockingTests
             }
         }
 
+        [Fact()]
         private static void NullValueNub()
         {
             var dict = NonBlockingDictionary.Create<int, int?>();
@@ -105,6 +108,7 @@ namespace NonBlockingTests
             }
         }
 
+        [Fact()]
         private static void AddSetRemove()
         {
             var dict = NonBlockingDictionary.Create<object, string>();
@@ -158,6 +162,7 @@ namespace NonBlockingTests
 
         }
 
+        [Fact()]
         private static void AddSetRemoveConcurrent()
         {
             var dict = NonBlockingDictionary.Create<object, string>();
@@ -186,6 +191,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
         }
 
+        [Fact()]
         private static void AddSetRemoveConcurrentInt()
         {
             var dict = NonBlockingDictionary.Create<int, string>();
@@ -229,6 +235,7 @@ namespace NonBlockingTests
             }
         }
 
+        [Fact()]
         private static void AddSetRemoveConcurrentStruct()
         {
             var dict = NonBlockingDictionary.Create<S1, string>();
@@ -257,6 +264,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
         }
 
+        [Fact()]
         private static void Continuity001()
         {
             var dict = NonBlockingDictionary.Create<int, int>();
@@ -308,6 +316,7 @@ namespace NonBlockingTests
 
         }
 
+        [Fact()]
         private static void Continuity002()
         {
             var dict = NonBlockingDictionary.Create<object, int>();
@@ -359,6 +368,7 @@ namespace NonBlockingTests
 
         }
 
+        [Fact()]
         private static void ContinuityOfRemove001()
         {
             var dict = NonBlockingDictionary.Create<int, int>();
@@ -374,7 +384,7 @@ namespace NonBlockingTests
                         {
                             if (dict.TryGetValue(i, out val))
                             {
-                                dict.Remove(i);
+                               Assert.True(dict.Remove(i));
                             }
                             else
                             {
@@ -426,6 +436,7 @@ namespace NonBlockingTests
                     });
         }
 
+        [Fact()]
         private static void ContinuityOfRemove002()
         {
             var dict = NonBlockingDictionary.Create<object, int>();
@@ -493,6 +504,7 @@ namespace NonBlockingTests
                     });
         }
 
+        [Fact()]
         private static void Relativity001()
         {
             var dict = NonBlockingDictionary.Create<int, int>();
@@ -537,6 +549,7 @@ namespace NonBlockingTests
                 });
         }
 
+        [Fact()]
         private static void Relativity002()
         {
             var dict = NonBlockingDictionary.Create<object, int>();
