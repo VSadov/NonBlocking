@@ -58,26 +58,13 @@ namespace NonBlockingTests
             var dict = NonBlockingDictionary.Create<int, string>();
 
             string s;
-            if (dict.TryGetValue(0, out s))
-            {
-                throw new Exception();
-            }
+            Assert.False(dict.TryGetValue(0, out s));
 
             dict.Add(0, null);
-            if (!dict.TryGetValue(0, out s) || s != null)
-            {
-                throw new Exception();
-            }
-
-            if (!dict.Remove(0))
-            {
-                throw new Exception();
-            }
-
-            if (dict.TryGetValue(0, out s))
-            {
-                throw new Exception();
-            }
+            Assert.True(dict.TryGetValue(0, out s));
+            Assert.Null(s);
+            Assert.True(dict.Remove(0));
+            Assert.False(dict.TryGetValue(0, out s));
         }
 
         [Fact()]
@@ -377,6 +364,8 @@ namespace NonBlockingTests
                 (i) =>
                 {
                     int val;
+                    int d;
+
                     if (i % 2 == 0)
                     {
                         // flip/flop slot
@@ -384,11 +373,12 @@ namespace NonBlockingTests
                         {
                             if (dict.TryGetValue(i, out val))
                             {
-                               Assert.True(dict.Remove(i));
+                               Assert.True(dict.TryRemove(i, out d));
+                               Assert.Equal(d, i);
                             }
                             else
                             {
-                                dict.Add(i, i);
+                               Assert.True(dict.TryAdd(i, i));
                             }
                         }
 
@@ -406,6 +396,7 @@ namespace NonBlockingTests
                     (i) =>
                     {
                         int val;
+                        int d;
                         if (i % 2 == 0)
                         {
                             // flip/flop slot
@@ -413,11 +404,12 @@ namespace NonBlockingTests
                             {
                                 if (dict.TryGetValue(i, out val))
                                 {
-                                    dict.Remove(i);
+                                    Assert.True(dict.TryRemove(i, out d));
+                                    Assert.Equal(d, i);
                                 }
                                 else
                                 {
-                                    dict.Add(i, i);
+                                    Assert.True(dict.TryAdd(i, i));
                                 }
                             }
                         }
@@ -445,6 +437,7 @@ namespace NonBlockingTests
                 (i) =>
                 {
                     int val;
+                    int d;
                     if (i % 2 == 0)
                     {
                         // flip/flop slot
@@ -452,11 +445,12 @@ namespace NonBlockingTests
                         {
                             if (dict.TryGetValue(i, out val))
                             {
-                                dict.Remove(i);
+                                Assert.True(dict.TryRemove(i, out d));
+                                Assert.Equal(d, i);
                             }
                             else
                             {
-                                dict.Add(i, i);
+                                Assert.True(dict.TryAdd(i, i));
                             }
                         }
 
@@ -474,6 +468,7 @@ namespace NonBlockingTests
                     (i) =>
                     {
                         int val;
+                        int d;
                         if (i % 2 == 0)
                         {
                             // flip/flop slot
@@ -481,11 +476,12 @@ namespace NonBlockingTests
                             {
                                 if (dict.TryGetValue(i, out val))
                                 {
-                                    dict.Remove(i);
+                                    Assert.True(dict.TryRemove(i, out d));
+                                    Assert.Equal(d, i);
                                 }
                                 else
                                 {
-                                    dict.Add(i, i);
+                                    Assert.True(dict.TryAdd(i, i));
                                 }
                             }
                         }

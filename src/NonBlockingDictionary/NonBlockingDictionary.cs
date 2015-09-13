@@ -107,6 +107,13 @@ namespace NonBlocking
         // TODO: move to leafs
         internal IEqualityComparer<TKey> keyComparer;
 
+        protected enum ValueMatch
+        {
+            NullOrDead,     // set value if original value is null or dead, used by Add/TryAdd
+            NotNullOrDead,  // set value if original value is alive, used by Remove
+            Any,            // sets new value unconditionally, used by index set
+        }
+
         public void Add(TKey key, TValue value)
         {
             if (!TryAdd(key, value))
@@ -115,16 +122,33 @@ namespace NonBlocking
             }
         }
 
-        protected enum ValueMatch
-        {
-            NullOrDead,     // set value if original value is null or dead, used by Add/TryAdd
-            NotNullOrDead,  // set value if original value is alive, used by Remove
-            Any,            // sets new value unconditionally, used by index set
-        }
-
         public bool TryAdd(TKey key, TValue value)
         {
-            return putIfMatch(key, value, ValueMatch.NullOrDead);
+            object objValue;
+            return putIfMatch(key, value, out objValue, ValueMatch.NullOrDead);
+        }
+
+        public bool Remove(TKey key)
+        {
+            object objValue;
+            var found = putIfMatch(key, TOMBSTONE, out objValue, ValueMatch.NotNullOrDead);
+            Debug.Assert(!(objValue is Prime));
+
+            return found;
+        }
+
+        public bool TryRemove(TKey key, out TValue value)
+        {
+            object objValue;
+            var found = putIfMatch(key, TOMBSTONE, out objValue, ValueMatch.NotNullOrDead);
+
+            Debug.Assert(!(objValue is Prime));
+
+            value = found ?
+                (TValue)objValue :
+                default(TValue);
+
+            return found;
         }
 
         public bool TryGetValue(TKey key, out TValue value)
@@ -139,11 +163,6 @@ namespace NonBlocking
                 default(TValue);
 
             return found;
-        }
-
-        public bool Remove(TKey key)
-        {
-            return putIfMatch(key, TOMBSTONE, ValueMatch.NotNullOrDead);
         }
 
         public TValue this[TKey key]
@@ -164,13 +183,14 @@ namespace NonBlocking
             }
             set
             {
-                putIfMatch(key, value, ValueMatch.Any);
+                object objValue;
+                putIfMatch(key, value, out objValue, ValueMatch.Any);
             }
         }
 
         public abstract void Clear();
 
-        protected abstract bool putIfMatch(TKey key, object newVal, ValueMatch match);
+        protected abstract bool putIfMatch(TKey key, object newVal, out object value, ValueMatch match);
         protected abstract bool tryGetValue(TKey key, out object value);
     }
 }

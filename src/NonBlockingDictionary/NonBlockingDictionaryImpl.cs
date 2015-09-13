@@ -244,7 +244,7 @@ namespace NonBlocking
         // 3) returns true if the value was actually changed 
         // Note that pre-existence of the slot is irrelevant 
         // since slot without a value is as good as no slot at all
-        protected sealed override bool putIfMatch(TKey key, object newVal, ValueMatch match)
+        protected sealed override bool putIfMatch(TKey key, object newVal, out object oldVal, ValueMatch match)
         {
             if (newVal == null)
             {
@@ -254,7 +254,7 @@ namespace NonBlocking
             var table = this._topTable;
             int fullhash = hash(key);
 
-            tailCall:
+            TRY_WITH_NEW_TABLE:
 
             Debug.Assert(newVal != null);
             Debug.Assert(!(newVal is Prime));
@@ -277,7 +277,7 @@ namespace NonBlocking
                     if (newVal == TOMBSTONE)
                     {
                         Debug.Assert(match == ValueMatch.NotNullOrDead);
-                        return false;
+                        goto FAILED;
                     }
                     else
                     {
@@ -316,12 +316,9 @@ namespace NonBlocking
                 {
                     // start resize or get new table if resize is already in progress
                     table = tableInfo.Resize(this, table);
-
                     // help along an existing copy
                     this.HelpCopy();
-
-                    // return this.putIfMatch(resized, key, putval, expVal);
-                    goto tailCall;
+                    goto TRY_WITH_NEW_TABLE;
                 }
 
                 // quadratic reprobing
@@ -341,7 +338,7 @@ namespace NonBlocking
             if (newVal == entryValue)
             {
                 //the exact same value is already there
-                return false;
+                goto FAILED;
             }
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
@@ -369,10 +366,8 @@ namespace NonBlocking
             {
                 var newTable1 = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
                 Debug.Assert(newTable == newTable1);
-
-                // return this.putIfMatch(newTable, key, putval, expVal);
                 table = newTable;
-                goto tailCall;
+                goto TRY_WITH_NEW_TABLE;
             }
 
             // We are finally prepared to update the existing table
@@ -392,12 +387,12 @@ namespace NonBlocking
                             break;
                         }
 
-                        return false;
+                        goto FAILED;
 
                     case ValueMatch.NotNullOrDead:
                         if (entryValueNullOrDead)
                         {
-                            return false;
+                            goto FAILED;
                         }
                         break;
                 }
@@ -405,7 +400,7 @@ namespace NonBlocking
                 if (newVal == entryValue)
                 {
                     // Do not update!
-                    return false;
+                    goto FAILED;
                 }
 
                 // Actually change the Value 
@@ -416,6 +411,7 @@ namespace NonBlocking
                     // Adjust sizes
                     if (entryValueNullOrDead)
                     {
+                        oldVal = null;
                         if (newVal != TOMBSTONE)
                         {
                             tableInfo._size.increment();
@@ -423,6 +419,7 @@ namespace NonBlocking
                     }
                     else
                     {
+                        oldVal = prev;
                         if (newVal == TOMBSTONE)
                         {
                             tableInfo._size.decrement();
@@ -437,23 +434,25 @@ namespace NonBlocking
                 if (prev is Prime)
                 {
                     newTable = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
-
-                    // return this.putIfMatch(newTable, key, putval, expVal);
                     table = newTable;
-                    goto tailCall;
+                    goto TRY_WITH_NEW_TABLE;
                 }
 
                 // Otherwise we lost the CAS to another racing put.
                 // Simply retry from the start.
                 entryValue = prev;
             }
+
+            FAILED:
+            oldVal = null;
+            return false;
         }
 
         private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullhash)
         {
             Debug.Assert(putval != TOMBSTONE);
 
-            tailCall:
+            TRY_WITH_NEW_TABE:
 
             Debug.Assert(putval != null);
             Debug.Assert(!(putval is Prime));
@@ -504,10 +503,8 @@ namespace NonBlocking
                     entryHash == TOMBPRIMEHASH)
                 {
                     var resized = tableInfo.Resize(this, table);
-
-                    // return this.putIfMatch(resized, key, putval, expVal);
                     table = resized;
-                    goto tailCall;
+                    goto TRY_WITH_NEW_TABE;
                 }
 
                 // quadratic reprobing
@@ -538,10 +535,8 @@ namespace NonBlocking
             {
                 var newTable1 = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: false);
                 Debug.Assert(newTable == newTable1);
-
-                // return this.putIfMatch(newTable, key, putval, expVal);
                 table = newTable;
-                goto tailCall;
+                goto TRY_WITH_NEW_TABE;
             }
 
             // We are finally prepared to update the existing table
