@@ -312,7 +312,7 @@ namespace NonBlocking
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
                 if (++reprobe_cnt >= ReprobeLimit(lenMask) |
-                entryHash == TOMBPRIMEHASH)
+                    entryHash == TOMBPRIMEHASH)
                 {
                     // start resize or get new table if resize is already in progress
                     table = tableInfo.Resize(this, table);
@@ -801,7 +801,7 @@ namespace NonBlocking
                     {
                         // If we made the Value slot hold a TOMBPRIME, then we both
                         // prevented further updates here but also the (absent)
-                        // oldval is vaccuously available in the new table.  We
+                        // oldval is vacuously available in the new table.  We
                         // return with true here: any thread looking for a value for
                         // this key can correctly go straight to the new table and
                         // skip looking in the old table.
@@ -833,6 +833,7 @@ namespace NonBlocking
                 object originalValue = ((Prime)oldval).originalValue;
                 Debug.Assert(originalValue != TOMBSTONE);
                 // since we have a real value, there must be a nontrivial key in the table
+                // non-volatile read because the CAS of a boxed value above is a complete fence
                 var key = oldTable[idx].key;
 
                 bool copiedIntoNew = topmap.copySlot(newTable, key, originalValue, hash);
