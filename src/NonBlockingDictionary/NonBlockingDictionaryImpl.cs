@@ -604,12 +604,12 @@ namespace NonBlocking
             }
 
             public int size() { return (int)_size.get(); }
-            public int slots() { return (int)_slots.get(); }
+            public int estimated_slots_used() { return (int)_slots.estimate_get(); }
 
             public bool tableIsCrowded(int len)
             {
                 // 80% utilization, switch to a bigger table
-                return _slots.estimate_get() > (len >> 2) * 3;
+                return estimated_slots_used() > (len >> 2) * 3;
             }
 
             // Help along an existing resize operation.  We hope its the top-level
