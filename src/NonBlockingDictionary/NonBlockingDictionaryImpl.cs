@@ -113,7 +113,7 @@ namespace NonBlocking
         {
             unchecked
             {
-                uint origHash = (uint)keyComparer.GetHashCode(key);
+                uint h = (uint)keyComparer.GetHashCode(key);
 
                 // being an open addressed, this hashtable has some sensitivity
                 // to clustering behavior of the provided hash, so in theory
@@ -130,22 +130,16 @@ namespace NonBlocking
                 // I will disable this pending more data.
 
 #if MIX_HASH
-                // variant of FNV-1a hash.
-                const uint FnvOffsetBias = 2166136261;
-                const uint FnvPrime = 16777619;
+                // 32-bit finalizer for MurmurHash3.
+                h ^= h >> 16;
+                h *= 0x85ebca6b;
+                h ^= h >> 13;
+                h *= 0xc2b2ae35;
+                h ^= h >> 16;
 
-                uint hashCode = FnvOffsetBias;
-
-                hashCode = (hashCode ^ (origHash & 0xFF)) * FnvPrime;
-                hashCode = (hashCode ^ ((origHash >> 8) & 0xFF)) * FnvPrime;
-                hashCode = (hashCode ^ ((origHash >> 16) & 0xFF)) * FnvPrime;
-                hashCode = (hashCode ^ ((origHash >> 24))) * FnvPrime;
-
-                // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
-                return (int)hashCode | REGULAR_HASH_BITS;
 #else
                 // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
-                return (int)(origHash | REGULAR_HASH_BITS);
+                return (int)(h | REGULAR_HASH_BITS);
 #endif
             }
         }

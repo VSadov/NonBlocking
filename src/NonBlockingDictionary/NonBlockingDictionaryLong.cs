@@ -109,23 +109,22 @@ namespace NonBlocking
             //    ZEROHASH :
             //    key.GetHashCode() | REGULAR_HASH_BITS;
 
-            if (key == 0) return ZEROHASH;
+            if (key != 0)
+            {
+                uint h = (uint)key.GetHashCode();
 
-            // variant of FNV-1a hash.
-            const uint FnvOffsetBias = 2166136261;
-            const uint FnvPrime = 16777619;
+                // 32-bit finalizer for MurmurHash3.
+                h ^= h >> 16;
+                h *= 0x85ebca6b;
+                h ^= h >> 13;
+                h *= 0xc2b2ae35;
+                h ^= h >> 16;
 
-            uint origHash = (uint)key.GetHashCode();
-            uint hashCode = FnvOffsetBias;
+                // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
+                return (int)h | REGULAR_HASH_BITS;
+            }
 
-            hashCode = (hashCode ^ (origHash & 0xFF)) * FnvPrime;
-            hashCode = (hashCode ^ ((origHash >> 8) & 0xFF)) * FnvPrime;
-            hashCode = (hashCode ^ ((origHash >> 16) & 0xFF)) * FnvPrime;
-            hashCode = (hashCode ^ ((origHash >> 24))) * FnvPrime;
-
-            // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
-            return (int)hashCode | REGULAR_HASH_BITS;
-
+            return ZEROHASH;
         }
 
         protected override bool keyEqual(long key, long entryKey)
