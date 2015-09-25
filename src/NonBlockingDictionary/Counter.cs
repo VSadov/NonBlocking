@@ -10,41 +10,59 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class Counter
+    public sealed class Counter
     {
-        [StructLayout(LayoutKind.Explicit)]
-        private struct Cell
+        public const int MAX_DRIFT = 42;
+        public static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2 - 1;
+
+        private class Cell
         {
-            // do not overlap with other counters or with array.Length
-            [FieldOffset(60)]
-            public int cnt;
+            [StructLayout(LayoutKind.Explicit)]
+            public struct SpacedCounter
+            {
+                // 64 bytes - sizeof(int) - sizeof(objecHeader32)
+                [FieldOffset(52)]
+                public int cnt;
+            }
+
+            public SpacedCounter counter;
         }
 
+        // spaced out counters
         private Cell[] cells;
 
-        //private int lastCnt;
-        //private long lastTicks;
+        // default counter
+        private int cnt;
 
+        // how many cells we have
+        private int cellCount;
+        
         public Counter()
-            : this(4)
         {
-        }
-
-        private Counter(int size)
-        {
-            cells = new Cell[size];
         }
 
         public int get()
         {
+            var count = this.cnt;
             var cells = this.cells;
-            var sum = 0;
-            for(int i = 0; i < cells.Length; i++)
+
+            if (cells != null)
             {
-                sum += cells[i].cnt;
+                for(int i = 0; i < cells.Length; i++)
+                {
+                    var cell = cells[i];
+                    if (cell != null)
+                    {
+                        count += cell.counter.cnt;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
             }
 
-            return sum;
+            return count;
         }
 
         internal int estimate_get()
@@ -67,28 +85,100 @@ namespace NonBlocking
 
         public void increment()
         {
-            var cells = this.cells;
-            int idx = GetIndex(cells);
+            var cellCount = this.cellCount;
+            var idx = GetIndex(cellCount);
 
-            int val = cells[idx].cnt;
-            Interlocked.Increment(ref cells[idx].cnt);
+            int retries;
+            if (idx == 0)
+            {
+                retries = increment(ref this.cnt);
+            }
+            else
+            {
+                retries = increment(ref this.cells[idx - 1].counter.cnt);
+            }
+
+            if (retries > MAX_DRIFT)
+            {
+                //System.Console.WriteLine(retries);
+                TryAddCell(cellCount);
+            }
+        }
+
+        private static int increment(ref int val)
+        {
+            var expected = val + 1;
+            var newVal = Interlocked.Increment(ref val);
+
+            var drift = Math.Abs(newVal - expected);
+
+            return drift;
         }
 
         public void decrement()
         {
-            var cells = this.cells;
-            int idx = GetIndex(cells);
+            var cellCount = this.cellCount;
+            var idx = GetIndex(cellCount);
 
-            int val = cells[idx].cnt;
-            Interlocked.Decrement(ref cells[idx].cnt);
+            int retries;
+            if (idx == 0)
+            {
+                retries = decrement(ref this.cnt);
+            }
+            else
+            {
+                retries = decrement(ref this.cells[idx - 1].counter.cnt);
+            }
+
+            if (retries > MAX_DRIFT)
+            {
+                //System.Console.WriteLine(retries);
+                TryAddCell(cellCount);
+            }
         }
 
-        private static int GetIndex(Cell[] cells)
+        private static int decrement(ref int val)
         {
-            var mask = cells.Length - 1;
-            return mask == 0 ?
-                mask :
-                Environment.CurrentManagedThreadId & mask;
+            var expected = val - 1;
+            var newVal = Interlocked.Decrement(ref val);
+
+            var drift = Math.Abs(newVal - expected);
+
+            return drift;
+        }
+
+        private void TryAddCell(int cellCount)
+        {
+            if (cellCount < MAX_CELL_COUNT)
+            {
+                var cells = this.cells;
+                if (cells == null)
+                {
+                    var newCells = new Cell[32];
+                    cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
+                }
+
+                if (cells[cellCount] == null)
+                {
+                    Interlocked.CompareExchange(ref cells[cellCount], new Cell(), null);
+                }
+
+                if (this.cellCount == cellCount)
+                {
+                    Interlocked.CompareExchange(ref this.cellCount, cellCount + 1, cellCount);
+                    //if (Interlocked.CompareExchange(ref this.cellCount, cellCount + 1, cellCount) == cellCount)
+                    //{
+                    //    System.Console.WriteLine(cellCount + 1);
+                    //}
+                }
+            }
+        }
+
+        private static int GetIndex(int cellCount)
+        {
+            return cellCount == 0 ?
+                0 :
+                Environment.CurrentManagedThreadId % (cellCount + 1);
         }
 
         internal static long CurrentTimeMillis()

@@ -42,6 +42,10 @@ namespace NonBlocking
         // to be different from 0, TOMBPRIMEHASH or ZEROHASH
         internal const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
+        // targeted time span between resizes.
+        // if resizing more often than this, try expanding.
+        const int RESIZE_MILLIS_TARGET = 100;
+
         // NOTE: Not Staitc For perf reasons
         private TableInfo GetTableInfo(Entry[] table)
         {
@@ -446,7 +450,7 @@ namespace NonBlocking
         {
             Debug.Assert(putval != TOMBSTONE);
 
-            TRY_WITH_NEW_TABE:
+            TRY_WITH_NEW_TABLE:
 
             Debug.Assert(putval != null);
             Debug.Assert(!(putval is Prime));
@@ -498,7 +502,7 @@ namespace NonBlocking
                 {
                     var resized = tableInfo.Resize(this, table);
                     table = resized;
-                    goto TRY_WITH_NEW_TABE;
+                    goto TRY_WITH_NEW_TABLE;
                 }
 
                 // quadratic reprobing
@@ -530,7 +534,7 @@ namespace NonBlocking
                 var newTable1 = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: false);
                 Debug.Assert(newTable == newTable1);
                 table = newTable;
-                goto TRY_WITH_NEW_TABE;
+                goto TRY_WITH_NEW_TABLE;
             }
 
             // We are finally prepared to update the existing table
@@ -712,6 +716,7 @@ namespace NonBlocking
                     // Attempt to promote
                     if (Interlocked.CompareExchange(ref topmap._topTable, _newTable, oldTable) == oldTable)
                     {
+                        // System.Console.WriteLine("size: " + _newTable.Length);
                         topmap._lastResizeMilli = CurrentTimeMillis();
                     }
                 }
@@ -887,11 +892,11 @@ namespace NonBlocking
 
                 // if new table would shrink or hold steady, 
                 // we must be resizing because of churn.
-                // target churn based resize rate to be about 1 per second
+                // target churn based resize rate to be about 1 per RESIZE_MILLIS_TARGET
                 if (newsz <= oldlen)
                 {
-                    var resizeSpan = CurrentTimeMillis() - topmap._lastResizeMilli;
-                    if (resizeSpan < 1000)
+                    var resizeSpan = CurrentTimeMillis() - topmap._lastResizeMilli + 1;
+                    if (resizeSpan < RESIZE_MILLIS_TARGET)
                     {
                         // last resize too recent, expand
                         newsz = oldlen < MAX_SIZE ? oldlen << 1 : oldlen;
@@ -899,7 +904,7 @@ namespace NonBlocking
                     else
                     {
                         // do not allow shrink too fast
-                        newsz = Math.Max(newsz, (int)(oldlen * 1000 / resizeSpan));
+                        newsz = Math.Max(newsz, (int)((long)oldlen * RESIZE_MILLIS_TARGET / resizeSpan));
                     }
                 }
 

@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using NonBlocking;
 using System.Threading;
+using System.Collections.Concurrent;
 
 namespace NonBlockingTests
 {
@@ -17,17 +18,44 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
-            AddBenchSmall();
+            for (;;)
+            {
+                RunOnce();
+                System.Console.WriteLine();
+            }
+
+            //RunMany();
+            //ChurnSequential();
 
             //ChurnSequential();
+            //ChurnConcurrent();
+        }
+
+        //private static void RunMany()
+        //{
+        //    for (int i = 0; i < 32; i++)
+        //    {
+        //        NonBlocking.Counter.MAX_CELL_COUNT = i;
+        //        for (int j = 0; j < 10; j++)
+        //        {
+        //            NonBlocking.Counter.MAX_DRIFT = j * j;
+        //            RunOnce();
+        //            System.Console.Write(" ");
+        //        }
+        //        System.Console.WriteLine();
+        //    }
+        //}
+
+        private static void RunOnce()
+        {
+            var arr = new long[] {
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),};
+
+            System.Console.Write(arr.Min());
         }
 
         private static void GetBench()
@@ -122,7 +150,7 @@ namespace NonBlockingTests
             System.Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        private static void AddBenchSmall()
+        private static long  AddBenchSmall()
         {
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
@@ -148,7 +176,7 @@ namespace NonBlockingTests
             }
 
             sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
+            return sw.ElapsedMilliseconds;
         }
 
         private static void AssignBench()
@@ -215,20 +243,50 @@ namespace NonBlockingTests
         {
             var dict = NonBlockingDictionary.Create<int, string>();
 
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 10000000; i++)
             {
                 dict.Add(i, "dummy");
                 dict.Remove(i);
                 //Thread.Sleep(10);
             }
 
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 10000000; i++)
             {
                 dict.Add(i, "dummy");
                 dict.Remove(i);
-                Thread.Sleep(10);
+                //Thread.Sleep(10);
             }
 
+        }
+
+        private static void ChurnConcurrent()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new ConcurrentDictionary<int, string>();
+
+            for (int i = 0; i < 1000000; i++)
+            {
+                new Task(() =>
+                {
+                    for (int j = i * 1000000, l = j + 1000000; j < l; j++)
+                    {
+                        string dummy;
+                        dict.TryAdd(j, "dummy");
+                        dict.TryRemove(j, out dummy);
+                        //Thread.Sleep(10);
+                    }
+                    System.Console.Write('.');
+                }, TaskCreationOptions.LongRunning).Start();
+            }
+
+
+            for (int j = 2000000, l = j + 1000000; j < l; j++)
+            {
+                string dummy;
+                dict.TryAdd(j, "dummy");
+                dict.TryRemove(j, out dummy);
+                //Thread.Sleep(10);
+            }
         }
     }
 
