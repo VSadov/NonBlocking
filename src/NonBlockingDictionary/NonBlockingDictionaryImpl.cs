@@ -782,37 +782,51 @@ namespace NonBlocking
                 // Prevent new values from appearing in the old table.
                 // Box what we see in the old table, to prevent further updates.
                 object oldval = oldTable[idx].value; // Read OLD table
-                while (!(oldval is Prime))
+
+                // already boxed?
+                Prime box = oldval as Prime;
+                if (box != null)
                 {
-                    Prime box = (oldval == null | oldval == TOMBSTONE) ?
-                        TOMBPRIME :
-                        new Prime(oldval);
-
-                    // CAS down a box'd version of oldval
-                    object prev = Interlocked.CompareExchange(ref oldTable[idx].value, box, oldval);
-
-                    if (prev == oldval)
+                    // volatile read here since we need to make sure 
+                    // that the key read below happens after we have read oldval
+                    Volatile.Read(ref box.originalValue);
+                }
+                else
+                {
+                    do
                     {
-                        // If we made the Value slot hold a TOMBPRIME, then we both
-                        // prevented further updates here but also the (absent)
-                        // oldval is vacuously available in the new table.  We
-                        // return with true here: any thread looking for a value for
-                        // this key can correctly go straight to the new table and
-                        // skip looking in the old table.
-                        if (box == TOMBPRIME)
+                        box = (oldval == null | oldval == TOMBSTONE) ?
+                            TOMBPRIME :
+                            new Prime(oldval);
+
+                        // CAS down a box'd version of oldval
+                        object prev = Interlocked.CompareExchange(ref oldTable[idx].value, box, oldval);
+
+                        if (prev == oldval)
                         {
-                            return true;
+                            // If we made the Value slot hold a TOMBPRIME, then we both
+                            // prevented further updates here but also the (absent)
+                            // oldval is vacuously available in the new table.  We
+                            // return with true here: any thread looking for a value for
+                            // this key can correctly go straight to the new table and
+                            // skip looking in the old table.
+                            if (box == TOMBPRIME)
+                            {
+                                return true;
+                            }
+
+                            // Break loop; oldval is now boxed by us
+                            // it still needs to be copied into the new table.
+                            break;                
                         }
 
-                        // Otherwise we boxed something, but it still needs to be
-                        // copied into the new table.
-                        oldval = box;         // Record updated oldval
-                        break;                // Break loop; oldval is now boxed by us
+                        oldval = prev;
+                        box = oldval as Prime;
                     }
-                    oldval = prev; // Else try, try again
+                    while (box == null);
                 }
 
-                if (oldval == TOMBPRIME)
+                if (box == TOMBPRIME)
                 {
                     // Copy already complete here!
                     return false;
@@ -824,7 +838,7 @@ namespace NonBlocking
                 // appears in the old table.  If putIfMatch does not find a null in the
                 // new table - somebody else should have recorded the null-not_null
                 // transition in this copy.
-                object originalValue = ((Prime)oldval).originalValue;
+                object originalValue = box.originalValue;
                 Debug.Assert(originalValue != TOMBSTONE);
                 // since we have a real value, there must be a nontrivial key in the table
                 // non-volatile read because the CAS of a boxed value above is a complete fence
