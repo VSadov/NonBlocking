@@ -110,7 +110,7 @@ namespace NonBlocking
             var expected = val + 1;
             var newVal = Interlocked.Increment(ref val);
 
-            var drift = Math.Abs(newVal - expected);
+            var drift = fastAbs(newVal - expected);
 
             return drift;
         }
@@ -142,9 +142,21 @@ namespace NonBlocking
             var expected = val - 1;
             var newVal = Interlocked.Decrement(ref val);
 
-            var drift = Math.Abs(newVal - expected);
+            var drift = fastAbs(newVal - expected);
 
             return drift;
+        }
+
+        // this is faster than Math.Abs, 
+        // but will not throw for int.MinValue, which we can ignore
+        // as tolearable and extremely unlikely
+        private static int fastAbs(int arg)
+        {
+            // -1 when arg is negative, 0 otherwise
+            var minOneWhenNegative = arg >> 31;
+
+            // ~(arg + 1)   is same as negation
+            return (arg - minOneWhenNegative) ^ minOneWhenNegative;
         }
 
         private void TryAddCell(int cellCount)
