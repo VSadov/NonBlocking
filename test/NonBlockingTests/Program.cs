@@ -18,24 +18,43 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            AddSetRemove();
-            AddSetRemoveConcurrent();
-            AddSetRemoveConcurrentInt();
-            AddSetRemoveConcurrentStruct();
+            for (;;)
+            {
+                System.Console.WriteLine("AddSetRemove");
+                AddSetRemove();
+                System.Console.WriteLine("AddSetRemoveConcurrent");
+                AddSetRemoveConcurrent();
+                System.Console.WriteLine("AddSetRemoveConcurrentInt");
+                AddSetRemoveConcurrentInt();
+                System.Console.WriteLine("AddSetRemoveConcurrentStruct");
+                AddSetRemoveConcurrentStruct();
 
-            NullValueRef();
-            NullValueNub();
+                System.Console.WriteLine("NullValueRef");
+                NullValueRef();
+                System.Console.WriteLine("NullValueNub");
+                NullValueNub();
 
-            Continuity001();
-            Continuity002();
+                System.Console.WriteLine("Continuity001");
+                Continuity001();
+                System.Console.WriteLine("Continuity002");
+                Continuity002();
 
-            ContinuityOfRemove001();
-            ContinuityOfRemove002();
+                System.Console.WriteLine("ContinuityOfRemove001");
+                ContinuityOfRemove001();
+                System.Console.WriteLine("ContinuityOfRemove002");
+                ContinuityOfRemove002();
 
-            Relativity001();
-            Relativity002();
+                System.Console.WriteLine("Relativity001");
+                Relativity001();
+                System.Console.WriteLine("Relativity002");
+                Relativity002();
 
-            System.Console.WriteLine("PASS");
+                System.Console.WriteLine("BadHashAdd");
+                BadHashAdd();
+
+                System.Console.WriteLine("=========== PASS");
+                System.Console.WriteLine();
+            }
         }
 
         private static void TimeIt(Action a)
@@ -590,5 +609,26 @@ namespace NonBlockingTests
                 });
         }
 
+
+        class BadHash
+        {
+            public override int GetHashCode()
+            {
+                return 1;
+            }
+        }
+
+        [Fact()]
+        private static void BadHashAdd()
+        {
+            var dict = NonBlockingDictionary.Create<BadHash, int>();
+
+            for(int i = 0; i < 10000; i++)
+            {
+                var o = new BadHash();
+                dict.TryAdd(o, i);
+                Assert.Equal(i, dict[o]);
+            }
+        }
     }
 }

@@ -27,6 +27,7 @@ namespace NonBlocking
         private long _lastResizeMilli;
 
         private const int REPROBE_LIMIT = 4;
+        private const int REPROBE_LIMIT_SHIFT = 1;
         private const int MIN_SIZE = 8;
 
         // represents forcefully dead entry 
@@ -44,7 +45,7 @@ namespace NonBlocking
 
         // targeted time span between resizes.
         // if resizing more often than this, try expanding.
-        const int RESIZE_MILLIS_TARGET = 100;
+        const int RESIZE_MILLIS_TARGET = 1000;
 
         // NOTE: Not Staitc For perf reasons
         private TableInfo GetTableInfo(Entry[] table)
@@ -66,8 +67,8 @@ namespace NonBlocking
         //       (some JITs insert useless code related to generics if this is a static)
         private int ReprobeLimit(int lenMask)
         {
-            // 1/4 of table with some extra
-            return REPROBE_LIMIT + (lenMask >> 2);
+            // 1/2 of table with some extra
+            return REPROBE_LIMIT + (lenMask >> REPROBE_LIMIT_SHIFT);
         }
 
         internal NonBlockingDictionary() :
@@ -566,6 +567,8 @@ namespace NonBlocking
 
         private sealed class TableInfo
         {
+            //TODO: VS perhaps order fields to have gaps between ones changing 
+
             internal readonly Counter _size;
             internal readonly Counter _slots;
 
@@ -588,7 +591,7 @@ namespace NonBlocking
             // table to the new table.  Workers are not required to finish any chunk;
             // the counter simply wraps and work is copied duplicately until somebody
             // somewhere completes the count.
-            volatile int _copyIdx = 0;
+            volatile int _claimedChunk = 0;
 
             // Work-done reporting.  Used to efficiently signal when we can move to
             // the new table.  From 0 to length of old table refers to copying from the old
@@ -621,49 +624,67 @@ namespace NonBlocking
                 int oldlen = topmap.GetTableLength(oldTable); // Total amount to copy
 
 #if DEBUG
-                int MIN_COPY_WORK = Math.Min(oldlen, 17); // Limit per-thread work
+                const int CHUNK = 16;
 #else
-                int MIN_COPY_WORK = Math.Min(oldlen, 1024); // Limit per-thread work
+                const int CHUNK_SIZE = 1024;
 #endif
+                int MIN_COPY_WORK = Math.Min(oldlen, CHUNK_SIZE); // Limit per-thread work
 
-                int panic_start = -1;
-                int copyidx = -1;
-                while (_copyDone < oldlen)
+                bool panic = false;
+                int claimedChunk = -1;
+                while (this._copyDone < oldlen)
                 {
                     // Still needing to copy?
-                    // Carve out a chunk of work.  The counter wraps around so every
-                    // thread eventually tries to copy every slot repeatedly.
+                    // Carve out a chunk of work.
+                    if (!panic)
+                    {
+                        claimedChunk = this._claimedChunk;
 
-                    // We "panic" if we have tried TWICE to copy every slot - and it still
-                    // has not happened.  i.e., twice some thread somewhere claimed they
-                    // would copy 'slot X' (by bumping _copyIdx) but they never claimed to
-                    // have finished (by bumping _copyDone).  Our choices become limited:
-                    // we can wait for the work-claimers to finish (and become a blocking
-                    // algorithm) or do the copy work ourselves.  Tiny tables with huge
-                    // thread counts trying to copy the table often 'panic'. 
-                    if (panic_start == -1)
-                    { // No panic?
-                        copyidx = (int)_copyIdx;
-                        while (copyidx < (oldlen << 1) && // 'panic' check
-                               !(Interlocked.CompareExchange(ref _copyIdx, copyidx + MIN_COPY_WORK, copyidx) == copyidx))
+                        for (;;)
                         {
-                            // Re-read
-                            copyidx = (int)_copyIdx;
+                            // panic check
+                            // We "panic" if we have tried TWICE to copy every slot - and it still
+                            // has not happened.  i.e., twice some thread somewhere claimed they
+                            // would copy 'slot X' (by bumping _copyIdx) but they never claimed to
+                            // have finished (by bumping _copyDone).  Our choices become limited:
+                            // we can wait for the work-claimers to finish (and become a blocking
+                            // algorithm) or do the copy work ourselves.  Tiny tables with huge
+                            // thread counts trying to copy the table often 'panic'. 
+                            if (claimedChunk > (oldlen / (CHUNK_SIZE / 2)))
+                            {
+                                panic = true;
+                                break;
+                            }
+
+                            var alreadyClaimed = Interlocked.CompareExchange(ref this._claimedChunk, claimedChunk + 1, claimedChunk);
+                            if (alreadyClaimed == claimedChunk)
+                            {
+                                break;
+                            }
+
+                            claimedChunk = alreadyClaimed;
+                        }
+                    }
+                    else
+                    {
+                        // we went through the whole table in panic mode
+                        // there cannot be possibly anything left to copy.
+                        if (claimedChunk > ((oldlen / (CHUNK_SIZE / 2)) + oldlen / CHUNK_SIZE))
+                        {
+                            _copyDone = oldlen;
+                            Promote(topmap, oldTable);
+                            return;
                         }
 
-                        if (!(copyidx < (oldlen << 1)))  // Panic!
-                        {
-                            // Record where we started to panic-copy
-                            panic_start = copyidx;
-                        }
+                        claimedChunk++;
                     }
 
                     // We now know what to copy.  Try to copy.
                     int workdone = 0;
+                    int copyStart = claimedChunk * CHUNK_SIZE;
                     for (int i = 0; i < MIN_COPY_WORK; i++)
                     {
-                        // Made an oldtable slot go dead?
-                        if (CopySlot(topmap, (copyidx + i) & (oldlen - 1), oldTable, newTable))
+                        if (CopySlot(topmap, (copyStart + i) & (oldlen - 1), oldTable, newTable))
                         {
                             workdone++;
                         }
@@ -672,49 +693,36 @@ namespace NonBlocking
                     if (workdone > 0)
                     {
                         // See if we can promote
-                        CopyCheckAndPromote(topmap, oldTable, workdone);
+                        var copyDone = Interlocked.Add(ref this._copyDone, workdone);
+
+                        // Check for copy being ALL done, and promote.  
+                        if (copyDone >= oldlen)
+                        {
+                            Promote(topmap, oldTable);
+                        }
                     }
 
-                    copyidx += MIN_COPY_WORK;
-
-                    // Uncomment these next 2 lines to turn on incremental table-copy.
-                    // Otherwise this thread continues to copy until it is all done.
-                    if (!copy_all && panic_start == -1) // No panic?
+                    if (!copy_all && !panic)
                     {
-                        // Then done copying after doing MIN_COPY_WORK
                         return;
                     }
                 }
 
                 // Extra promotion check, in case another thread finished all copying
                 // then got stalled before promoting.
-                CopyCheckAndPromote(topmap, oldTable, 0);
+                Promote(topmap, oldTable);
             }
 
-            private void CopyCheckAndPromote(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, int workdone)
+            private void Promote(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable)
             {
-                Debug.Assert(topmap.GetTableInfo(oldTable) == this);
-                int oldlen = topmap.GetTableLength(oldTable);
-                // We made a slot unusable and so did some of the needed copy work
-                int copyDone = _copyDone;
-                Debug.Assert((copyDone + workdone) <= oldlen);
-                if (workdone > 0)
-                {
-                    while (Interlocked.CompareExchange(ref _copyDone, copyDone + workdone, copyDone) != copyDone)
-                    {
-                        copyDone = _copyDone; // Reload, retry
-                        Debug.Assert((copyDone + workdone) <= oldlen);
-                    }
-                }
-
-                // Check for copy being ALL done, and promote.  Note that we might have
+                // Looking at the top-level table?
+                // Note that we might have
                 // nested in-progress copies and manage to finish a nested copy before
                 // finishing the top-level copy.  We only promote top-level copies.
-                if (copyDone + workdone == oldlen && // Ready to promote this table?
-                    topmap._topTable == oldTable) // Looking at the top-level table?                    
+                if (topmap._topTable == oldTable)
                 {
                     // Attempt to promote
-                    if (Interlocked.CompareExchange(ref topmap._topTable, _newTable, oldTable) == oldTable)
+                    if (Interlocked.CompareExchange(ref topmap._topTable, this._newTable, oldTable) == oldTable)
                     {
                         // System.Console.WriteLine("size: " + _newTable.Length);
                         topmap._lastResizeMilli = CurrentTimeMillis();
@@ -745,8 +753,14 @@ namespace NonBlocking
 
                 if (CopySlot(topmap, idx, oldTable, newTable))
                 {
-                    // record 1 copy
-                    CopyCheckAndPromote(topmap, oldTable, 1);
+                    // See if we can promote
+                    var copyDone = Interlocked.Increment(ref this._copyDone);
+
+                    // Check for copy being ALL done, and promote.  
+                    if (copyDone >= topmap.GetTableLength(oldTable))
+                    {
+                        Promote(topmap, oldTable);
+                    }
                 }
 
                 // Record the slot copied
@@ -759,16 +773,10 @@ namespace NonBlocking
                 return newTable;
             }
 
-            // Copy one K/V pair from old table to new table.  Returns true if we can
-            // confirm that the new table guaranteed has a value for this old-table
-            // slot.  We need an accurate confirmed-copy count so that we know when we
-            // can promote (if we promote the new table too soon, other threads may
-            // 'miss' on values not-yet-copied from the old table).  We don't allow
-            // any direct updates on the new table, unless they first happened to the
-            // old table - so that any transition in the new table from null to
-            // not-null must have been from a copy_slot (or other old-table overwrite)
-            // and not from a thread directly writing in the new table.  Thus we can
-            // count null-to-not-null transitions in the new table.
+            // Copy one K/V pair from old table to new table. 
+            // Returns true if we actually did the copy.
+            // Regardless, once this returns, the copy is available in the new table and 
+            // slot in the old table is no longer usable.
             private bool CopySlot(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, int idx, Entry[] oldTable, Entry[] newTable)
             {
                 // Blindly set the hash from 0 to TOMBPRIMEHASH, to eagerly stop
@@ -786,7 +794,7 @@ namespace NonBlocking
 
                 // Prevent new values from appearing in the old table.
                 // Box what we see in the old table, to prevent further updates.
-                object oldval = oldTable[idx].value; // Read OLD table
+                object oldval = oldTable[idx].value; 
 
                 // already boxed?
                 Prime box = oldval as Prime;
@@ -857,7 +865,6 @@ namespace NonBlocking
                 // (i.e., it's a speed optimization not a correctness issue).
                 oldTable[idx].value = TOMBPRIME;
 
-                //TODO: (vsadov) what if current thread croaks with Thread.Abort here or delayed forever?
                 return copiedIntoNew;
             }
 
@@ -885,10 +892,12 @@ namespace NonBlocking
                 //First up: compute new table size.
                 int oldlen = topmap.GetTableLength(table);    
                 int sz = size();
-                const int MAX_SIZE = 1 << 30;
 
-                // First size estimate is 2x of size
-                int newsz = Math.Max(sz < MAX_SIZE? sz << 1 : sz  , MIN_SIZE);
+                const int MAX_SIZE = 1 << 30;
+                const int MAX_CHURN_SIZE = 1 << 15;
+
+                // First size estimate is roughly inverse of ProbeLimit
+                int newsz = Math.Max(sz < MAX_SIZE? sz << REPROBE_LIMIT_SHIFT : sz, MIN_SIZE);
 
                 // if new table would shrink or hold steady, 
                 // we must be resizing because of churn.
@@ -899,7 +908,7 @@ namespace NonBlocking
                     if (resizeSpan < RESIZE_MILLIS_TARGET)
                     {
                         // last resize too recent, expand
-                        newsz = oldlen < MAX_SIZE ? oldlen << 1 : oldlen;
+                        newsz = oldlen < MAX_CHURN_SIZE ? oldlen << 1 : oldlen;
                     }
                     else
                     {
@@ -910,18 +919,19 @@ namespace NonBlocking
 
                 // Align up to a power of 2
                 newsz = AlignToPowerOfTwo(newsz);
-                                
-                // Now limit the number of threads actually allocating memory to a
-                // handful - lest we have 750 threads all trying to allocate a giant
-                // resized array.
-                int r = Interlocked.Increment(ref _resizers);
 
                 // Size calculation: 2 words (K+V) per table entry, plus a handful.  We
                 // guess at 32-bit pointers; 64-bit pointers screws up the size calc by
                 // 2x but does not screw up the heuristic very much.
-                // TODO: some tuning may be needed
+                //
+                // TODO: VS some tuning may be needed
                 int kBs4 = (((newsz << 1) + 4) << 3/*word to bytes*/) >> 12/*kBs4*/;
-                if (r >= 2 && kBs4 > 0)
+
+                // Now, if allocation is big enough,
+                // limit the number of threads actually allocating memory to a
+                // handful - lest we have 750 threads all trying to allocate a giant
+                // resized array.
+                if (kBs4 > 0 && Interlocked.Increment(ref _resizers) >= 2)
                 {
                     // Already 2 guys trying; wait and see
                     newTable = this._newTable;
@@ -944,27 +954,12 @@ namespace NonBlocking
                 }
 
                 // add 1 for table info
-                // This can get expensive for big arrays
                 newTable = new Entry[newsz + 1];
                 newTable[newTable.Length - 1].value = new TableInfo(_size);
 
-#if DEBUG
-                // System.Console.WriteLine(newsz);
-#endif
-
-                // Another check after the slow allocation
-                var curNewTable = this._newTable;
-                // See if resize is already in progress
-                if (curNewTable != null)
-                {
-                    // Use the new table already
-                    return curNewTable;
-                }
-
                 // The new table must be CAS'd in to ensure only 1 winner
-                //return Interlocked.CompareExchange(ref this._newTable, newTable, null) ?? newTable;
-
-                var prev = Interlocked.CompareExchange(ref this._newTable, newTable, null);
+                var prev = this._newTable ??
+                            Interlocked.CompareExchange(ref this._newTable, newTable, null);
 
                 if (prev != null)
                 {
@@ -972,7 +967,7 @@ namespace NonBlocking
                 }
                 else
                 {
-                    // Console.WriteLine("resized: " + newsz);
+                    //Console.WriteLine("resized: " + newsz);
                     return newTable;
                 }
             }

@@ -77,7 +77,7 @@ namespace NonBlockingTests
             System.Console.WriteLine(sw.ElapsedMilliseconds);
         }
 
-        private static void GetBenchSmall()
+        private static long GetBenchSmall()
         {
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
@@ -93,7 +93,7 @@ namespace NonBlockingTests
             }
 
             sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
+            return sw.ElapsedMilliseconds;
         }
 
         private static void GetBenchRef()
@@ -254,7 +254,7 @@ namespace NonBlockingTests
             {
                 dict.Add(i, "dummy");
                 dict.Remove(i);
-                //Thread.Sleep(10);
+                Thread.Sleep(10);
             }
 
         }
@@ -264,7 +264,7 @@ namespace NonBlockingTests
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new ConcurrentDictionary<int, string>();
 
-            for (int i = 0; i < 1000000; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 new Task(() =>
                 {
