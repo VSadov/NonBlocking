@@ -65,6 +65,11 @@ namespace NonBlocking
         {
             return new NonBlockingDictionaryInt<TValue>();
         }
+
+        protected override int keyFromEntry(int entryKey)
+        {
+            return entryKey;
+        }
     }
 
     internal sealed class NonBlockingDictionaryIntNoComparer<TValue>
@@ -135,6 +140,10 @@ namespace NonBlocking
         protected override NonBlockingDictionary<int, int, TValue> CreateNew()
         {
             return new NonBlockingDictionaryIntNoComparer<TValue>();
+        }
+        protected override int keyFromEntry(int entryKey)
+        {
+            return entryKey;
         }
     }
 }

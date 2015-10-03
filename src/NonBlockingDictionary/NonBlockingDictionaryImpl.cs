@@ -8,13 +8,15 @@
 //
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
 
 namespace NonBlocking
 {
-    internal abstract class NonBlockingDictionary<TKey, TKeyStore, TValue>
-        : NonBlockingDictionary<TKey, TValue>
+    internal abstract partial class NonBlockingDictionary<TKey, TKeyStore, TValue>
+        : NonBlockingDictionary<TKey, TValue>, IDictionary<TKey, TValue>
     {
         public struct Entry
         {
@@ -150,6 +152,7 @@ namespace NonBlocking
         }
 
         protected abstract bool keyEqual(TKey key, TKeyStore entryKey);
+        protected abstract TKey keyFromEntry(TKeyStore entryKey);
 
         protected sealed override bool tryGetValue(TKey key, out object value)
         {
@@ -624,7 +627,7 @@ namespace NonBlocking
                 int oldlen = topmap.GetTableLength(oldTable); // Total amount to copy
 
 #if DEBUG
-                const int CHUNK = 16;
+                const int CHUNK_SIZE = 16;
 #else
                 const int CHUNK_SIZE = 1024;
 #endif
@@ -891,13 +894,15 @@ namespace NonBlocking
                 // No copy in-progress, so start one.  
                 //First up: compute new table size.
                 int oldlen = topmap.GetTableLength(table);    
-                int sz = size();
 
                 const int MAX_SIZE = 1 << 30;
                 const int MAX_CHURN_SIZE = 1 << 15;
 
                 // First size estimate is roughly inverse of ProbeLimit
-                int newsz = Math.Max(sz < MAX_SIZE? sz << REPROBE_LIMIT_SHIFT : sz, MIN_SIZE);
+                int sz = size() + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
+                int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ? 
+                                                sz << REPROBE_LIMIT_SHIFT : 
+                                                sz;
 
                 // if new table would shrink or hold steady, 
                 // we must be resizing because of churn.

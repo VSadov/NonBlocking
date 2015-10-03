@@ -36,6 +36,7 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NonBlockingDictionary.IDictionary.cs" />
     <Compile Include="NonBlockingDictionaryLong.cs" />
     <Compile Include="NonBlockingDictionaryObj.cs" />
     <Compile Include="NonBlockingDictionaryRef.cs" />

@@ -68,6 +68,11 @@ namespace NonBlocking
         {
             return new NonBlockingDictionaryBoxed<TKey, TValue>();
         }
+
+        protected override TKey keyFromEntry(Boxed<TKey> entryKey)
+        {
+            return entryKey.Value;
+        }
     }
 
     internal class Boxed<T>

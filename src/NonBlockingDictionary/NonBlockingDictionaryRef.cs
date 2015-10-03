@@ -57,5 +57,10 @@ namespace NonBlocking
         {
             return new NonBlockingDictionaryRef<TKey, TKey, TValue>();
         }
+
+        protected override TKey keyFromEntry(TKey entryKey)
+        {
+            return entryKey;
+        }
     }
 }

@@ -65,6 +65,11 @@ namespace NonBlocking
         {
             return new NonBlockingDictionaryLong<TValue>();
         }
+
+        protected override long keyFromEntry(long entryKey)
+        {
+            return entryKey;
+        }
     }
 
     internal sealed class NonBlockingDictionaryLongNoComparer<TValue>
@@ -135,6 +140,11 @@ namespace NonBlocking
         protected override NonBlockingDictionary<long, long, TValue> CreateNew()
         {
             return new NonBlockingDictionaryLongNoComparer<TValue>();
+        }
+
+        protected override long keyFromEntry(long entryKey)
+        {
+            return entryKey;
         }
     }
 }
