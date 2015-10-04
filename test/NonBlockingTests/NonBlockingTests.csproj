@@ -54,6 +54,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ConcurrentDictionaryTests.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

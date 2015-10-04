@@ -16,7 +16,7 @@ using System.Threading;
 namespace NonBlocking
 {
     internal abstract partial class NonBlockingDictionary<TKey, TKeyStore, TValue>
-        : NonBlockingDictionary<TKey, TValue>, IDictionary<TKey, TValue>
+        : NonBlockingDictionary<TKey, TValue>
     {
         public struct Entry
         {

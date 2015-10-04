@@ -3,6 +3,7 @@
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -13,6 +14,14 @@ namespace NonBlocking
     public abstract class NonBlockingDictionary
     {
         internal NonBlockingDictionary() { }
+
+        public static NonBlockingDictionary<TKey, TValue> Create<TKey, TValue>(
+            int cLevel,
+            int size,
+            IEqualityComparer<TKey> comparer = null)
+        {
+            return Create<TKey, TValue>(comparer);
+        }
 
         public static NonBlockingDictionary<TKey, TValue> Create<TKey, TValue>(
             IEqualityComparer<TKey> comparer = null)
@@ -100,7 +109,11 @@ namespace NonBlocking
     }
 
     public abstract class NonBlockingDictionary<TKey, TValue>
-        : NonBlockingDictionary
+        : NonBlockingDictionary,
+        IDictionary<TKey, TValue>,
+        IReadOnlyDictionary<TKey, TValue>,
+        IDictionary,
+        ICollection
     {
         internal NonBlockingDictionary() { }
 
@@ -192,5 +205,271 @@ namespace NonBlocking
 
         protected abstract bool putIfMatch(TKey key, object newVal, out object value, ValueMatch match);
         protected abstract bool tryGetValue(TKey key, out object value);
+
+        public bool ContainsKey(TKey key)
+        {
+            TValue value;
+            return this.TryGetValue(key, out value);
+        }
+
+        public void Add(KeyValuePair<TKey, TValue> item)
+        {
+            this.Add(item.Key, item.Value);
+        }
+
+        public bool Contains(KeyValuePair<TKey, TValue> keyValuePair)
+        {
+            TValue value;
+            return TryGetValue(keyValuePair.Key, out value) && 
+                EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value);
+        }
+
+        public bool TryUpdate(TKey key, TValue newValue, TValue comparisonValue)
+        {
+            //TODO: VS
+            throw new NotImplementedException();
+        }
+
+        public TValue GetOrAdd(TKey key, TValue value)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            //TODO: VS
+            throw new NotImplementedException();
+        }
+
+        public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            if (valueFactory == null)
+            {
+                throw new ArgumentNullException("valueFactory");
+            }
+            TValue result;
+            if (this.TryGetValue(key, out result))
+            {
+                return result;
+            }
+            //TODO: VS
+            throw new NotImplementedException();
+        }
+
+        bool IDictionary.IsReadOnly => false;
+        bool IDictionary.IsFixedSize => false;
+        bool ICollection.IsSynchronized => false;
+        bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
+        public bool IsEmpty => Count != 0;
+
+        public abstract bool Remove(KeyValuePair<TKey, TValue> item);
+        public abstract void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex);
+        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
+        public abstract ICollection<TKey> Keys { get; }
+        public abstract ICollection<TValue> Values { get; }
+        public abstract int Count { get; }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return this.GetEnumerator();
+        }
+
+        bool IDictionary.Contains(object key)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            return key is TKey && this.ContainsKey((TKey)((object)key));
+        }
+
+        void IDictionary.Add(object key, object value)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            if (!(key is TKey))
+            {
+                throw new ArgumentException();
+            }
+            TValue value2;
+            try
+            {
+                value2 = (TValue)((object)value);
+            }
+            catch (InvalidCastException)
+            {
+                throw new ArgumentException();
+            }
+            ((IDictionary<TKey, TValue>)this).Add((TKey)((object)key), value2);
+        }
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        void IDictionary.Remove(object key)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            if (key is TKey)
+            {
+                TValue tValue;
+                this.TryRemove((TKey)((object)key), out tValue);
+            }
+        }
+
+        void ICollection.CopyTo(Array array, int index)
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        ICollection IDictionary.Keys
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        ICollection IDictionary.Values
+        {
+            get
+            {
+                throw new NotImplementedException();
+            }
+        }
+
+        public object SyncRoot
+        {
+            get
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        object IDictionary.this[object key]
+        {
+            get
+            {
+                if (key == null)
+                {
+                    throw new ArgumentNullException("key");
+                }
+                TValue tValue;
+                if (key is TKey && this.TryGetValue((TKey)((object)key), out tValue))
+                {
+                    return tValue;
+                }
+                return null;
+            }
+            set
+            {
+                if (key == null)
+                {
+                    throw new ArgumentNullException("key");
+                }
+                if (!(key is TKey))
+                {
+                    throw new ArgumentException();
+                }
+                if (!(value is TValue))
+                {
+                    throw new ArgumentException();
+                }
+                this[(TKey)((object)key)] = (TValue)((object)value);
+            }
+        }
+
+        public TValue AddOrUpdate(TKey key, Func<TKey, TValue> addValueFactory, Func<TKey, TValue, TValue> updateValueFactory)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            if (addValueFactory == null)
+            {
+                throw new ArgumentNullException("addValueFactory");
+            }
+            if (updateValueFactory == null)
+            {
+                throw new ArgumentNullException("updateValueFactory");
+            }
+            TValue tValue2;
+            while (true)
+            {
+                TValue tValue;
+                if (this.TryGetValue(key, out tValue))
+                {
+                    tValue2 = updateValueFactory(key, tValue);
+                    if (this.TryUpdate(key, tValue2, tValue))
+                    {
+                        break;
+                    }
+                }
+                else
+                {
+                    tValue2 = addValueFactory(key);
+                    if (this.TryAdd(key, tValue2))
+                    {
+                        break;
+                    }
+                }
+            }
+            return tValue2;
+        }
+
+        public TValue AddOrUpdate(TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+            if (updateValueFactory == null)
+            {
+                throw new ArgumentNullException("updateValueFactory");
+            }
+            TValue tValue2;
+            while (true)
+            {
+                TValue tValue;
+                TValue result;
+                if (this.TryGetValue(key, out tValue))
+                {
+                    tValue2 = updateValueFactory(key, tValue);
+                    if (this.TryUpdate(key, tValue2, tValue))
+                    {
+                        return tValue2;
+                    }
+                }
+                else if (this.TryAdd(key, addValue))
+                {
+                    return addValue;
+                }
+            }            
+        }
     }
 }

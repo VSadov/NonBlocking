@@ -11,11 +11,11 @@ using System.Threading;
 namespace NonBlocking
 {
     internal  abstract partial class NonBlockingDictionary<TKey, TKeyStore, TValue>
-        : NonBlockingDictionary<TKey, TValue>, 
-        IDictionary<TKey, TValue>,
+        : NonBlockingDictionary<TKey, TValue>,
+        IEnumerable,
         IReadOnlyDictionary<TKey, TValue>
     {
-        public int Count
+        public override int Count
         {
             get
             {
@@ -23,58 +23,27 @@ namespace NonBlocking
             }
         }
 
-        public bool IsReadOnly
-        {
-            get
-            {
-                return false;
-            }
-        }
-        
-        public bool ContainsKey(TKey key)
-        {
-            object value;
-            return this.tryGetValue(key, out value);
-        }
-
-        void ICollection<KeyValuePair<TKey, TValue>>.Add(KeyValuePair<TKey, TValue> item)
-        {
-            this.Add(item.Key, item.Value);
-        }
-
-        bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> item)
-        {
-            object value;
-            return this.tryGetValue(item.Key, out value) &&
-                value.Equals(item.Value);
-        }
-
-        void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        public override void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
             throw new NotImplementedException();
         }
 
-        bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> item)
+        public override bool Remove(KeyValuePair<TKey, TValue> item)
         {
             throw new NotImplementedException();
         }
 
-        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return new SnapshotKV(this);
         }
 
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return new SnapshotKV(this);
-        }
-
-        public ICollection<TKey> Keys
+        public override ICollection<TKey> Keys
         {
             get
             {
                 var keys = new List<TKey>(Count);
-                foreach(var kv in this)
+                foreach (var kv in this)
                 {
                     keys.Add(kv.Key);
                 }
@@ -83,7 +52,7 @@ namespace NonBlocking
             }
         }
 
-        public ICollection<TValue> Values
+        public override ICollection<TValue> Values
         {
             get
             {
@@ -95,6 +64,11 @@ namespace NonBlocking
 
                 return values;
             }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return new SnapshotKV(this);
         }
 
         IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys
