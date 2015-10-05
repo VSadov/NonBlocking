@@ -14,12 +14,12 @@ namespace NonBlocking
             : NonBlockingDictionary<TKey, TKey, TValue>
                     where TKey : class
     {
-        internal override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        internal override bool TryClaimSlotForCopy(ref TKey entryKey, TKey key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref TKey entryKey, TKey key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }

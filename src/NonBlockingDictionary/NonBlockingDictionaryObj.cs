@@ -13,7 +13,7 @@ namespace NonBlocking
     internal sealed class NonBlockingDictionaryBoxed<TKey, TValue>
             : NonBlockingDictionary<TKey, Boxed<TKey>, TValue>
     {
-        internal override bool TryClaimSlotForPut(ref Boxed<TKey> entryKey, TKey key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref Boxed<TKey> entryKey, TKey key, Counter slots)
         {
             var entryKeyValue = entryKey;
             if (entryKeyValue == null)
@@ -36,7 +36,7 @@ namespace NonBlocking
             return false;
         }
 
-        internal override bool TryClaimSlotForCopy(ref Boxed<TKey> entryKey,Boxed<TKey> key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref Boxed<TKey> entryKey,Boxed<TKey> key, Counter slots)
         {
             var entryKeyValue = entryKey;
             if (entryKeyValue == null)

@@ -13,12 +13,12 @@ namespace NonBlocking
     internal sealed class NonBlockingDictionaryInt<TValue>
                 : NonBlockingDictionary<int, int, TValue>
     {
-        internal override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        internal override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
@@ -46,7 +46,7 @@ namespace NonBlocking
             return false;
         }
 
-        internal override int hash(int key)
+        protected override int hash(int key)
         {
             if (key == 0)
             {
@@ -75,12 +75,12 @@ namespace NonBlocking
     internal sealed class NonBlockingDictionaryIntNoComparer<TValue>
             : NonBlockingDictionary<int, int, TValue>
     {
-        internal override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        internal override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
@@ -108,7 +108,7 @@ namespace NonBlocking
             return false;
         }
 
-        internal override int hash(int key)
+        protected override int hash(int key)
         {
             //return (key == 0) ?
             //    ZEROHASH :

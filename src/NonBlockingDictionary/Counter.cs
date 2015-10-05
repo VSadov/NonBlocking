@@ -192,10 +192,5 @@ namespace NonBlocking
                 0 :
                 Environment.CurrentManagedThreadId % (cellCount + 1);
         }
-
-        internal static long CurrentTimeMillis()
-        {
-            return DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond;
-        }
     }
 }

@@ -24,6 +24,12 @@ namespace NonBlocking
             }
         }
 
+        public sealed override void Clear()
+        {
+            var newTable = CreateNew()._topTable;
+            Volatile.Write(ref _topTable, newTable);
+        }
+
         public override void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
             if (array == null)

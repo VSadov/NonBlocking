@@ -26,7 +26,7 @@ namespace NonBlocking
         }
 
         private Entry[] _topTable;
-        private long _lastResizeMilli;
+        private uint _lastResizeTickMillis;
 
         private const int REPROBE_LIMIT = 4;
         private const int REPROBE_LIMIT_SHIFT = 1;
@@ -39,16 +39,33 @@ namespace NonBlocking
 
         // we cannot distigush zero keys from uninitialized state
         // so we force them to have this special hash instead
-        internal const int ZEROHASH = 1 << 30;
+        protected const int ZEROHASH = 1 << 30;
 
         // all regular hashes have these bits set
         // to be different from 0, TOMBPRIMEHASH or ZEROHASH
-        internal const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
+        protected const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
         // targeted time span between resizes.
         // if resizing more often than this, try expanding.
-        const int RESIZE_MILLIS_TARGET = 1000;
+        const uint RESIZE_MILLIS_TARGET = (uint)1000;
 
+        // create a fresh empty dictionary (used in Clear) 
+        protected abstract NonBlockingDictionary<TKey, TKeyStore, TValue> CreateNew();
+
+        // convert key from its storage form (noop or unboxing) used in Key enumarators
+        protected abstract TKey keyFromEntry(TKeyStore entryKey);
+
+        // compares key with another in its storage form
+        protected abstract bool keyEqual(TKey key, TKeyStore entryKey);
+
+        // claiming (by writing atomically to the entryKey location) 
+        // or getting existing slot suitable for storing a given key.
+        protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter slots);
+
+        // claiming (by writing atomically to the entryKey location) 
+        // or getting existing slot suitable for storing a given key in its store form (could be boxed).
+        protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
+        
         // NOTE: Not Staitc For perf reasons
         private TableInfo GetTableInfo(Entry[] table)
         {
@@ -77,7 +94,7 @@ namespace NonBlocking
             this(MIN_SIZE)
         { }
 
-        // TODO: need to make public entry point
+        // TODO: VS need to make public entry point
         internal NonBlockingDictionary(int capacity)
         {
             if (capacity < 0)
@@ -90,20 +107,12 @@ namespace NonBlocking
             _topTable[capacity].value = new TableInfo(new Counter());
         }
 
-        protected abstract NonBlockingDictionary<TKey, TKeyStore, TValue> CreateNew();
-
-        public sealed override void Clear()
+        private static uint CurrentTickMillis()
         {
-            var newTable = CreateNew()._topTable;
-            Volatile.Write(ref _topTable, newTable);
+            return (uint)Environment.TickCount;
         }
 
-        internal static long CurrentTimeMillis()
-        {
-            return DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond;
-        }
-
-        internal static int AlignToPowerOfTwo(int size)
+        private static int AlignToPowerOfTwo(int size)
         {
             Debug.Assert(size > 0);
 
@@ -116,7 +125,7 @@ namespace NonBlocking
             return size + 1;
         }
 
-        internal virtual int hash(TKey key)
+        protected virtual int hash(TKey key)
         {
             unchecked
             {
@@ -150,9 +159,6 @@ namespace NonBlocking
 #endif
             }
         }
-
-        protected abstract bool keyEqual(TKey key, TKeyStore entryKey);
-        protected abstract TKey keyFromEntry(TKeyStore entryKey);
 
         protected sealed override bool tryGetValue(TKey key, out object value)
         {
@@ -237,9 +243,6 @@ namespace NonBlocking
             value = null;
             return false;
         }
-
-        internal abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter slots);
-        internal abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
 
         // 1) finds or creates a slot for the key
         // 2) sets the slot value to the putval if original value meets expVal condition
@@ -595,7 +598,7 @@ namespace NonBlocking
             // new table.
             //
             // count of threads attempting an initial resize
-            volatile int _resizers;
+            volatile private int _resizers;
 
             // The next part of the table to copy.  It monotonically transits from zero
             // to table.length.  Visitors to the table can claim 'work chunks' by
@@ -603,23 +606,23 @@ namespace NonBlocking
             // table to the new table.  Workers are not required to finish any chunk;
             // the counter simply wraps and work is copied duplicately until somebody
             // somewhere completes the count.
-            volatile int _claimedChunk = 0;
+            volatile private int _claimedChunk = 0;
 
             // Work-done reporting.  Used to efficiently signal when we can move to
             // the new table.  From 0 to length of old table refers to copying from the old
             // table to the new.
-            volatile int _copyDone = 0;
+            volatile private int _copyDone = 0;
 
-            public TableInfo(Counter size)
+            internal TableInfo(Counter size)
             {
                 _size = size;
                 _slots = new Counter();
             }
 
-            public int size() { return (int)_size.get(); }
-            public int estimated_slots_used() { return (int)_slots.estimate_get(); }
+            internal int size() { return (int)_size.get(); }
+            internal int estimated_slots_used() { return (int)_slots.estimate_get(); }
 
-            public bool tableIsCrowded(int len)
+            internal bool tableIsCrowded(int len)
             {
                 // 80% utilization, switch to a bigger table
                 return estimated_slots_used() > (len >> 2) * 3;
@@ -628,7 +631,7 @@ namespace NonBlocking
             // Help along an existing resize operation.  We hope its the top-level
             // copy (it was when we started) but this table might have been promoted 
             // out of the top position.
-            public void HelpCopyImpl(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, bool copy_all)
+            internal void HelpCopyImpl(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, bool copy_all)
             {
                 Debug.Assert(topmap.GetTableInfo(oldTable) == this);
                 Entry[] newTable = this._newTable;
@@ -737,7 +740,7 @@ namespace NonBlocking
                     if (Interlocked.CompareExchange(ref topmap._topTable, this._newTable, oldTable) == oldTable)
                     {
                         // System.Console.WriteLine("size: " + _newTable.Length);
-                        topmap._lastResizeMilli = CurrentTimeMillis();
+                        topmap._lastResizeTickMillis = CurrentTickMillis();
                     }
                 }
             }
@@ -752,7 +755,7 @@ namespace NonBlocking
             // before any Prime appears.  So the caller needs to read the new table
             // field to retry his operation in the new table, but probably has not
             // read it yet.
-            public Entry[] CopySlotAndCheck(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, int idx, bool shouldHelp)
+            internal Entry[] CopySlotAndCheck(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, int idx, bool shouldHelp)
             {
                 Debug.Assert(topmap.GetTableInfo(oldTable) == this);
 
@@ -885,7 +888,7 @@ namespace NonBlocking
             // Since this routine has a fast cutout for copy-already-started, callers
             // MUST 'help_copy' lest we have a path which forever runs through
             // 'resize' only to discover a copy-in-progress which never progresses.
-            public Entry[] Resize(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] table)
+            internal Entry[] Resize(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] table)
             {
                 Debug.Assert(topmap.GetTableInfo(table) == this);
 
@@ -915,10 +918,15 @@ namespace NonBlocking
 
                 // if new table would shrink or hold steady, 
                 // we must be resizing because of churn.
-                // target churn based resize rate to be about 1 per RESIZE_MILLIS_TARGET
+                // target churn based resize rate to be about 1 per RESIZE_TICKS_TARGET
                 if (newsz <= oldlen)
                 {
-                    var resizeSpan = CurrentTimeMillis() - topmap._lastResizeMilli + 1;
+                    var resizeSpan = CurrentTickMillis() - topmap._lastResizeTickMillis;
+
+                    // note that CurrentTicks() will wrap around every 50 days.
+                    // For our purposes that is tolerable since it just 
+                    // adds a possibility that in some rare cases a churning resize will not be 
+                    // considered a churning one.
                     if (resizeSpan < RESIZE_MILLIS_TARGET)
                     {
                         // last resize too recent, expand

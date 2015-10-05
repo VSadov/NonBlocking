@@ -36,12 +36,13 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="NonBlockingDictionary.IDictionary.cs" />
+    <Compile Include="NonBlockingDictionary.cs" />
+    <Compile Include="NonBlockingDictionaryImpl.API.cs" />
     <Compile Include="NonBlockingDictionaryLong.cs" />
     <Compile Include="NonBlockingDictionaryObj.cs" />
     <Compile Include="NonBlockingDictionaryRef.cs" />
     <Compile Include="NonBlockingDictionaryInt.cs" />
-    <Compile Include="NonBlockingDictionary.cs" />
+    <Compile Include="NonBlockingDictionaryFactory.cs" />
     <Compile Include="Counter.cs" />
     <Compile Include="NonBlockingDictionaryImpl.cs" />
   </ItemGroup>

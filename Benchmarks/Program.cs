@@ -243,18 +243,18 @@ namespace NonBlockingTests
         {
             var dict = NonBlockingDictionary.Create<int, string>();
 
-            for (int i = 0; i < 10000000; i++)
+            for (int i = 0; i < 1000000; i++)
             {
                 dict.Add(i, "dummy");
                 dict.Remove(i);
                 //Thread.Sleep(10);
             }
 
-            for (int i = 0; i < 10000000; i++)
+            for (int i = 0; i < 100000; i++)
             {
                 dict.Add(i, "dummy");
                 dict.Remove(i);
-                Thread.Sleep(10);
+                Thread.Sleep(5);
             }
 
         }
@@ -264,9 +264,12 @@ namespace NonBlockingTests
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new ConcurrentDictionary<int, string>();
 
-            for (int i = 0; i < 1000; i++)
+            var threadCnt = 100;
+            List<Task> tasks = new List<Task>(threadCnt);
+
+            for (int i = 0; i < threadCnt; i++)
             {
-                new Task(() =>
+                var task = new Task(() =>
                 {
                     for (int j = i * 1000000, l = j + 1000000; j < l; j++)
                     {
@@ -276,17 +279,13 @@ namespace NonBlockingTests
                         //Thread.Sleep(10);
                     }
                     System.Console.Write('.');
-                }, TaskCreationOptions.LongRunning).Start();
+                }, TaskCreationOptions.LongRunning);
+
+                tasks.Add(task);
+                task.Start();
             }
 
-
-            for (int j = 2000000, l = j + 1000000; j < l; j++)
-            {
-                string dummy;
-                dict.TryAdd(j, "dummy");
-                dict.TryRemove(j, out dummy);
-                //Thread.Sleep(10);
-            }
+            Task.WaitAll(tasks.ToArray());
         }
     }
 
