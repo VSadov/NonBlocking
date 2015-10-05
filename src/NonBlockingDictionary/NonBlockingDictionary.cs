@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -122,9 +123,10 @@ namespace NonBlocking
 
         protected enum ValueMatch
         {
+            Any,            // sets new value unconditionally, used by index set
             NullOrDead,     // set value if original value is null or dead, used by Add/TryAdd
             NotNullOrDead,  // set value if original value is alive, used by Remove
-            Any,            // sets new value unconditionally, used by index set
+            OldValue,       // sets new value if old value matches
         }
 
         public void Add(TKey key, TValue value)
@@ -137,14 +139,14 @@ namespace NonBlocking
 
         public bool TryAdd(TKey key, TValue value)
         {
-            object objValue;
-            return putIfMatch(key, value, out objValue, ValueMatch.NullOrDead);
+            object objValue = null;
+            return putIfMatch(key, value, ref objValue, ValueMatch.NullOrDead);
         }
 
         public bool Remove(TKey key)
         {
-            object objValue;
-            var found = putIfMatch(key, TOMBSTONE, out objValue, ValueMatch.NotNullOrDead);
+            object objValue = null;
+            var found = putIfMatch(key, TOMBSTONE, ref objValue, ValueMatch.NotNullOrDead);
             Debug.Assert(!(objValue is Prime));
 
             return found;
@@ -152,8 +154,8 @@ namespace NonBlocking
 
         public bool TryRemove(TKey key, out TValue value)
         {
-            object objValue;
-            var found = putIfMatch(key, TOMBSTONE, out objValue, ValueMatch.NotNullOrDead);
+            object objValue = null;
+            var found = putIfMatch(key, TOMBSTONE, ref objValue, ValueMatch.NotNullOrDead);
 
             Debug.Assert(!(objValue is Prime));
 
@@ -196,14 +198,14 @@ namespace NonBlocking
             }
             set
             {
-                object objValue;
-                putIfMatch(key, value, out objValue, ValueMatch.Any);
+                object objValue = null;
+                putIfMatch(key, value, ref objValue, ValueMatch.Any);
             }
         }
 
         public abstract void Clear();
 
-        protected abstract bool putIfMatch(TKey key, object newVal, out object value, ValueMatch match);
+        protected abstract bool putIfMatch(TKey key, object newVal, ref object oldValue, ValueMatch match);
         protected abstract bool tryGetValue(TKey key, out object value);
 
         public bool ContainsKey(TKey key)
@@ -226,8 +228,8 @@ namespace NonBlocking
 
         public bool TryUpdate(TKey key, TValue newValue, TValue comparisonValue)
         {
-            //TODO: VS
-            throw new NotImplementedException();
+            object oldValue = (object)comparisonValue ?? NULLVALUE;
+            return this.putIfMatch(key, newValue, ref oldValue, ValueMatch.OldValue);
         }
 
         public TValue GetOrAdd(TKey key, TValue value)
@@ -236,8 +238,13 @@ namespace NonBlocking
             {
                 throw new ArgumentNullException("key");
             }
-            //TODO: VS
-            throw new NotImplementedException();
+            object oldValue = null;
+            if (this.putIfMatch(key, value, ref oldValue, ValueMatch.NullOrDead))
+            {
+                return value;
+            }
+
+            return (TValue)oldValue;
         }
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
@@ -250,31 +257,59 @@ namespace NonBlocking
             {
                 throw new ArgumentNullException("valueFactory");
             }
-            TValue result;
-            if (this.TryGetValue(key, out result))
+            TValue value;
+            if (this.TryGetValue(key, out value))
             {
-                return result;
+                return value;
             }
-            //TODO: VS
-            throw new NotImplementedException();
+
+            value = valueFactory(key);
+            object oldValue = null;
+            if (this.putIfMatch(key, value, ref oldValue, ValueMatch.NullOrDead))
+            {
+                return value;
+            }
+
+            return (TValue)oldValue;
+        }
+
+        public bool Remove(KeyValuePair<TKey, TValue> item)
+        {
+            object oldValue = (object)item.Value ?? NULLVALUE;
+            return this.putIfMatch(item.Key, TOMBSTONE, ref oldValue, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
         bool IDictionary.IsFixedSize => false;
         bool ICollection.IsSynchronized => false;
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
-        public bool IsEmpty => Count != 0;
+        public bool IsEmpty => Count == 0;
 
-        public abstract bool Remove(KeyValuePair<TKey, TValue> item);
+        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
+        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Values;
+        ICollection<TKey> IDictionary<TKey, TValue>.Keys => Keys;
+        ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
+        ICollection IDictionary.Keys => Keys;
+        ICollection IDictionary.Values => Values;
+
         public abstract void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex);
-        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
-        public abstract ICollection<TKey> Keys { get; }
-        public abstract ICollection<TValue> Values { get; }
+        public abstract void CopyTo(DictionaryEntry[] array, int arrayIndex);
+        public abstract void CopyTo(object[] array, int arrayIndex);
+
+        public abstract ReadOnlyCollection<TKey> Keys { get; }
+        public abstract ReadOnlyCollection<TValue> Values { get; }
         public abstract int Count { get; }
+
+        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return this.GetEnumerator();
+            throw new InvalidOperationException("unreachable");
+        }
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            throw new InvalidOperationException("unreachable");
         }
 
         bool IDictionary.Contains(object key)
@@ -308,11 +343,6 @@ namespace NonBlocking
             ((IDictionary<TKey, TValue>)this).Add((TKey)((object)key), value2);
         }
 
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-        {
-            throw new NotImplementedException();
-        }
-
         void IDictionary.Remove(object key)
         {
             if (key == null)
@@ -328,39 +358,28 @@ namespace NonBlocking
 
         void ICollection.CopyTo(Array array, int index)
         {
-            throw new NotImplementedException();
-        }
-
-        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys
-        {
-            get
+            var pairs = array as KeyValuePair<TKey, TValue>[];
+            if (pairs != null)
             {
-                throw new NotImplementedException();
+                CopyTo(pairs, index);
+                return;
             }
-        }
 
-        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values
-        {
-            get
+            var entries = array as DictionaryEntry[];
+            if (entries != null)
             {
-                throw new NotImplementedException();
+                CopyTo(entries, index);
+                return;
             }
-        }
 
-        ICollection IDictionary.Keys
-        {
-            get
+            var objects = array as object[];
+            if (objects != null)
             {
-                throw new NotImplementedException();
+                CopyTo(objects, index);
+                return;
             }
-        }
 
-        ICollection IDictionary.Values
-        {
-            get
-            {
-                throw new NotImplementedException();
-            }
+            throw new ArgumentNullException("array");
         }
 
         public object SyncRoot
@@ -456,7 +475,6 @@ namespace NonBlocking
             while (true)
             {
                 TValue tValue;
-                TValue result;
                 if (this.TryGetValue(key, out tValue))
                 {
                     tValue2 = updateValueFactory(key, tValue);

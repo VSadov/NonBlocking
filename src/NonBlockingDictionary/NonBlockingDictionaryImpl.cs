@@ -246,7 +246,7 @@ namespace NonBlocking
         // 3) returns true if the value was actually changed 
         // Note that pre-existence of the slot is irrelevant 
         // since slot without a value is as good as no slot at all
-        protected sealed override bool putIfMatch(TKey key, object newVal, out object oldVal, ValueMatch match)
+        protected sealed override bool putIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
         {
             if (newVal == null)
             {
@@ -278,7 +278,8 @@ namespace NonBlocking
                     // key has never been in this table.
                     if (newVal == TOMBSTONE)
                     {
-                        Debug.Assert(match == ValueMatch.NotNullOrDead);
+                        Debug.Assert(match == ValueMatch.NotNullOrDead || match == ValueMatch.OldValue);
+                        oldVal = null;
                         goto FAILED;
                     }
                     else
@@ -337,9 +338,10 @@ namespace NonBlocking
             //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
             //       is DMB more costly than "is Prime"?
             var entryValue = table[idx].value;
-            if (newVal == entryValue)
+            if (newVal == entryValue & match != ValueMatch.OldValue)
             {
                 //the exact same value is already there
+                //only "OldValue" may succeed
                 goto FAILED;
             }
 
@@ -381,6 +383,11 @@ namespace NonBlocking
                 switch (match)
                 {
                     case ValueMatch.Any:
+                        if (newVal == entryValue)
+                        {
+                            // Do not update!
+                            goto FAILED;
+                        }
                         break;
 
                     case ValueMatch.NullOrDead:
@@ -389,6 +396,7 @@ namespace NonBlocking
                             break;
                         }
 
+                        oldVal = entryValue;
                         goto FAILED;
 
                     case ValueMatch.NotNullOrDead:
@@ -397,12 +405,14 @@ namespace NonBlocking
                             goto FAILED;
                         }
                         break;
-                }
-
-                if (newVal == entryValue)
-                {
-                    // Do not update!
-                    goto FAILED;
+                    case ValueMatch.OldValue:
+                        Debug.Assert(oldVal != null);
+                        if (!oldVal.Equals(entryValue))
+                        {
+                            oldVal = entryValue;
+                            goto FAILED;
+                        }
+                        break;
                 }
 
                 // Actually change the Value 
@@ -446,7 +456,6 @@ namespace NonBlocking
             }
 
             FAILED:
-            oldVal = null;
             return false;
         }
 

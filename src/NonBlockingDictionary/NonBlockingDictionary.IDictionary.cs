@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading;
 
@@ -13,7 +14,7 @@ namespace NonBlocking
     internal  abstract partial class NonBlockingDictionary<TKey, TKeyStore, TValue>
         : NonBlockingDictionary<TKey, TValue>,
         IEnumerable,
-        IReadOnlyDictionary<TKey, TValue>
+        IDictionary
     {
         public override int Count
         {
@@ -25,12 +26,61 @@ namespace NonBlocking
 
         public override void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            foreach(var entry in this)
+            {
+                array[arrayIndex++] = entry;
+            }
         }
 
-        public override bool Remove(KeyValuePair<TKey, TValue> item)
+        public override void CopyTo(DictionaryEntry[] array, int arrayIndex)
         {
-            throw new NotImplementedException();
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            foreach (var entry in this)
+            {
+                array[arrayIndex++] = new DictionaryEntry(entry.Key, entry.Value);
+            }
+        }
+
+        public override void CopyTo(object[] array, int arrayIndex)
+        {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            var length = array.Length;
+            foreach (var entry in this)
+            {
+                if ((uint)arrayIndex < (uint)length)
+                {
+                    array[arrayIndex++] = entry;
+                }
+                else
+                {
+                    throw new ArgumentException();
+                }
+            }
         }
 
         public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
@@ -38,7 +88,7 @@ namespace NonBlocking
             return new SnapshotKV(this);
         }
 
-        public override ICollection<TKey> Keys
+        public override ReadOnlyCollection<TKey> Keys
         {
             get
             {
@@ -48,11 +98,11 @@ namespace NonBlocking
                     keys.Add(kv.Key);
                 }
 
-                return keys;
+                return new ReadOnlyCollection<TKey>(keys);
             }
         }
 
-        public override ICollection<TValue> Values
+        public override ReadOnlyCollection<TValue> Values
         {
             get
             {
@@ -62,7 +112,7 @@ namespace NonBlocking
                     values.Add(kv.Value);
                 }
 
-                return values;
+                return new ReadOnlyCollection<TValue>(values);
             }
         }
 
@@ -71,20 +121,9 @@ namespace NonBlocking
             return new SnapshotKV(this);
         }
 
-        IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys
+        IDictionaryEnumerator IDictionary.GetEnumerator()
         {
-            get
-            {
-                return Keys;
-            }
-        }
-
-        IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values
-        {
-            get
-            {
-                return Values;
-            }
+            return new SnapshotIDict(this);
         }
 
         private class Snapshot : IDisposable
@@ -142,6 +181,7 @@ namespace NonBlocking
                         {
                             _nextK = nextK;
                             _nextV = nextV;
+                            break;
                         }
                     }
                 }
@@ -178,6 +218,43 @@ namespace NonBlocking
             }
 
             object IEnumerator.Current => Current;
+        }
+
+        private sealed class SnapshotIDict : Snapshot, IDictionaryEnumerator
+        {
+            public SnapshotIDict(NonBlockingDictionary<TKey, TKeyStore, TValue> dict) : base(dict) { }
+
+            public DictionaryEntry Entry
+            {
+                get
+                {
+                    var curValue = this._curValue;
+                    if (curValue == NULLVALUE)
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    return new DictionaryEntry(this._curKey, (TValue)curValue);
+                }
+            }
+
+            public object Key
+            {
+                get
+                {
+                    return Entry.Key;
+                }
+            }
+
+            public object Value
+            {
+                get
+                {
+                    return Entry.Value;
+                }
+            }
+
+            object IEnumerator.Current => Entry;
         }
     }
 }
