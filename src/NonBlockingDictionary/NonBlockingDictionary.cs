@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -40,30 +41,50 @@ namespace NonBlocking
             }
         }
 
-        public bool TryAdd(TKey key, TValue value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static object ToObjectValue(TValue value)
         {
-            object objValue = null;
-            return putIfMatch(key, value, ref objValue, ValueMatch.NullOrDead);
+            if (default(TValue) == null)
+            {
+                return (object)value ?? NULLVALUE;
+            }
+
+            return (object)value;
         }
 
+        public bool TryAdd(TKey key, TValue value)
+        {
+            object oldValObj = null;
+            object newValObj = ToObjectValue(value);
+            return putIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
+        }
+        
         public bool Remove(TKey key)
         {
-            object objValue = null;
-            var found = putIfMatch(key, TOMBSTONE, ref objValue, ValueMatch.NotNullOrDead);
-            Debug.Assert(!(objValue is Prime));
+            object oldValObj = null;
+            var found = putIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
+            Debug.Assert(!(oldValObj is Prime));
 
             return found;
         }
 
         public bool TryRemove(TKey key, out TValue value)
         {
-            object objValue = null;
-            var found = putIfMatch(key, TOMBSTONE, ref objValue, ValueMatch.NotNullOrDead);
+            object oldValObj = null;
+            var found = putIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
 
-            Debug.Assert(!(objValue is Prime));
+            Debug.Assert(!(oldValObj is Prime));
+            Debug.Assert(found ^ oldValObj == null);
+
+            // PERF: this would be nice to have as a helper, 
+            // but it does not get inlined
+            if (default(TValue) == null && oldValObj == NULLVALUE)
+            {
+                oldValObj = null;
+            }
 
             value = found ?
-                (TValue)objValue :
+                (TValue)oldValObj :
                 default(TValue);
 
             return found;
@@ -71,13 +92,20 @@ namespace NonBlocking
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            object objValue;
-            var found = this.tryGetValue(key, out objValue);
+            object oldValObj;
+            var found = this.tryGetValue(key, out oldValObj);
 
-            Debug.Assert(!(objValue is Prime));
+            Debug.Assert(!(oldValObj is Prime));
+
+            // PERF: this would be nice to have as a helper, 
+            // but it does not get inlined
+            if (default(TValue) == null && oldValObj == NULLVALUE)
+            {
+                oldValObj = null;
+            }
 
             value = found ?
-                (TValue)objValue :
+                (TValue)oldValObj :
                 default(TValue);
 
             return found;
@@ -94,15 +122,16 @@ namespace NonBlocking
 
                 if (!found)
                 {
-                    throw new ArgumentException("key not present");
+                    throw new KeyNotFoundException();
                 }
 
                 return (TValue)objValue;
             }
             set
             {
-                object objValue = null;
-                putIfMatch(key, value, ref objValue, ValueMatch.Any);
+                object oldValObj = null;
+                object newValObj = ToObjectValue(value);
+                putIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
             }
         }
 
@@ -129,57 +158,53 @@ namespace NonBlocking
                 EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value);
         }
 
-        public bool TryUpdate(TKey key, TValue newValue, TValue comparisonValue)
+        public bool TryUpdate(TKey key, TValue value, TValue comparisonValue)
         {
-            object oldValue = (object)comparisonValue ?? NULLVALUE;
-            return this.putIfMatch(key, newValue, ref oldValue, ValueMatch.OldValue);
+            object oldValObj = ToObjectValue(comparisonValue);
+            object newValObj = ToObjectValue(value);
+            return this.putIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
         }
 
         public TValue GetOrAdd(TKey key, TValue value)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
-            object oldValue = null;
-            if (this.putIfMatch(key, value, ref oldValue, ValueMatch.NullOrDead))
+            object oldValObj = null;
+            object newValObj = ToObjectValue(value);
+            if (this.putIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
             {
                 return value;
             }
 
-            return (TValue)oldValue;
+            // PERF: this would be nice to have as a helper, 
+            // but it does not get inlined
+            if (default(TValue) == null && oldValObj == NULLVALUE)
+            {
+                oldValObj = null;
+            }
+
+            return (TValue)oldValObj;
         }
 
+        //TODO: VS we could make a version of putIfMatch that takes a factory
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
             if (valueFactory == null)
             {
                 throw new ArgumentNullException("valueFactory");
             }
+
             TValue value;
             if (this.TryGetValue(key, out value))
             {
                 return value;
             }
 
-            value = valueFactory(key);
-            object oldValue = null;
-            if (this.putIfMatch(key, value, ref oldValue, ValueMatch.NullOrDead))
-            {
-                return value;
-            }
-
-            return (TValue)oldValue;
+            return GetOrAdd(key, valueFactory(key));
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {
-            object oldValue = (object)item.Value ?? NULLVALUE;
-            return this.putIfMatch(item.Key, TOMBSTONE, ref oldValue, ValueMatch.OldValue);
+            object oldValObj = ToObjectValue(item.Value);
+            return this.putIfMatch(item.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
@@ -328,10 +353,6 @@ namespace NonBlocking
 
         public TValue AddOrUpdate(TKey key, Func<TKey, TValue> addValueFactory, Func<TKey, TValue, TValue> updateValueFactory)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
             if (addValueFactory == null)
             {
                 throw new ArgumentNullException("addValueFactory");
@@ -366,10 +387,6 @@ namespace NonBlocking
 
         public TValue AddOrUpdate(TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
             if (updateValueFactory == null)
             {
                 throw new ArgumentNullException("updateValueFactory");

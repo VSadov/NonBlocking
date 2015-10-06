@@ -20,12 +20,17 @@ namespace NonBlockingTests
         {
             for (;;)
             {
+                CDTests();
+
                 System.Console.WriteLine("AddSetRemove");
                 AddSetRemove();
                 System.Console.WriteLine("AddSetRemoveConcurrent");
                 AddSetRemoveConcurrent();
                 System.Console.WriteLine("AddSetRemoveConcurrentInt");
                 AddSetRemoveConcurrentInt();
+                AddSetRemoveConcurrent();
+                System.Console.WriteLine("AddSetRemoveConcurrentIntInt");
+                AddSetRemoveConcurrentIntInt();
                 System.Console.WriteLine("AddSetRemoveConcurrentStruct");
                 AddSetRemoveConcurrentStruct();
 
@@ -52,8 +57,21 @@ namespace NonBlockingTests
                 System.Console.WriteLine("BadHashAdd");
                 BadHashAdd();
 
-                System.Console.WriteLine("=========== PASS");
+                System.Console.WriteLine("============================= PASS");
                 System.Console.WriteLine();
+            }
+        }
+
+        private static void CDTests()
+        {
+            var tests = from mi in typeof(NonBlockingDictionaryTests).GetMethods()
+                        where mi.CustomAttributes.Any(a => a.AttributeType.Name.Contains("Fact"))
+                        select mi;
+
+            foreach (var test in tests)
+            {
+                System.Console.WriteLine(test.Name);
+                test.Invoke(null, Array.Empty<object>());
             }
         }
 
@@ -84,6 +102,19 @@ namespace NonBlockingTests
             Assert.Null(s);
             Assert.True(dict.Remove(0));
             Assert.False(dict.TryGetValue(0, out s));
+
+            dict.Add(0, null);
+            Assert.True(dict.TryRemove(0, out s));
+            Assert.Null(s);
+            Assert.False(dict.TryRemove(0, out s));
+
+            Assert.Null(dict.GetOrAdd(0, (string)null));
+            Assert.Null(dict.GetOrAdd(0, (string)null));
+            Assert.True(dict.TryRemove(0, out s));
+
+            Assert.Null(dict.GetOrAdd(0, _ => null));
+            Assert.Null(dict.GetOrAdd(0, _ => null));
+            Assert.True(dict.TryRemove(0, out s));
         }
 
         [Fact()]
@@ -223,6 +254,35 @@ namespace NonBlockingTests
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+        }
+
+        [Fact()]
+        private static void AddSetRemoveConcurrentIntInt()
+        {
+            var dict = NonBlockingDictionary.Create<int, int>();
+
+            Parallel.For(0, 10, (i) => dict.Add(i, i));
+            Parallel.For(0, 10, (i) => dict[i] = i);
+            Parallel.For(0, 10, (i) => { if (dict[i] != i) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { int ii;  if (!dict.TryRemove(i, out ii)) throw new Exception(); });
+
+            Parallel.For(0, 100, (i) => dict[i] = i);
+            Parallel.For(0, 100, (i) => { if (dict[i] != i) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+
+            Parallel.For(0, 1000, (i) => dict.Add(i, i));
+            Parallel.For(0, 1000, (i) => dict[i] = i);
+            Parallel.For(0, 1000, (i) => { if (dict[i] != i) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.Remove(i)) throw new Exception(); });
+
+            Parallel.For(0, 10000, (i) => dict.Add(i, i));
+            Parallel.For(0, 10000, (i) => { if (dict[i] != i) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+
+            Parallel.For(0, 100000, (i) => dict[i] = i);
+            Parallel.For(0, 100000, (i) => { if (dict[i] != i) throw new Exception(); });
             Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
         }
 

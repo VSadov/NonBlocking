@@ -162,6 +162,11 @@ namespace NonBlocking
 
         protected sealed override bool tryGetValue(TKey key, out object value)
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
             Entry[] table = this._topTable;
             int fullHash = this.hash(key);
 
@@ -251,9 +256,11 @@ namespace NonBlocking
         // since slot without a value is as good as no slot at all
         protected sealed override bool putIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
         {
-            if (newVal == null)
+            Debug.Assert(newVal != null);
+
+            if (key == null)
             {
-                newVal = NULLVALUE;
+                throw new ArgumentNullException("key");
             }
 
             var table = this._topTable;
@@ -465,6 +472,7 @@ namespace NonBlocking
         private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullhash)
         {
             Debug.Assert(putval != TOMBSTONE);
+            Debug.Assert(key != null);
 
             TRY_WITH_NEW_TABLE:
 

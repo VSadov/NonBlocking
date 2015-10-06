@@ -547,6 +547,7 @@ namespace NonBlockingTests
         //[Fact]
         //public static void TestConstructor_Negative()
         //{
+
         //    Assert.Throws<ArgumentNullException>(
         //       () => NonBlockingDictionary.Create<int, int>((ICollection<KeyValuePair<int, int>>)null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
@@ -591,64 +592,63 @@ namespace NonBlockingTests
         //    // "TestConstructor:  FAILED.  Constructor didn't throw AORE when < 0 capacity passed");
         //}
 
-        //TODO: VS    should the null be disallowed, why?
-        //[Fact]
-        //public static void TestExceptions()
-        //{
-        //    var dictionary = NonBlockingDictionary.Create<string, int>();
+        [Fact]
+        public static void TestExceptions()
+        {
+            var dictionary = NonBlockingDictionary.Create<string, int>();
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.TryAdd(null, 0));
-        //    //  "TestExceptions:  FAILED.  TryAdd didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.TryAdd(null, 0));
+            //  "TestExceptions:  FAILED.  TryAdd didn't throw ANE when null key is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.ContainsKey(null));
-        //    // "TestExceptions:  FAILED.  Contains didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.ContainsKey(null));
+            // "TestExceptions:  FAILED.  Contains didn't throw ANE when null key is passed");
 
-        //    int item;
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.TryRemove(null, out item));
-        //    //  "TestExceptions:  FAILED.  TryRemove didn't throw ANE when null key is passed");
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.TryGetValue(null, out item));
-        //    // "TestExceptions:  FAILED.  TryGetValue didn't throw ANE when null key is passed");
+            int item;
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.TryRemove(null, out item));
+            //  "TestExceptions:  FAILED.  TryRemove didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.TryGetValue(null, out item));
+            // "TestExceptions:  FAILED.  TryGetValue didn't throw ANE when null key is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => { var x = dictionary[null]; });
-        //    // "TestExceptions:  FAILED.  this[] didn't throw ANE when null key is passed");
-        //    Assert.Throws<KeyNotFoundException>(
-        //       () => { var x = dictionary["1"]; });
-        //    // "TestExceptions:  FAILED.  this[] TryGetValue didn't throw KeyNotFoundException!");
+            Assert.Throws<ArgumentNullException>(
+               () => { var x = dictionary[null]; });
+            // "TestExceptions:  FAILED.  this[] didn't throw ANE when null key is passed");
+            Assert.Throws<KeyNotFoundException>(
+               () => { var x = dictionary["1"]; });
+            // "TestExceptions:  FAILED.  this[] TryGetValue didn't throw KeyNotFoundException!");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary[null] = 1);
-        //    // "TestExceptions:  FAILED.  this[] didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary[null] = 1);
+            // "TestExceptions:  FAILED.  this[] didn't throw ANE when null key is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.GetOrAdd(null, (k) => 0));
-        //    // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.GetOrAdd("1", null));
-        //    // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null valueFactory is passed");
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.GetOrAdd(null, 0));
-        //    // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.GetOrAdd(null, (k) => 0));
+            // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.GetOrAdd("1", null));
+            // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null valueFactory is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.GetOrAdd(null, 0));
+            // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.AddOrUpdate(null, (k) => 0, (k, v) => 0));
-        //    // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null key is passed");
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.AddOrUpdate("1", null, (k, v) => 0));
-        //    // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null updateFactory is passed");
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => dictionary.AddOrUpdate(null, (k) => 0, null));
-        //    // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null addFactory is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate(null, (k) => 0, (k, v) => 0));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate("1", null, (k, v) => 0));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null updateFactory is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate(null, (k) => 0, null));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null addFactory is passed");
 
-        //    dictionary.TryAdd("1", 1);
-        //    Assert.Throws<ArgumentException>(
-        //       () => ((IDictionary<string, int>)dictionary).Add("1", 2));
-        //    // "TestExceptions:  FAILED.  IDictionary didn't throw AE when duplicate key is passed");
-        //}
+            dictionary.TryAdd("1", 1);
+            Assert.Throws<ArgumentException>(
+               () => ((IDictionary<string, int>)dictionary).Add("1", 2));
+            // "TestExceptions:  FAILED.  IDictionary didn't throw AE when duplicate key is passed");
+        }
 
         [Fact]
         public static void TestIDictionary()
