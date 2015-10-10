@@ -38,19 +38,12 @@ namespace NonBlocking
                 }
             }
 
-            if (keyEqual(key, entryKeyValue))
-            {
-                // got existing slot
-                return true;
-            }
-
-            return false;
+            return key == entryKeyValue || keyComparer.Equals(key, entryKeyValue);
         }
 
         protected override bool keyEqual(TKey key, TKey entryKey)
         {
-            return key == entryKey ||
-                keyComparer.Equals(key, entryKey);
+            return key == entryKey || keyComparer.Equals(key, entryKey);
         }
 
         protected override NonBlockingDictionary<TKey, TKey, TValue> CreateNew()

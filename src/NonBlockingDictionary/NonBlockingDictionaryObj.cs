@@ -27,13 +27,7 @@ namespace NonBlocking
                 }
             }
 
-            if (keyComparer.Equals(key, entryKey.Value))
-            {
-                // got existing slot
-                return true;
-            }
-
-            return false;
+            return keyComparer.Equals(key, entryKey.Value);
         }
 
         protected override bool TryClaimSlotForCopy(ref Boxed<TKey> entryKey,Boxed<TKey> key, Counter slots)
@@ -50,13 +44,7 @@ namespace NonBlocking
                 }
             }
 
-            if (keyComparer.Equals(key.Value, entryKey.Value))
-            {
-                // got existing slot
-                return true;
-            }
-
-            return false;
+            return keyComparer.Equals(key.Value, entryKey.Value);
         }
 
         protected override bool keyEqual(TKey key, Boxed<TKey> entryKey)

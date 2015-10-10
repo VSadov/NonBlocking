@@ -182,8 +182,10 @@ namespace NonBlocking
                     if (nextEntry.value != null)
                     {
                         var nextK = dict.keyFromEntry(nextEntry.key);
-                        object nextV;
-                        if (dict.tryGetValue(nextK, out nextV))
+
+                        bool found;
+                        object nextV = dict.tryGetValue(nextK, out found);
+                        if (found)
                         {
                             _nextK = nextK;
                             _nextV = nextV;

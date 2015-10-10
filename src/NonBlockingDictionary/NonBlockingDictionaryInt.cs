@@ -38,12 +38,7 @@ namespace NonBlocking
                 }
             }
 
-            if (key == entryKeyValue || keyComparer.Equals(key, entryKey))
-            {
-                return true;
-            }
-
-            return false;
+            return key == entryKeyValue || keyComparer.Equals(key, entryKey);
         }
 
         protected override int hash(int key)
@@ -100,12 +95,7 @@ namespace NonBlocking
                 }
             }
 
-            if (key == entryKeyValue)
-            {
-                return true;
-            }
-
-            return false;
+            return key == entryKeyValue;
         }
 
         protected override int hash(int key)

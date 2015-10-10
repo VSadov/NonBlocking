@@ -92,8 +92,8 @@ namespace NonBlocking
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            object oldValObj;
-            var found = this.tryGetValue(key, out oldValObj);
+            bool found;
+            object oldValObj = this.tryGetValue(key, out found);
 
             Debug.Assert(!(oldValObj is Prime));
 
@@ -115,8 +115,8 @@ namespace NonBlocking
         {
             get
             {
-                object objValue;
-                var found = this.tryGetValue(key, out objValue);
+                bool found;
+                object objValue = this.tryGetValue(key, out found);
 
                 Debug.Assert(!(objValue is Prime));
 
@@ -137,8 +137,8 @@ namespace NonBlocking
 
         public abstract void Clear();
 
+        protected abstract object tryGetValue(TKey key, out bool found);
         protected abstract bool putIfMatch(TKey key, object newVal, ref object oldValue, ValueMatch match);
-        protected abstract bool tryGetValue(TKey key, out object value);
 
         public bool ContainsKey(TKey key)
         {

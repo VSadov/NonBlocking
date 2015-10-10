@@ -18,11 +18,14 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            for (;;)
-            {
+            //for (;;)
+            //{
+                RunOnce();
+                RunOnce();
+                RunOnce();
                 RunOnce();
                 System.Console.WriteLine();
-            }
+            //}
 
             //RunMany();
             //ChurnSequential();
@@ -49,11 +52,11 @@ namespace NonBlockingTests
         private static void RunOnce()
         {
             var arr = new long[] {
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),};
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),};
 
             System.Console.Write(arr.Min());
         }

@@ -160,7 +160,7 @@ namespace NonBlocking
             }
         }
 
-        protected sealed override bool tryGetValue(TKey key, out object value)
+        protected sealed override object tryGetValue(TKey key, out bool found)
         {
             if (key == null)
             {
@@ -192,7 +192,6 @@ namespace NonBlocking
 
                 // is this our slot?
                 if (fullHash == entryHash &&
-                    key != null &&
                     keyEqual(key, entryKey))
                 {
                     var entryValue = table[idx].value;
@@ -204,11 +203,11 @@ namespace NonBlocking
 
                     if (!(entryValue is Prime))
                     {
-                        value = entryValue == NULLVALUE? 
+                        found = true;
+
+                        return entryValue == NULLVALUE? 
                             null : 
                             entryValue;
-
-                        return true;
                     }
 
                     // found a prime, that means copying has started 
@@ -222,7 +221,7 @@ namespace NonBlocking
                 }
 
                 // get and put must have the same key lookup logic.
-                // But only 'put'needs to force a table-resize for a too-long key-reprobe sequence
+                // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
                 if (++reprobeCnt >= ReprobeLimit(lenMask) |
@@ -245,8 +244,8 @@ namespace NonBlocking
                 idx = (idx + reprobeCnt) & lenMask;
             }
 
-            value = null;
-            return false;
+            found = false;
+            return null;
         }
 
         // 1) finds or creates a slot for the key
