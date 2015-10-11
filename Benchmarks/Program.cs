@@ -24,7 +24,6 @@ namespace NonBlockingTests
                 RunOnce();
                 RunOnce();
                 RunOnce();
-                System.Console.WriteLine();
             //}
 
             //RunMany();
@@ -58,7 +57,7 @@ namespace NonBlockingTests
             GetBenchSmall(),
             GetBenchSmall(),};
 
-            System.Console.Write(arr.Min());
+            System.Console.WriteLine(arr.Min());
         }
 
         private static void GetBench()

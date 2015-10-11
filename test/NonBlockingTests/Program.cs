@@ -115,6 +115,10 @@ namespace NonBlockingTests
             Assert.Null(dict.GetOrAdd(0, _ => null));
             Assert.Null(dict.GetOrAdd(0, _ => null));
             Assert.True(dict.TryRemove(0, out s));
+
+            Assert.Equal(dict, new KeyValuePair<int, string>[] { });
+            Assert.Null(dict.GetOrAdd(0, (string)null));
+            Assert.Equal(dict, new KeyValuePair<int, string>[] { new KeyValuePair<int, string>(0, null) });
         }
 
         [Fact()]

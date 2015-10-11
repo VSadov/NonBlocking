@@ -97,16 +97,21 @@ namespace NonBlocking
 
             Debug.Assert(!(oldValObj is Prime));
 
-            // PERF: this would be nice to have as a helper, 
-            // but it does not get inlined
-            if (default(TValue) == null && oldValObj == NULLVALUE)
+            if (found)
             {
-                oldValObj = null;
-            }
+                // PERF: this would be nice to have as a helper, 
+                // but it does not get inlined
+                if (default(TValue) == null && oldValObj == NULLVALUE)
+                {
+                    oldValObj = null;
+                }
 
-            value = found ?
-                (TValue)oldValObj :
-                default(TValue);
+                value = (TValue)oldValObj;
+            }
+            else
+            {
+                value = default(TValue);
+            }
 
             return found;
         }
@@ -120,12 +125,12 @@ namespace NonBlocking
 
                 Debug.Assert(!(objValue is Prime));
 
-                if (!found)
+                if (found)
                 {
-                    throw new KeyNotFoundException();
+                    return (TValue)objValue;
                 }
 
-                return (TValue)objValue;
+                throw new KeyNotFoundException();
             }
             set
             {

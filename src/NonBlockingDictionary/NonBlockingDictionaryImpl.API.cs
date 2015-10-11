@@ -166,7 +166,7 @@ namespace NonBlocking
 
             public bool MoveNext()
             {
-                if (_idx != 0 && _nextV == null)
+                if (_nextV == NULLVALUE)
                 {
                     return false;
                 }
