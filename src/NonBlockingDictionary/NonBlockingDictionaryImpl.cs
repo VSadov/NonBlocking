@@ -32,19 +32,6 @@ namespace NonBlocking
         private const int REPROBE_LIMIT_SHIFT = 1;
         private const int MIN_SIZE = 8;
 
-        // represents forcefully dead entry 
-        // we insert it in old table during rehashing
-        // to reduce chances that more entries are added
-        private const int TOMBPRIMEHASH = 1 << 31;
-
-        // we cannot distigush zero keys from uninitialized state
-        // so we force them to have this special hash instead
-        protected const int ZEROHASH = 1 << 30;
-
-        // all regular hashes have these bits set
-        // to be different from 0, TOMBPRIMEHASH or ZEROHASH
-        protected const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
-
         // targeted time span between resizes.
         // if resizing more often than this, try expanding.
         const uint RESIZE_MILLIS_TARGET = (uint)1000;
@@ -65,7 +52,7 @@ namespace NonBlocking
         // claiming (by writing atomically to the entryKey location) 
         // or getting existing slot suitable for storing a given key in its store form (could be boxed).
         protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
-        
+
         // NOTE: Not Staitc For perf reasons
         private TableInfo GetTableInfo(Entry[] table)
         {
@@ -127,37 +114,10 @@ namespace NonBlocking
 
         protected virtual int hash(TKey key)
         {
-            unchecked
-            {
-                uint h = (uint)keyComparer.GetHashCode(key);
+            int h = keyComparer.GetHashCode(key);
 
-                // being an open addressed, this hashtable has some sensitivity
-                // to clustering behavior of the provided hash, so in theory
-                // it makes sense to mix the hash bits.
-                //
-                // In practice, however, this may make hash worse,
-                // for example, by turning a perfect hash into nonperfect.
-                //
-                // Overal this is a mitigation of worst case clastering 
-                // scenario at the cost of the average scenario.
-                // I am not convinced that it is worth it.
-                // In particular, since user can add mixing in the comparer.
-                //
-                // I will disable this pending more data.
-
-#if MIX_HASH
-                // 32-bit finalizer for MurmurHash3.
-                h ^= h >> 16;
-                h *= 0x85ebca6b;
-                h ^= h >> 13;
-                h *= 0xc2b2ae35;
-                h ^= h >> 16;
-
-#else
-                // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
-                return (int)(h | REGULAR_HASH_BITS);
-#endif
-            }
+            // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
+            return h | REGULAR_HASH_BITS;
         }
 
         protected sealed override object tryGetValue(TKey key, out bool found)
@@ -173,7 +133,7 @@ namespace NonBlocking
             tailCall:
 
             var lenMask = GetTableLength(table) - 1;
-            int idx = fullHash & lenMask;
+            int idx = ReduceHashToIndex(fullHash, lenMask);
 
             // Main spin/reprobe loop
             int reprobeCnt = 0;
@@ -205,8 +165,8 @@ namespace NonBlocking
                     {
                         found = true;
 
-                        return entryValue == NULLVALUE? 
-                            null : 
+                        return entryValue == NULLVALUE ?
+                            null :
                             entryValue;
                     }
 
@@ -248,6 +208,8 @@ namespace NonBlocking
             return null;
         }
 
+
+
         // 1) finds or creates a slot for the key
         // 2) sets the slot value to the putval if original value meets expVal condition
         // 3) returns true if the value was actually changed 
@@ -263,7 +225,7 @@ namespace NonBlocking
             }
 
             var table = this._topTable;
-            int fullhash = hash(key);
+            int fullHash = hash(key);
 
             TRY_WITH_NEW_TABLE:
 
@@ -272,7 +234,7 @@ namespace NonBlocking
 
             int lenMask = GetTableLength(table) - 1;
             var tableInfo = GetTableInfo(table);
-            int idx = fullhash & lenMask;
+            int idx = ReduceHashToIndex(fullHash, lenMask);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobe_cnt = 0;
@@ -294,11 +256,11 @@ namespace NonBlocking
                     else
                     {
                         // Slot is completely clean, claim the hash first
-                        Debug.Assert(fullhash != 0);
-                        entryHash = Interlocked.CompareExchange(ref table[idx].hash, fullhash, 0);
+                        Debug.Assert(fullHash != 0);
+                        entryHash = Interlocked.CompareExchange(ref table[idx].hash, fullHash, 0);
                         if (entryHash == 0)
                         {
-                            entryHash = fullhash;
+                            entryHash = fullHash;
                             if (entryHash == ZEROHASH)
                             {
                                 // "added" entry for zero key
@@ -309,7 +271,7 @@ namespace NonBlocking
                     }
                 }
 
-                if (entryHash == fullhash)
+                if (entryHash == fullHash)
                 {
                     // hash is good, one way or another, 
                     // try claiming the slot for the key
@@ -365,7 +327,7 @@ namespace NonBlocking
             // so accelerated) that they swapped and we still read a null new table.  
             // The resize call below will do a CAS on new table forcing the read.
             var newTable = tableInfo._newTable;
-            if (newTable == null &&       
+            if (newTable == null &&
                 ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) || entryValue is Prime))
             {
                 // Force the new table copy to start
@@ -468,7 +430,7 @@ namespace NonBlocking
             return false;
         }
 
-        private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullhash)
+        private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullHash)
         {
             Debug.Assert(putval != TOMBSTONE);
             Debug.Assert(key != null);
@@ -480,7 +442,7 @@ namespace NonBlocking
 
             int lenMask = GetTableLength(table) - 1;
             var tableInfo = GetTableInfo(table);
-            int idx = fullhash & lenMask;
+            int idx = ReduceHashToIndex(fullHash, lenMask);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobe_cnt = 0;
@@ -490,11 +452,11 @@ namespace NonBlocking
                 if (entryHash == 0)
                 {
                     // Slot is completely clean, claim the hash
-                    Debug.Assert(fullhash != 0);
-                    entryHash = Interlocked.CompareExchange(ref table[idx].hash, fullhash, 0);
+                    Debug.Assert(fullHash != 0);
+                    entryHash = Interlocked.CompareExchange(ref table[idx].hash, fullHash, 0);
                     if (entryHash == 0)
                     {
-                        entryHash = fullhash;
+                        entryHash = fullHash;
                         if (entryHash == ZEROHASH)
                         {
                             // "added" entry for zero key
@@ -504,7 +466,7 @@ namespace NonBlocking
                     }
                 }
 
-                if (entryHash == fullhash)
+                if (entryHash == fullHash)
                 {
                     // hash is good, one way or another, claim the key
                     if (TryClaimSlotForCopy(ref table[idx].key, key, tableInfo._slots))
@@ -538,7 +500,7 @@ namespace NonBlocking
             if (entryValue != null)
             {
                 // someone else copied, not us
-                return false; 
+                return false;
             }
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
@@ -546,7 +508,7 @@ namespace NonBlocking
             var newTable = tableInfo._newTable;
             if (newTable == null && tableInfo.tableIsCrowded(lenMask))
             {
-                newTable = tableInfo.Resize(this, table); 
+                newTable = tableInfo.Resize(this, table);
                 Debug.Assert(tableInfo._newTable != null);
             }
 
@@ -816,7 +778,7 @@ namespace NonBlocking
 
                 // Prevent new values from appearing in the old table.
                 // Box what we see in the old table, to prevent further updates.
-                object oldval = oldTable[idx].value; 
+                object oldval = oldTable[idx].value;
 
                 // already boxed?
                 Prime box = oldval as Prime;
@@ -852,7 +814,7 @@ namespace NonBlocking
 
                             // Break loop; oldval is now boxed by us
                             // it still needs to be copied into the new table.
-                            break;                
+                            break;
                         }
 
                         oldval = prev;
@@ -901,7 +863,7 @@ namespace NonBlocking
 
                 // Check for resize already in progress, probably triggered by another thread
                 // VOLATILE READ
-                var newTable = this._newTable; 
+                var newTable = this._newTable;
 
                 // See if resize is already in progress
                 if (newTable != null)
@@ -909,18 +871,18 @@ namespace NonBlocking
                     // Use the new table already
                     return newTable;
                 }
-                
+
                 // No copy in-progress, so start one.  
                 //First up: compute new table size.
-                int oldlen = topmap.GetTableLength(table);    
+                int oldlen = topmap.GetTableLength(table);
 
                 const int MAX_SIZE = 1 << 30;
                 const int MAX_CHURN_SIZE = 1 << 15;
 
                 // First size estimate is roughly inverse of ProbeLimit
                 int sz = size() + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
-                int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ? 
-                                                sz << REPROBE_LIMIT_SHIFT : 
+                int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ?
+                                                sz << REPROBE_LIMIT_SHIFT :
                                                 sz;
 
                 // if new table would shrink or hold steady, 

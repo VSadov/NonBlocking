@@ -20,10 +20,14 @@ namespace NonBlockingTests
         {
             //for (;;)
             //{
-                RunOnce();
-                RunOnce();
-                RunOnce();
-                RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
             //}
 
             //RunMany();
@@ -60,7 +64,7 @@ namespace NonBlockingTests
             System.Console.WriteLine(arr.Min());
         }
 
-        private static void GetBench()
+        private static long GetBench()
         {
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
@@ -76,7 +80,7 @@ namespace NonBlockingTests
             }
 
             sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
+            return sw.ElapsedMilliseconds;
         }
 
         private static long GetBenchSmall()
@@ -98,7 +102,7 @@ namespace NonBlockingTests
             return sw.ElapsedMilliseconds;
         }
 
-        private static void GetBenchRef()
+        private static long GetBenchRef()
         {
             var dict = NonBlockingDictionary.Create<object, string>();
             //var dict = new System.Collections.Concurrent.ConcurrentDictionary<object, string>();
@@ -116,13 +120,13 @@ namespace NonBlockingTests
 
             var sw = Stopwatch.StartNew();
 
-            for (int j = 0; j < 5000; j++)
+            for (int j = 0; j < 3000; j++)
             {
                 Parallel.For(0, 50000, (i) => { var dummy = dict[list[i]]; });
             }
 
             sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
+            return sw.ElapsedMilliseconds;
         }
 
         private static void AssignBenchSmall()
@@ -266,8 +270,10 @@ namespace NonBlockingTests
             var dict = NonBlockingDictionary.Create<int, string>();
             //var dict = new ConcurrentDictionary<int, string>();
 
-            var threadCnt = 100;
+            var threadCnt = 200;
             List<Task> tasks = new List<Task>(threadCnt);
+
+            var sw = Stopwatch.StartNew();
 
             for (int i = 0; i < threadCnt; i++)
             {
@@ -288,6 +294,8 @@ namespace NonBlockingTests
             }
 
             Task.WaitAll(tasks.ToArray());
+
+            System.Console.WriteLine(sw.ElapsedMilliseconds);
         }
     }
 
