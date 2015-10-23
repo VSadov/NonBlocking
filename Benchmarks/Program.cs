@@ -23,11 +23,7 @@ namespace NonBlockingTests
             RunOnce();
             RunOnce();
             RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
+            RunOnce();            
             //}
 
             //RunMany();
@@ -96,6 +92,35 @@ namespace NonBlockingTests
             for (int j = 0; j < 50000; j++)
             {
                 Parallel.For(0, 5000, (i) => { var dummy = dict[i]; });
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long GetBenchSmallSequential()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            //var dict = new System.Collections.Generic.Dictionary<int, string>();
+
+            for(int i = 0; i < 10000; i++)
+            {
+                dict[i] = i.ToString();
+            }
+            for (int i = 0; i < 10000; i++)
+            {
+                var dummy = dict[i];
+            }
+
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 50000; j++)
+            {
+                for(int i = 0; i < 5000; i++)
+                {
+                    var dummy = dict[i];
+                }
             }
 
             sw.Stop();
@@ -179,6 +204,52 @@ namespace NonBlockingTests
                 // dict.print();
                 //string value;
                 //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long AddBenchSmallSequential()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            var listV = new List<string>();
+            for (int i = 0; i < 10000; i++)
+            {
+                listV.Add(i.ToString());
+            }
+
+            for (int i = 0; i < 10000; i++)
+            {
+                dict[i] = listV[i];
+            }
+
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 5000; j++)
+            {
+                for(int i = 0; i < 10000; i++)
+                {
+                    dict[i - 1] = listV[i];
+                }
+
+                for (int i = 0; i < 10000; i++)
+                {
+                    string s; dict.TryRemove(i - 1, out s);
+                }
+
+                for (int i = 0; i < 10000; i++)
+                {
+                    dict[i] = listV[i];
+                }
+
+                for (int i = 0; i < 10000; i++)
+                {
+                    string s; dict.TryRemove(i, out s);
+                }
+
             }
 
             sw.Stop();
