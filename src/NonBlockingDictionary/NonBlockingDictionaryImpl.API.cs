@@ -20,7 +20,7 @@ namespace NonBlocking
         {
             get
             {
-                return this.GetTableInfo(this._topTable).size();
+                return this.GetTableInfo(this._topTable).Size;
             }
         }
 

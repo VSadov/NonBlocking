@@ -588,13 +588,30 @@ namespace NonBlocking
                 _slots = new Counter();
             }
 
-            internal int size() { return (int)_size.get(); }
-            internal int estimated_slots_used() { return (int)_slots.estimate_get(); }
+            internal int Size
+            {
+                get
+                {
+                    // counter does not lose counts, but reports of increments/decrements can be delayed
+                    // it might be confusing if we ever report negative size.
+                    var size = _size.get();
+                    var negMask = ~(size >> 31);
+                    return size & negMask;
+                }
+            }
+
+            internal int EstimatedSlotsUsed
+            {
+                get
+                {
+                    return (int)_slots.estimate_get();
+                }
+            }
 
             internal bool tableIsCrowded(int len)
             {
                 // 80% utilization, switch to a bigger table
-                return estimated_slots_used() > (len >> 2) * 3;
+                return EstimatedSlotsUsed > (len >> 2) * 3;
             }
 
             // Help along an existing resize operation.  We hope its the top-level
@@ -880,7 +897,7 @@ namespace NonBlocking
                 const int MAX_CHURN_SIZE = 1 << 15;
 
                 // First size estimate is roughly inverse of ProbeLimit
-                int sz = size() + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
+                int sz = Size + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
                 int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ?
                                                 sz << REPROBE_LIMIT_SHIFT :
                                                 sz;
