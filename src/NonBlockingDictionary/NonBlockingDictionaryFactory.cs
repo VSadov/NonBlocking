@@ -121,6 +121,11 @@ namespace NonBlocking
         // to be different from 0, TOMBPRIMEHASH or ZEROHASH
         internal const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
+        internal static bool EntryValueNullOrDead(object entryValue)
+        {
+            return entryValue == null | entryValue == TOMBSTONE;
+        }
+
         internal static int ReduceHashToIndex(int fullHash, int lenMask)
         {
             var h = fullHash & ~REGULAR_HASH_BITS;

@@ -51,11 +51,11 @@ namespace NonBlockingTests
         private static void RunOnce()
         {
             var arr = new long[] {
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),};
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),
+            AddBenchSmall(),};
 
             System.Console.WriteLine(arr.Min());
         }

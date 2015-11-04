@@ -156,7 +156,7 @@ namespace NonBlocking
                 {
                     var entryValue = table[idx].value;
 
-                    if (entryValue == null | entryValue == TOMBSTONE)
+                    if (EntryValueNullOrDead(entryValue))
                     {
                         break;
                     }
@@ -300,33 +300,19 @@ namespace NonBlocking
             // Found the proper Key slot, now update the Value.  
             // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
-            //
-            // TODO: VS would it be better to volatile read here so that we do not need the isPrime check below?
-            //       "is Prime" may cause cache miss since we otherwise do not need to touch entryValue and will always be false on x86/64.
-            //
-            //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
-            //       is DMB more costly than "is Prime"?
-            var entryValue = table[idx].value;
-            if (newVal == entryValue & match != ValueMatch.OldValue)
-            {
-                //the exact same value is already there
-                //only "OldValue" may succeed
-                goto FAILED;
-            }
+
+            // volatile read to make sure we read the element before we read the _newTable
+            // that would guarantee that as long as _newTable == null, entryValue cannot be a Prime.
+            var entryValue = Volatile.Read(ref table[idx].value);
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
-            // Or we found a Prime, but the VM allowed reordering such that we
-            // did not spot the new table (very rare race here: the writing
-            // thread did a CAS of new table then a CAS store of a Prime.  This thread
-            // does regular read of the Prime, then volatile read of new table - 
-            // but the read of Prime was so delayed (or the read of new table was 
-            // so accelerated) that they swapped and we still read a null new table.  
-            // The resize call below will do a CAS on new table forcing the read.
             var newTable = tableInfo._newTable;
-            if (newTable == null &&
-                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) || entryValue is Prime))
+
+            // newTable == entryValue only when both are nulls
+            if ((object)newTable == (object)entryValue && 
+                tableInfo.tableIsCrowded(lenMask))
             {
                 // Force the new table copy to start
                 newTable = tableInfo.Resize(this, table);
@@ -347,7 +333,7 @@ namespace NonBlocking
             while (true)
             {
                 Debug.Assert(!(entryValue is Prime));
-                var entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
+                var entryValueNullOrDead = EntryValueNullOrDead(entryValue);
 
                 switch (match)
                 {
@@ -507,27 +493,18 @@ namespace NonBlocking
             // Found the proper Key slot, now update the Value.  
             // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
-            //
-            // TODO: VS would it be better to volatile read here so that we do not need the isPrime check below?
-            //       "is Prime" may cause cache miss since we otherwise do not need to touch entryValue and will always be false on x86/64.
-            //
-            //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
-            //       is DMB more costly than "is Prime"?
-            var entryValue = table[idx].value;
+
+            // volatile read to make sure we read the element before we read the _newTable
+            // that would guarantee that as long as _newTable == null, entryValue cannot be a Prime.
+            var entryValue = Volatile.Read(ref table[idx].value);
 
             // See if we want to move to a new table (to avoid high average re-probe counts).  
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
-            // Or we found a Prime, but the VM allowed reordering such that we
-            // did not spot the new table (very rare race here: the writing
-            // thread did a CAS of new table then a CAS store of a Prime.  This thread
-            // does regular read of the Prime, then volatile read of new table - 
-            // but the read of Prime was so delayed (or the read of new table was 
-            // so accelerated) that they swapped and we still read a null new table.  
-            // The resize call below will do a CAS on new table forcing the read.
             var newTable = tableInfo._newTable;
-            if (newTable == null &&
-                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) || entryValue is Prime))
+            // newTable == entryValue only when both are nulls
+            if ((object)newTable == (object)entryValue &&
+                tableInfo.tableIsCrowded(lenMask))
             {
                 // Force the new table copy to start
                 newTable = tableInfo.Resize(this, table);
@@ -544,8 +521,7 @@ namespace NonBlocking
                 goto TRY_WITH_NEW_TABLE;
             }
 
-            var entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
-            if (!entryValueNullOrDead)
+            if (!EntryValueNullOrDead(entryValue))
             {
                 goto GOT_PREV_VALUE;
             }
@@ -585,8 +561,7 @@ namespace NonBlocking
                 // Otherwise we lost the CAS to another racing put.
                 // Simply retry from the start.
                 entryValue = prev;
-                entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
-                if (!entryValueNullOrDead)
+                if (!EntryValueNullOrDead(entryValue))
                 {
                     goto GOT_PREV_VALUE;
                 }
@@ -984,7 +959,7 @@ namespace NonBlocking
                 {
                     do
                     {
-                        box = (oldval == null | oldval == TOMBSTONE) ?
+                        box = EntryValueNullOrDead(oldval) ?
                             TOMBPRIME :
                             new Prime(oldval);
 
