@@ -42,7 +42,7 @@ namespace NonBlocking
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static object ToObjectValue(TValue value)
+        internal static object ToObjectValue(TValue value)
         {
             if (default(TValue) == null)
             {
@@ -189,22 +189,7 @@ namespace NonBlocking
             return (TValue)oldValObj;
         }
 
-        //TODO: VS we could make a version of putIfMatch that takes a factory
-        public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
-        {
-            if (valueFactory == null)
-            {
-                throw new ArgumentNullException("valueFactory");
-            }
-
-            TValue value;
-            if (this.TryGetValue(key, out value))
-            {
-                return value;
-            }
-
-            return GetOrAdd(key, valueFactory(key));
-        }
+        public abstract TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory);
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {

@@ -217,8 +217,6 @@ namespace NonBlocking
         // since slot without a value is as good as no slot at all
         protected sealed override bool putIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
         {
-            Debug.Assert(newVal != null);
-
             if (key == null)
             {
                 throw new ArgumentNullException("key");
@@ -428,6 +426,183 @@ namespace NonBlocking
 
             FAILED:
             return false;
+        }
+
+        public sealed override TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
+        {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
+            if (valueFactory == null)
+            {
+                throw new ArgumentNullException("valueFactory");
+            }
+
+            TValue result;
+            var table = this._topTable;
+            int fullHash = hash(key);
+
+            TRY_WITH_NEW_TABLE:
+
+            int lenMask = GetTableLength(table) - 1;
+            var tableInfo = GetTableInfo(table);
+            int idx = ReduceHashToIndex(fullHash, lenMask);
+
+            // Spin till we get a slot for the key or force a resizing.
+            int reprobe_cnt = 0;
+            while (true)
+            {
+                // hash, key and value are all CAS-ed down and follow a specific sequence of states.
+                // hence the order of their reads is irrelevant and they do not need to be volatile    
+                var entryHash = table[idx].hash;
+                if (entryHash == 0)
+                {
+                    // Found an unassigned slot - which means this 
+                    // key has never been in this table.
+                    // Slot is completely clean, claim the hash first
+                    Debug.Assert(fullHash != 0);
+                    entryHash = Interlocked.CompareExchange(ref table[idx].hash, fullHash, 0);
+                    if (entryHash == 0)
+                    {
+                        entryHash = fullHash;
+                        if (entryHash == ZEROHASH)
+                        {
+                            // "added" entry for zero key
+                            tableInfo._slots.increment();
+                            break;
+                        }
+                    }
+                }
+
+                if (entryHash == fullHash)
+                {
+                    // hash is good, one way or another, 
+                    // try claiming the slot for the key
+                    if (TryClaimSlotForPut(ref table[idx].key, key, tableInfo._slots))
+                    {
+                        break;
+                    }
+                }
+
+                // here we know that this slot does not map to our key
+                // and must reprobe or resize
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // but there could be more in the new table
+                if (++reprobe_cnt >= ReprobeLimit(lenMask) |
+                    entryHash == TOMBPRIMEHASH)
+                {
+                    // start resize or get new table if resize is already in progress
+                    table = tableInfo.Resize(this, table);
+                    // help along an existing copy
+                    this.HelpCopy();
+                    goto TRY_WITH_NEW_TABLE;
+                }
+
+                // quadratic reprobing
+                idx = (idx + reprobe_cnt) & lenMask;
+            }
+
+            // Found the proper Key slot, now update the Value.  
+            // We never put a null, so Value slots monotonically move from null to
+            // not-null (deleted Values use Tombstone).
+            //
+            // TODO: VS would it be better to volatile read here so that we do not need the isPrime check below?
+            //       "is Prime" may cause cache miss since we otherwise do not need to touch entryValue and will always be false on x86/64.
+            //
+            //       basically, the volatile read is only needed on ARM and the like and that is also where it could be expensive
+            //       is DMB more costly than "is Prime"?
+            var entryValue = table[idx].value;
+
+            // See if we want to move to a new table (to avoid high average re-probe counts).  
+            // We only check on the initial set of a Value from null to
+            // not-null (i.e., once per key-insert).
+            // Or we found a Prime, but the VM allowed reordering such that we
+            // did not spot the new table (very rare race here: the writing
+            // thread did a CAS of new table then a CAS store of a Prime.  This thread
+            // does regular read of the Prime, then volatile read of new table - 
+            // but the read of Prime was so delayed (or the read of new table was 
+            // so accelerated) that they swapped and we still read a null new table.  
+            // The resize call below will do a CAS on new table forcing the read.
+            var newTable = tableInfo._newTable;
+            if (newTable == null &&
+                ((entryValue == null && tableInfo.tableIsCrowded(lenMask)) || entryValue is Prime))
+            {
+                // Force the new table copy to start
+                newTable = tableInfo.Resize(this, table);
+                Debug.Assert(tableInfo._newTable != null);
+            }
+
+            // See if we are moving to a new table.
+            // If so, copy our slot and retry in the new table.
+            if (newTable != null)
+            {
+                var newTable1 = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
+                Debug.Assert(newTable == newTable1);
+                table = newTable;
+                goto TRY_WITH_NEW_TABLE;
+            }
+
+            var entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
+            if (!entryValueNullOrDead)
+            {
+                goto GOT_PREV_VALUE;
+            }
+
+            // prev value is not null, dead or prime.
+            // let's try install new value
+            object newValObj = ToObjectValue(result = valueFactory(key));
+            while (true)
+            {
+                Debug.Assert(!(entryValue is Prime));
+
+                // Actually change the Value 
+                var prev = Interlocked.CompareExchange(ref table[idx].value, newValObj, entryValue);
+                if (prev == entryValue)
+                {
+                    // CAS succeeded - we did the update!
+                    // Adjust sizes
+                    tableInfo._size.increment();
+                    goto DONE;
+                }
+                // Else CAS failed
+
+                // If a Prime'd value got installed, we need to re-run the put on the new table.
+                if (prev is Prime)
+                {
+                    newTable = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
+                    table = newTable;
+
+                    if (!this.putIfMatch(key, newValObj, ref entryValue, ValueMatch.NullOrDead))
+                    {
+                        goto GOT_PREV_VALUE;
+                    }
+
+                    goto DONE;
+                }
+
+                // Otherwise we lost the CAS to another racing put.
+                // Simply retry from the start.
+                entryValue = prev;
+                entryValueNullOrDead = entryValue == null | entryValue == TOMBSTONE;
+                if (!entryValueNullOrDead)
+                {
+                    goto GOT_PREV_VALUE;
+                }
+            }
+
+            GOT_PREV_VALUE:
+            // PERF: this would be nice to have as a helper, 
+            // but it does not get inlined
+            if (default(TValue) == null && entryValue == NULLVALUE)
+            {
+                entryValue = null;
+            }
+            result = (TValue)entryValue;
+
+            DONE:
+            return result;
         }
 
         private bool copySlot(Entry[] table, TKeyStore key, object putval, int fullHash)
