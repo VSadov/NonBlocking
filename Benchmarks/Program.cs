@@ -51,11 +51,11 @@ namespace NonBlockingTests
         private static void RunOnce()
         {
             var arr = new long[] {
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),
-            AddBenchSmall(),};
+            GetOrAddFuncBenchSmall1(),
+            GetOrAddFuncBenchSmall1(),
+            GetOrAddFuncBenchSmall1(),
+            GetOrAddFuncBenchSmall1(),
+            GetOrAddFuncBenchSmall1(),};
 
             System.Console.WriteLine(arr.Min());
         }
@@ -172,9 +172,6 @@ namespace NonBlockingTests
             {
                 Parallel.For(1, 10000, (i) => dict[i - 1] = listV[i]);
                 Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
-                // dict.print();
-                //string value;
-                //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
             }
 
             sw.Stop();
@@ -201,9 +198,84 @@ namespace NonBlockingTests
                 Parallel.For(1, 10000, (i) => { string s; dict.TryRemove(i - 1, out s); });
                 Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
                 Parallel.For(0, 10000, (i) => { string s; dict.TryRemove(i, out s); });
-                // dict.print();
-                //string value;
-                //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long GetOrAddTBenchSmall()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            Parallel.For(0, 10000, (i) => dict[i] = "ww");
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 5000; j++)
+            {
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, "aa"));
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, "bb"));
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, "aa"));
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, "bb"));
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long GetOrAddFuncBenchSmall()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            Parallel.For(0, 10000, (i) => dict[i] = "ww");
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 5000; j++)
+            {
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, (_)=>"aa"));
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, (_) => "bb"));
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, (_) => "aa"));
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, (_) => "bb"));
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long GetOrAddTBenchSmall1()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 5000; j++)
+            {
+                dict.Clear();
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i % 333, "aa"));
+                dict.Clear();
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i % 333, "bb"));
+            }
+
+            sw.Stop();
+            return sw.ElapsedMilliseconds;
+        }
+
+        private static long GetOrAddFuncBenchSmall1()
+        {
+            var dict = NonBlockingDictionary.Create<int, string>();
+            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+
+            var sw = Stopwatch.StartNew();
+
+            for (int j = 0; j < 5000; j++)
+            {
+                dict.Clear();
+                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i % 333, (_) => "aa"));
+                dict.Clear();
+                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i % 333, (_) => "bb"));
             }
 
             sw.Stop();
@@ -274,9 +346,6 @@ namespace NonBlockingTests
             {
                 Parallel.For(1, 100000, (i) => dict[i - 1] = listV[i]);
                 Parallel.For(0, 100000, (i) => dict[i] = listV[i]);
-                // dict.print();
-                //string value;
-                //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
             }
 
             sw.Stop();
@@ -307,9 +376,6 @@ namespace NonBlockingTests
             {
                 Parallel.For(1, 100000, (i) => dict[list[i - 1]] = listV[i]);
                 Parallel.For(0, 100000, (i) => dict[list[i]] = listV[i]);
-                // dict.print();
-                //string value;
-                //Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
             }
 
             sw.Stop();
