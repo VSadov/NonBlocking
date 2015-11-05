@@ -140,7 +140,7 @@ namespace NonBlocking
             while (true)
             {
                 // hash, key and value are all CAS-ed down and follow a specific sequence of states.
-                // hence the order of these reads is irrelevant and they do not need to be volatile    
+                // hence the order of these reads is irrelevant and they do not need to be volatile
                 var entryHash = table[idx].hash;
                 var entryKey = table[idx].key;
 
@@ -502,6 +502,7 @@ namespace NonBlocking
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
             var newTable = tableInfo._newTable;
+
             // newTable == entryValue only when both are nulls
             if ((object)newTable == (object)entryValue &&
                 tableInfo.tableIsCrowded(lenMask))
@@ -706,7 +707,7 @@ namespace NonBlocking
             internal readonly Counter _size;
             internal readonly Counter _slots;
 
-            volatile internal Entry[] _newTable;
+            internal Entry[] _newTable;
 
             // Sometimes many threads race to create a new very large table.  Only 1
             // wins the race, but the losers all allocate a junk large table with
@@ -717,7 +718,7 @@ namespace NonBlocking
             // new table.
             //
             // count of threads attempting an initial resize
-            volatile private int _resizers;
+            private int _resizers;
 
             // The next part of the table to copy.  It monotonically transits from zero
             // to table.length.  Visitors to the table can claim 'work chunks' by
@@ -725,12 +726,12 @@ namespace NonBlocking
             // table to the new table.  Workers are not required to finish any chunk;
             // the counter simply wraps and work is copied duplicately until somebody
             // somewhere completes the count.
-            volatile private int _claimedChunk = 0;
+            private int _claimedChunk = 0;
 
             // Work-done reporting.  Used to efficiently signal when we can move to
             // the new table.  From 0 to length of old table refers to copying from the old
             // table to the new.
-            volatile private int _copyDone = 0;
+            private int _copyDone = 0;
 
             internal TableInfo(Counter size)
             {
@@ -894,9 +895,7 @@ namespace NonBlocking
             internal Entry[] CopySlotAndCheck(NonBlockingDictionary<TKey, TKeyStore, TValue> topmap, Entry[] oldTable, int idx, bool shouldHelp)
             {
                 Debug.Assert(topmap.GetTableInfo(oldTable) == this);
-
-                // VOLATILE READ
-                var newTable = _newTable;
+                var newTable = this._newTable;
 
                 // We're only here because the caller saw a Prime, which implies a
                 // table-copy is in progress.
@@ -944,7 +943,9 @@ namespace NonBlocking
                 }
 
                 // Prevent new values from appearing in the old table.
-                // Box what we see in the old table, to prevent further updates.
+                // Box what we see in the old table, to prevent further updates
+                // read of the value below should be newer than this, but this read 
+                // does not need to be volatile since we will have some fences in between.
                 object oldval = oldTable[idx].value;
 
                 // already boxed?
@@ -952,7 +953,7 @@ namespace NonBlocking
                 if (box != null)
                 {
                     // volatile read here since we need to make sure 
-                    // that the key read below happens after we have read oldval
+                    // that the key read below happens after we have read oldval above
                     Volatile.Read(ref box.originalValue);
                 }
                 else
@@ -964,6 +965,7 @@ namespace NonBlocking
                             new Prime(oldval);
 
                         // CAS down a box'd version of oldval
+                        // also works as a complete fence between reading the value and the key
                         object prev = Interlocked.CompareExchange(ref oldTable[idx].value, box, oldval);
 
                         if (prev == oldval)
@@ -1005,7 +1007,8 @@ namespace NonBlocking
                 object originalValue = box.originalValue;
                 Debug.Assert(originalValue != TOMBSTONE);
                 // since we have a real value, there must be a nontrivial key in the table
-                // non-volatile read because the CAS of a boxed value above is a complete fence
+                // regular read is ok because because value is always CASed down after the key
+                // and we ensured that we read the key after the value with fences above
                 var key = oldTable[idx].key;
 
                 bool copiedIntoNew = topmap.copySlot(newTable, key, originalValue, hash);
@@ -1029,7 +1032,8 @@ namespace NonBlocking
                 Debug.Assert(topmap.GetTableInfo(table) == this);
 
                 // Check for resize already in progress, probably triggered by another thread
-                // VOLATILE READ
+                // all reads of this_newTable here are not volatile
+                // we are just opportunistically checking if a new table has arrived.
                 var newTable = this._newTable;
 
                 // See if resize is already in progress
@@ -1089,6 +1093,7 @@ namespace NonBlocking
                 // limit the number of threads actually allocating memory to a
                 // handful - lest we have 750 threads all trying to allocate a giant
                 // resized array.
+                // conveniently, Increment is also a full fence
                 if (kBs4 > 0 && Interlocked.Increment(ref _resizers) >= 2)
                 {
                     // Already 2 guys trying; wait and see
@@ -1103,7 +1108,7 @@ namespace NonBlocking
                 }
 
                 // Last check, since the 'new' below is expensive and there is a chance
-                // that another thread slipped in a new thread while we ran the heuristic.
+                // that another thread slipped in a new table while we ran the heuristic.
                 newTable = this._newTable;
                 // See if resize is already in progress
                 if (newTable != null)
