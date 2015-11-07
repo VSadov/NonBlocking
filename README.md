@@ -20,18 +20,28 @@ Result is in milliseconds, smaller is better.
 
 * Single-threaded sequential operations on an int->string dictionary. 
 
-|Collection|Get|Add/Remove|
+|Collection \ Operation|Get|Add/Remove|
 |----------|---|---|
-|Dictionary|3402 (0.82x)|3231 (0.36x)|
-|NonBlockingDictionary|4133|8771|
-|ConcurrentDictionary|5356 (1.30x)|12262 (1.40x)|
+|Dictionary|3393 (0.82x)|3227 (0.37x)|
+|NonBlockingDictionary|4124 (1.00x)|8704 (1.00x)|
+|ConcurrentDictionary|5413 (1.31x)|12181 (1.40x)|
 
 * Concurrent Parallel.For operations on an int->string dictionary. 
 
-|Collection|Get|Add/Remove|
+|Collection \ Operation|Get|Add/Remove|
 |----------|---|---|
-|NonBlockingDictionary|1993|3449|
-|ConcurrentDictionary|2276 (1.14x)|4388 (1.27x)|
+|NonBlockingDictionary|1932 (1.00x)|3068 (1.00x)|
+|ConcurrentDictionary|2157 (1.12x)|4034 (1.31x)|
+
+* Concurrent Remove/GetOrAdd with a trivial Func on a partially cleared int->string dictionary.  
+  % is the ratio of items removed that will end up needing Func eval at GetOrAdd stage.
+
+
+|Collection \ "removed" ratio|0%|33%|66%|100%|
+|----------|---|---|---|---|
+|NonBlockingDictionary|1112 (1.00x)|1875 (1.00x)|2520 (1.00x)|3070 (1.00x)|
+|ConcurrentDictionary|1132 (1.02x)|2331 (1.24x)|3361 (1.33x)|4608 (1.50x)|
+
 
 ## Implementation notes
 Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click.
@@ -42,6 +52,6 @@ Most differences of this implementation are motivated by the differences in prov
 - platform APIs such as Interlocked.CompareExchange have differences.
 - ConcurrentDictionary API differs from a typical java dictionary.
 
-Memory model is assumed to be weak with data-dependency ordering (should work on ARM, but not yet tested).
+Memory model is assumed to be weak and honoring indirection data-dependency (should work on ARM, but not yet tested).
 
 
