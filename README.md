@@ -33,7 +33,7 @@ Result is in milliseconds, smaller is better.
 |NonBlockingDictionary|1932 (1.00x)|3068 (1.00x)|
 |ConcurrentDictionary|2157 (1.12x)|4034 (1.31x)|
 
-* Concurrent Remove/GetOrAdd with a trivial Func on a partially cleared int->string dictionary.  
+* Concurrent GetOrAdd with a trivial Func on a partially cleared int->string dictionary.  
   % is the ratio of items removed that will end up needing Func eval at GetOrAdd stage.
 
 
