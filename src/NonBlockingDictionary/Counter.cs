@@ -10,10 +10,11 @@ using System.Threading;
 
 namespace NonBlocking
 {
+    [StructLayout(LayoutKind.Sequential)]
     public sealed class Counter
     {
-        public const int MAX_DRIFT = 42;
-        public static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2 - 1;
+        public static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2;
+        public const int MAX_DRIFT = 1;
 
         private class Cell
         {
@@ -31,12 +32,12 @@ namespace NonBlocking
         // spaced out counters
         private Cell[] cells;
 
-        // default counter
-        private int cnt;
-
         // how many cells we have
         private int cellCount;
-        
+
+        // default counter
+        private int cnt;      
+                
         public Counter()
         {
         }
@@ -85,83 +86,62 @@ namespace NonBlocking
 
         public void increment()
         {
-            var cellCount = this.cellCount;
-            var idx = GetIndex(cellCount);
+            Cell cell = null;
 
-            int retries;
-            if (idx == 0)
+            int curCellCount = this.cellCount;
+            if (curCellCount > 1 & this.cells != null)
             {
-                retries = increment(ref this.cnt);
-            }
-            else
-            {
-                retries = increment(ref this.cells[idx - 1].counter.cnt);
+                cell = this.cells[GetIndex(curCellCount)];
             }
 
-            if (retries > MAX_DRIFT)
+            var drift = cell == null ?
+                increment(ref cnt) :
+                increment(ref cell.counter.cnt);
+
+            if (drift > MAX_DRIFT)
             {
-                //System.Console.WriteLine(retries);
-                TryAddCell(cellCount);
+                TryAddCell(curCellCount);
+            }
+        }
+
+        public void decrement()
+        {
+            Cell cell = null;
+
+            int curCellCount = this.cellCount;
+            if (curCellCount > 1 & this.cells != null)
+            {
+                cell = this.cells[GetIndex(curCellCount)];
+            }
+
+            var drift = cell == null ?
+                decrement(ref cnt) :
+                decrement(ref cell.counter.cnt);
+
+            if (drift > MAX_DRIFT)
+            {
+                TryAddCell(curCellCount);
             }
         }
 
         private static int increment(ref int val)
         {
-            var expected = val + 1;
-            var newVal = Interlocked.Increment(ref val);
-
-            var drift = fastAbs(newVal - expected);
-
-            return drift;
-        }
-
-        public void decrement()
-        {
-            var cellCount = this.cellCount;
-            var idx = GetIndex(cellCount);
-
-            int retries;
-            if (idx == 0)
-            {
-                retries = decrement(ref this.cnt);
-            }
-            else
-            {
-                retries = decrement(ref this.cells[idx - 1].counter.cnt);
-            }
-
-            if (retries > MAX_DRIFT)
-            {
-                //System.Console.WriteLine(retries);
-                TryAddCell(cellCount);
-            }
+            return -val + Interlocked.Increment(ref val) - 1;
         }
 
         private static int decrement(ref int val)
         {
-            var expected = val - 1;
-            var newVal = Interlocked.Decrement(ref val);
-
-            var drift = fastAbs(newVal - expected);
-
-            return drift;
+            return val - Interlocked.Decrement(ref val) - 1;
         }
 
-        // this is faster than Math.Abs, 
-        // but will not throw for int.MinValue, which we can ignore
-        // as tolearable and extremely unlikely
-        private static int fastAbs(int arg)
+        private static int GetIndex(int cellCount)
         {
-            // -1 when arg is negative, 0 otherwise
-            var minOneWhenNegative = arg >> 31;
-
-            // ~(arg + 1)   is same as negation
-            return (arg - minOneWhenNegative) ^ minOneWhenNegative;
+            return Environment.CurrentManagedThreadId % cellCount;
         }
 
-        private void TryAddCell(int cellCount)
+        private void TryAddCell(int curCellCount)
         {
-            if (cellCount < MAX_CELL_COUNT)
+            if (curCellCount < MAX_CELL_COUNT)
             {
                 var cells = this.cells;
                 if (cells == null)
@@ -170,27 +150,20 @@ namespace NonBlocking
                     cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
                 }
 
-                if (cells[cellCount] == null)
+                if (cells[curCellCount] == null)
                 {
-                    Interlocked.CompareExchange(ref cells[cellCount], new Cell(), null);
+                    Interlocked.CompareExchange(ref cells[curCellCount], new Cell(), null);
                 }
 
-                if (this.cellCount == cellCount)
+                if (this.cellCount == curCellCount)
                 {
-                    Interlocked.CompareExchange(ref this.cellCount, cellCount + 1, cellCount);
-                    //if (Interlocked.CompareExchange(ref this.cellCount, cellCount + 1, cellCount) == cellCount)
+                    Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount);
+                    //if (Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount) == curCellCount)
                     //{
-                    //    System.Console.WriteLine(cellCount + 1);
+                    //    System.Console.WriteLine(curCellCount + 1);
                     //}
                 }
             }
-        }
-
-        private static int GetIndex(int cellCount)
-        {
-            return cellCount == 0 ?
-                0 :
-                Environment.CurrentManagedThreadId % (cellCount + 1);
         }
     }
 }

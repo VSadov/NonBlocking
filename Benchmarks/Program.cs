@@ -264,15 +264,16 @@ namespace NonBlockingTests
 
             for (int j = 0; j < 10000; j++)
             {
+                //dict.Clear();
                 Parallel.For(0, 10000, (i) =>
                 {
                     string s;
-                    if (i % 3 == 0)
+                    //if (i % 3 == 0)
                     {
                         dict.TryRemove(i, out s);
                     }
                 });
-                Debug.Assert(dict.Count == 6666);
+                //Debug.Assert(dict.Count == 6666);
 
                 Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, (_) => "aa"));
                 Debug.Assert(dict.Count == 10000);

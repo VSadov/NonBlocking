@@ -2,9 +2,10 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
-
 //
-// Heavily based on Cliff Click's Non-Blocking HashTable (public domain)
+// Core algorithms are based on NonBlockingHashMap, 
+// written and released to the public domain by Dr.Cliff Click.
+// A good overview is here https://www.youtube.com/watch?v=HJ-719EGIts
 //
 
 using System;
@@ -130,7 +131,7 @@ namespace NonBlocking
             Entry[] table = this._topTable;
             int fullHash = this.hash(key);
 
-            tailCall:
+            TRY_WITH_NEW_TABLE:
 
             var lenMask = GetTableLength(table) - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
@@ -142,8 +143,6 @@ namespace NonBlocking
                 // hash, key and value are all CAS-ed down and follow a specific sequence of states.
                 // hence the order of these reads is irrelevant and they do not need to be volatile
                 var entryHash = table[idx].hash;
-                var entryKey = table[idx].key;
-
                 if (entryHash == 0)
                 {
                     // the slot has not been claimed - a clear miss
@@ -152,7 +151,7 @@ namespace NonBlocking
 
                 // is this our slot?
                 if (fullHash == entryHash &&
-                    keyEqual(key, entryKey))
+                    keyEqual(key, table[idx].key))
                 {
                     var entryValue = table[idx].value;
 
@@ -177,7 +176,7 @@ namespace NonBlocking
                     table = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
 
                     // return this.TryGet(newTable, entryKey, hash, out value); 
-                    goto tailCall;
+                    goto TRY_WITH_NEW_TABLE;
                 }
 
                 // get and put must have the same key lookup logic.
@@ -193,7 +192,7 @@ namespace NonBlocking
                         this.HelpCopy();
 
                         //return this.TryGet(newTable, entryKey, hash, out value);
-                        goto tailCall;
+                        goto TRY_WITH_NEW_TABLE;
                     }
 
                     // no new table, so this is a miss
@@ -207,8 +206,6 @@ namespace NonBlocking
             found = false;
             return null;
         }
-
-
 
         // 1) finds or creates a slot for the key
         // 2) sets the slot value to the putval if original value meets expVal condition
@@ -426,7 +423,9 @@ namespace NonBlocking
                 throw new ArgumentNullException("valueFactory");
             }
 
-            TValue result;
+            object newValObj = null;
+            TValue result = default(TValue);
+
             var table = this._topTable;
             int fullHash = hash(key);
 
@@ -529,7 +528,7 @@ namespace NonBlocking
 
             // prev value is not null, dead or prime.
             // let's try install new value
-            object newValObj = ToObjectValue(result = valueFactory(key));
+            newValObj = newValObj ?? ToObjectValue(result = valueFactory(key));
             while (true)
             {
                 Debug.Assert(!(entryValue is Prime));
@@ -548,19 +547,11 @@ namespace NonBlocking
                 // If a Prime'd value got installed, we need to re-run the put on the new table.
                 if (prev is Prime)
                 {
-                    newTable = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
-                    table = newTable;
-
-                    if (!this.putIfMatch(key, newValObj, ref entryValue, ValueMatch.NullOrDead))
-                    {
-                        goto GOT_PREV_VALUE;
-                    }
-
-                    goto DONE;
+                    table = tableInfo.CopySlotAndCheck(this, table, idx, shouldHelp: true);
+                    goto TRY_WITH_NEW_TABLE;
                 }
 
                 // Otherwise we lost the CAS to another racing put.
-                // Simply retry from the start.
                 entryValue = prev;
                 if (!EntryValueNullOrDead(entryValue))
                 {
@@ -836,6 +827,12 @@ namespace NonBlocking
                     int copyStart = claimedChunk * CHUNK_SIZE;
                     for (int i = 0; i < MIN_COPY_WORK; i++)
                     {
+                        if (this._copyDone >= oldlen)
+                        {
+                            Promote(topmap, oldTable);
+                            return;
+                        }
+
                         if (CopySlot(topmap, (copyStart + i) & (oldlen - 1), oldTable, newTable))
                         {
                             workdone++;
@@ -903,7 +900,7 @@ namespace NonBlocking
 
                 if (CopySlot(topmap, idx, oldTable, newTable))
                 {
-                    // See if we can promote
+                    // Record the slot copied
                     var copyDone = Interlocked.Increment(ref this._copyDone);
 
                     // Check for copy being ALL done, and promote.  
@@ -913,7 +910,6 @@ namespace NonBlocking
                     }
                 }
 
-                // Record the slot copied
                 // Generically help along any copy (except if called recursively from a helper)
                 if (shouldHelp)
                 {
@@ -943,9 +939,10 @@ namespace NonBlocking
                 }
 
                 // Prevent new values from appearing in the old table.
-                // Box what we see in the old table, to prevent further updates
-                // read of the value below should be newer than this, but this read 
-                // does not need to be volatile since we will have some fences in between.
+                // Box what we see in the old table, to prevent further updates.
+                // NOTE: Read of the value below must happen before reading of the key, 
+                // however this read does not need to be volatile since we will have 
+                // some fences in between reads.
                 object oldval = oldTable[idx].value;
 
                 // already boxed?
@@ -1006,24 +1003,29 @@ namespace NonBlocking
                 // transition in this copy.
                 object originalValue = box.originalValue;
                 Debug.Assert(originalValue != TOMBSTONE);
+
                 // since we have a real value, there must be a nontrivial key in the table
                 // regular read is ok because because value is always CASed down after the key
                 // and we ensured that we read the key after the value with fences above
                 var key = oldTable[idx].key;
-
                 bool copiedIntoNew = topmap.copySlot(newTable, key, originalValue, hash);
 
                 // Finally, now that any old value is exposed in the new table, we can
-                // forever hide the old-table value by slapping a TOMBPRIME down.  This
-                // will stop other threads from uselessly attempting to copy this slot
+                // forever hide the old-table value by gently inserting TOMBPRIME value.  
+                // This will stop other threads from uselessly attempting to copy this slot
                 // (i.e., it's a speed optimization not a correctness issue).
-                oldTable[idx].value = TOMBPRIME;
+                // Check if we are not too late though, to not pay for MESI RFO and 
+                // GC fence needlessly.
+                if (oldTable[idx].value != TOMBPRIME)
+                {
+                    oldTable[idx].value = TOMBPRIME;
+                }
 
                 return copiedIntoNew;
             }
 
             // Resizing after too many probes.  "How Big???" heuristics are here.
-            // Callers will (not this routine) will 'help_copy' any in-progress copy.
+            // Callers will (not this routine) help any in-progress copy.
             // Since this routine has a fast cutout for copy-already-started, callers
             // MUST 'help_copy' lest we have a path which forever runs through
             // 'resize' only to discover a copy-in-progress which never progresses.
