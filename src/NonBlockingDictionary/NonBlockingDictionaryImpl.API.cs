@@ -183,12 +183,23 @@ namespace NonBlocking
                     {
                         var nextK = dict.keyFromEntry(nextEntry.key);
 
-                        bool found;
-                        object nextV = dict.tryGetValue(nextK, out found);
-                        if (found)
+                        object nextV = dict.tryGetValue(nextK);
+                        if (nextV != null)
                         {
                             _nextK = nextK;
-                            _nextV = nextV;
+
+                            // PERF: this would be nice to have as a helper, 
+                            // but it does not get inlined
+                            if (default(TValue) == null && nextV == NULLVALUE)
+                            {
+                                _nextV = default(TValue);
+                            }
+                            else
+                            {
+                                _nextV = (TValue)nextV;
+                            }
+
+
                             break;
                         }
                     }

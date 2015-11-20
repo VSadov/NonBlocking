@@ -26,6 +26,34 @@ namespace NonBlockingTests
             RunOnce();
             RunOnce();
             RunOnce();
+
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
+            RunOnce();
             //}
 
             //ChurnSequential();
@@ -35,11 +63,11 @@ namespace NonBlockingTests
         private static void RunOnce()
         {
             var arr = new long[] {
-            GetOrAddFuncBenchSmall1(),
-            GetOrAddFuncBenchSmall1(),
-            GetOrAddFuncBenchSmall1(),
-            GetOrAddFuncBenchSmall1(),
-            GetOrAddFuncBenchSmall1(),};
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),
+            GetBenchSmall(),};
 
             System.Console.WriteLine(arr.Min());
         }

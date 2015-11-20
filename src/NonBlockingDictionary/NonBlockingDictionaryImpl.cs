@@ -121,7 +121,11 @@ namespace NonBlocking
             return h | REGULAR_HASH_BITS;
         }
 
-        protected sealed override object tryGetValue(TKey key, out bool found)
+        /// <summary>
+        /// returns null if value is not present in the table
+        /// otherwise returns the actual value or NULLVALUE if null is the actual value 
+        /// </summary>
+        protected sealed override object tryGetValue(TKey key)
         {
             if (key == null)
             {
@@ -162,11 +166,7 @@ namespace NonBlocking
 
                     if (!(entryValue is Prime))
                     {
-                        found = true;
-
-                        return entryValue == NULLVALUE ?
-                            null :
-                            entryValue;
+                        return entryValue;
                     }
 
                     // found a prime, that means copying has started 
@@ -203,7 +203,6 @@ namespace NonBlocking
                 idx = (idx + reprobeCnt) & lenMask;
             }
 
-            found = false;
             return null;
         }
 

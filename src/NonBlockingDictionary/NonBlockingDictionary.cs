@@ -92,42 +92,54 @@ namespace NonBlocking
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            bool found;
-            object oldValObj = this.tryGetValue(key, out found);
+            object oldValObj = this.tryGetValue(key);
 
             Debug.Assert(!(oldValObj is Prime));
 
-            if (found)
+            if (oldValObj != null)
             {
                 // PERF: this would be nice to have as a helper, 
                 // but it does not get inlined
                 if (default(TValue) == null && oldValObj == NULLVALUE)
                 {
-                    oldValObj = null;
+                    value = default(TValue);
                 }
-
-                value = (TValue)oldValObj;
+                else
+                {
+                    value = (TValue)oldValObj;
+                }
+                return true;
             }
             else
             {
                 value = default(TValue);
+                return false;
             }
-
-            return found;
         }
 
         public TValue this[TKey key]
         {
             get
             {
-                bool found;
-                object objValue = this.tryGetValue(key, out found);
+                object oldValObj = this.tryGetValue(key);
 
-                Debug.Assert(!(objValue is Prime));
+                Debug.Assert(!(oldValObj is Prime));
 
-                if (found)
+                if (oldValObj != null)
                 {
-                    return (TValue)objValue;
+                    // PERF: this would be nice to have as a helper, 
+                    // but it does not get inlined
+                    TValue value;
+                    if (default(TValue) == null && oldValObj == NULLVALUE)
+                    {
+                        value = default(TValue);
+                    }
+                    else
+                    {
+                        value = (TValue)oldValObj;
+                    }
+
+                    return value;
                 }
 
                 throw new KeyNotFoundException();
@@ -142,7 +154,7 @@ namespace NonBlocking
 
         public abstract void Clear();
 
-        protected abstract object tryGetValue(TKey key, out bool found);
+        protected abstract object tryGetValue(TKey key);
         protected abstract bool putIfMatch(TKey key, object newVal, ref object oldValue, ValueMatch match);
 
         public bool ContainsKey(TKey key)
