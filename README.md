@@ -15,8 +15,8 @@ On most operations NonBlockingDictionary is faster than ConcurrentDictionary.
 It is particularly faster in write-heavy scenarios.
 
 Very simple "run in a loop and measure" benchmarks -    
-Result is in milliseconds, smaller is better.  
-64bit runs on Intel(R) CPU E31230 @3.20GHz, 8 logical cores (HT) 
+64bit runs. Result is in milliseconds, smaller is better.  
+Intel(R) CPU E31230 @3.20GHz, 8 logical cores (HT) 
 
 * Single-threaded sequential operations on an int->string dictionary. 
 
@@ -41,6 +41,26 @@ Result is in milliseconds, smaller is better.
 |----------|---|---|---|---|
 |NonBlockingDictionary|1112 (1.00x)|1875 (1.00x)|2520 (1.00x)|3070 (1.00x)|
 |ConcurrentDictionary|1132 (1.02x)|2331 (1.24x)|3361 (1.33x)|4608 (1.50x)|
+  
+    
+Bigger machine.    
+Intel(R) CPU E5-2673 v3 @ 2.40GHz, 2 sockets, 16 logical cores
+
+* Concurrent Parallel.For operations on an int->string dictionary. 
+
+|Collection \ Operation|Get|Add/Remove|
+|----------|---|---|
+|NonBlockingDictionary|3469 (1.00x)|1819 (1.00x)|
+|ConcurrentDictionary|3497 (1.00x)|4038 (2.21x)|
+
+* Concurrent GetOrAdd with a trivial Func on a partially cleared int->string dictionary.  
+  % is the ratio of items removed that will end up needing Func eval at GetOrAdd stage.
+
+
+|Collection \ "removed" ratio|0%|33%|66%|100%|
+|----------|---|---|---|---|
+|NonBlockingDictionary|767 (1.00x)|1519 (1.00x)|1660 (1.00x)|1738 (1.00x)|
+|ConcurrentDictionary|798 (1.04x)|2125 (1.39x)|2908 (1.75x)|4090 (2.35x)|
 
 
 ## Implementation notes
