@@ -92,7 +92,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void NullValueRef()
         {
-            var dict = NonBlockingDictionary.Create<int, string>();
+            var dict = new NonBlockingDictionary<int, string>();
 
             string s;
             Assert.False(dict.TryGetValue(0, out s));
@@ -124,7 +124,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void NullValueNub()
         {
-            var dict = NonBlockingDictionary.Create<int, int?>();
+            var dict = new NonBlockingDictionary<int, int?>();
 
             int? s;
             if (dict.TryGetValue(0, out s))
@@ -152,7 +152,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void AddSetRemove()
         {
-            var dict = NonBlockingDictionary.Create<object, string>();
+            var dict = new NonBlockingDictionary<object, string>();
 
             for (int i = 0; i < 10; i++)
             {
@@ -206,7 +206,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void AddSetRemoveConcurrent()
         {
-            var dict = NonBlockingDictionary.Create<object, string>();
+            var dict = new NonBlockingDictionary<object, string>();
 
             Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
@@ -235,7 +235,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void AddSetRemoveConcurrentInt()
         {
-            var dict = NonBlockingDictionary.Create<int, string>();
+            var dict = new NonBlockingDictionary<int, string>();
 
             Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
@@ -264,7 +264,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void AddSetRemoveConcurrentIntInt()
         {
-            var dict = NonBlockingDictionary.Create<int, int>();
+            var dict = new NonBlockingDictionary<int, int>();
 
             Parallel.For(0, 10, (i) => dict.Add(i, i));
             Parallel.For(0, 10, (i) => dict[i] = i);
@@ -308,7 +308,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void AddSetRemoveConcurrentStruct()
         {
-            var dict = NonBlockingDictionary.Create<S1, string>();
+            var dict = new NonBlockingDictionary<S1, string>();
 
             Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
@@ -337,7 +337,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void Continuity001()
         {
-            var dict = NonBlockingDictionary.Create<int, int>();
+            var dict = new NonBlockingDictionary<int, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
@@ -389,7 +389,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void Continuity002()
         {
-            var dict = NonBlockingDictionary.Create<object, int>();
+            var dict = new NonBlockingDictionary<object, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
@@ -441,7 +441,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void ContinuityOfRemove001()
         {
-            var dict = NonBlockingDictionary.Create<int, int>();
+            var dict = new NonBlockingDictionary<int, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
@@ -514,7 +514,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void ContinuityOfRemove002()
         {
-            var dict = NonBlockingDictionary.Create<object, int>();
+            var dict = new NonBlockingDictionary<object, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
@@ -586,7 +586,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void Relativity001()
         {
-            var dict = NonBlockingDictionary.Create<int, int>();
+            var dict = new NonBlockingDictionary<int, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
@@ -631,7 +631,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void Relativity002()
         {
-            var dict = NonBlockingDictionary.Create<object, int>();
+            var dict = new NonBlockingDictionary<object, int>();
 
             Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
@@ -685,7 +685,7 @@ namespace NonBlockingTests
         [Fact()]
         private static void BadHashAdd()
         {
-            var dict = NonBlockingDictionary.Create<BadHash, int>();
+            var dict = new NonBlockingDictionary<BadHash, int>();
 
             for(int i = 0; i < 10000; i++)
             {

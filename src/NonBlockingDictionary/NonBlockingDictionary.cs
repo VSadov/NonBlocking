@@ -7,30 +7,72 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading;
+
+using static NonBlocking.NonBlockingTable;
 
 namespace NonBlocking
 {
-    public abstract class NonBlockingDictionary<TKey, TValue>
-        : NonBlockingDictionary,
+    public class NonBlockingDictionary<TKey, TValue> :
         IDictionary<TKey, TValue>,
         IReadOnlyDictionary<TKey, TValue>,
         IDictionary,
         ICollection
     {
-        internal NonBlockingDictionary() { }
+        private readonly NonBlockingTable<TKey, TValue> table;
 
-        // TODO: move to leafs
-        internal IEqualityComparer<TKey> keyComparer;
-
-        protected enum ValueMatch
+        public NonBlockingDictionary(
+            int cLevel,
+            int size,
+            IEqualityComparer<TKey> comparer = null)
+            :this(comparer)
         {
-            Any,            // sets new value unconditionally, used by index set
-            NullOrDead,     // set value if original value is null or dead, used by Add/TryAdd
-            NotNullOrDead,  // set value if original value is alive, used by Remove
-            OldValue,       // sets new value if old value matches
+        }
+
+        public NonBlockingDictionary(
+            IEqualityComparer<TKey> comparer = null)
+        {
+            if (default(TKey) == null)
+            {
+                if (typeof(TKey) == typeof(ValueType) ||
+                    !(default(TKey) is ValueType))
+                {
+                    table = NonBlockingTable<TKey, TValue>.CreateRefUnsafe(comparer);
+                    return;
+                }
+            }
+            else
+            {
+                if (typeof(TKey) == typeof(int))
+                {
+                    if (comparer == null)
+                    {
+                        table = (NonBlockingTable<TKey, TValue>)(object)new NonBlockingDictionaryIntNoComparer<TValue>();
+                    }
+                    else
+                    {
+                        table = (NonBlockingTable<TKey, TValue>)(object)new NonBlockingTableInt<TValue>();
+                        table.keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(long))
+                {
+                    if (comparer == null)
+                    {
+                        table = (NonBlockingTable<TKey, TValue>)(object)new NonBlockingDictionaryLongNoComparer<TValue>();
+                    }
+                    else
+                    {
+                        table = (NonBlockingTable<TKey, TValue>)(object)new NonBlockingTableLong<TValue>();
+                        table.keyComparer = comparer;
+                    }
+                    return ;
+                }
+            }
+
+            table = new NonBlockingTableBoxed<TKey, TValue>();
+            table.keyComparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
         public void Add(TKey key, TValue value)
@@ -41,28 +83,17 @@ namespace NonBlocking
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static object ToObjectValue(TValue value)
-        {
-            if (default(TValue) == null)
-            {
-                return (object)value ?? NULLVALUE;
-            }
-
-            return (object)value;
-        }
-
         public bool TryAdd(TKey key, TValue value)
         {
             object oldValObj = null;
             object newValObj = ToObjectValue(value);
-            return putIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
+            return table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
         }
         
         public bool Remove(TKey key)
         {
             object oldValObj = null;
-            var found = putIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
+            var found = table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
             Debug.Assert(!(oldValObj is Prime));
 
             return found;
@@ -71,7 +102,7 @@ namespace NonBlocking
         public bool TryRemove(TKey key, out TValue value)
         {
             object oldValObj = null;
-            var found = putIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
+            var found = table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
 
             Debug.Assert(!(oldValObj is Prime));
             Debug.Assert(found ^ oldValObj == null);
@@ -92,7 +123,7 @@ namespace NonBlocking
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            object oldValObj = this.tryGetValue(key);
+            object oldValObj = table.TryGetValue(key);
 
             Debug.Assert(!(oldValObj is Prime));
 
@@ -121,7 +152,7 @@ namespace NonBlocking
         {
             get
             {
-                object oldValObj = this.tryGetValue(key);
+                object oldValObj = table.TryGetValue(key);
 
                 Debug.Assert(!(oldValObj is Prime));
 
@@ -148,14 +179,9 @@ namespace NonBlocking
             {
                 object oldValObj = null;
                 object newValObj = ToObjectValue(value);
-                putIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
+                table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
             }
         }
-
-        public abstract void Clear();
-
-        protected abstract object tryGetValue(TKey key);
-        protected abstract bool putIfMatch(TKey key, object newVal, ref object oldValue, ValueMatch match);
 
         public bool ContainsKey(TKey key)
         {
@@ -179,14 +205,14 @@ namespace NonBlocking
         {
             object oldValObj = ToObjectValue(comparisonValue);
             object newValObj = ToObjectValue(value);
-            return this.putIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
+            return table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
         }
 
         public TValue GetOrAdd(TKey key, TValue value)
         {
             object oldValObj = null;
             object newValObj = ToObjectValue(value);
-            if (this.putIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
+            if (table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
             {
                 return value;
             }
@@ -201,19 +227,25 @@ namespace NonBlocking
             return (TValue)oldValObj;
         }
 
-        public abstract TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory);
+        public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
+        {
+            return table.GetOrAdd(key, valueFactory);
+        }
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {
             object oldValObj = ToObjectValue(item.Value);
-            return this.putIfMatch(item.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
+            return table.PutIfMatch(item.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
         bool IDictionary.IsFixedSize => false;
         bool ICollection.IsSynchronized => false;
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
-        public bool IsEmpty => Count == 0;
+
+        public bool IsEmpty => table.Count == 0;
+        public int Count => table.Count;
+        public void Clear() => table.Clear();
 
         IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
         IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Values;
@@ -221,26 +253,6 @@ namespace NonBlocking
         ICollection<TValue> IDictionary<TKey, TValue>.Values => Values;
         ICollection IDictionary.Keys => Keys;
         ICollection IDictionary.Values => Values;
-
-        public abstract void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex);
-        public abstract void CopyTo(DictionaryEntry[] array, int arrayIndex);
-        public abstract void CopyTo(object[] array, int arrayIndex);
-
-        public abstract ReadOnlyCollection<TKey> Keys { get; }
-        public abstract ReadOnlyCollection<TValue> Values { get; }
-        public abstract int Count { get; }
-
-        public abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            throw new InvalidOperationException("unreachable");
-        }
-
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-        {
-            throw new InvalidOperationException("unreachable");
-        }
 
         bool IDictionary.Contains(object key)
         {
@@ -410,6 +422,108 @@ namespace NonBlocking
                     return addValue;
                 }
             }            
+        }
+
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+        {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            foreach (var entry in this)
+            {
+                array[arrayIndex++] = entry;
+            }
+        }
+
+        public void CopyTo(DictionaryEntry[] array, int arrayIndex)
+        {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            foreach (var entry in this)
+            {
+                array[arrayIndex++] = new DictionaryEntry(entry.Key, entry.Value);
+            }
+        }
+
+        public void CopyTo(object[] array, int arrayIndex)
+        {
+            if (array == null)
+            {
+                throw new ArgumentNullException("array");
+            }
+            if (arrayIndex < 0)
+            {
+                throw new ArgumentOutOfRangeException("index");
+            }
+
+            var length = array.Length;
+            foreach (var entry in this)
+            {
+                if ((uint)arrayIndex < (uint)length)
+                {
+                    array[arrayIndex++] = entry;
+                }
+                else
+                {
+                    throw new ArgumentException();
+                }
+            }
+        }
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        {
+            return table.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return table.GetEnumerator();
+        }
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            return table.GetdIDictEnumerator();
+        }
+
+        public ReadOnlyCollection<TKey> Keys
+        {
+            get
+            {
+                var keys = new List<TKey>(Count);
+                foreach (var kv in this)
+                {
+                    keys.Add(kv.Key);
+                }
+
+                return new ReadOnlyCollection<TKey>(keys);
+            }
+        }
+
+        public ReadOnlyCollection<TValue> Values
+        {
+            get
+            {
+                var values = new List<TValue>(Count);
+                foreach (var kv in this)
+                {
+                    values.Add(kv.Value);
+                }
+
+                return new ReadOnlyCollection<TValue>(values);
+            }
         }
     }
 }

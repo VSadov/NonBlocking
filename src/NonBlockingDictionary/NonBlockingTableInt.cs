@@ -10,20 +10,20 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class NonBlockingDictionaryLong<TValue>
-                : NonBlockingDictionary<long, long, TValue>
+    internal sealed class NonBlockingTableInt<TValue>
+                : NonBlockingTable<int, int, TValue>
     {
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key, Counter slots)
+        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -41,7 +41,7 @@ namespace NonBlocking
             return key == entryKeyValue || keyComparer.Equals(key, entryKey);
         }
 
-        protected override int hash(long key)
+        protected override int hash(int key)
         {
             if (key == 0)
             {
@@ -51,36 +51,36 @@ namespace NonBlocking
             return base.hash(key);
         }
 
-        protected override bool keyEqual(long key, long entryKey)
+        protected override bool keyEqual(int key, int entryKey)
         {
             return key == entryKey || keyComparer.Equals(key, entryKey);
         }
 
-        protected override NonBlockingDictionary<long, long, TValue> CreateNew()
+        protected override NonBlockingTable<int, int, TValue> CreateNew()
         {
-            return new NonBlockingDictionaryLong<TValue>();
+            return new NonBlockingTableInt<TValue>();
         }
 
-        protected override long keyFromEntry(long entryKey)
+        protected override int keyFromEntry(int entryKey)
         {
             return entryKey;
         }
     }
 
-    internal sealed class NonBlockingDictionaryLongNoComparer<TValue>
-            : NonBlockingDictionary<long, long, TValue>
+    internal sealed class NonBlockingDictionaryIntNoComparer<TValue>
+            : NonBlockingTable<int, int, TValue>
     {
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key, Counter slots)
+        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -98,24 +98,23 @@ namespace NonBlocking
             return key == entryKeyValue;
         }
 
-        protected override int hash(long key)
+        protected override int hash(int key)
         {
             return (key == 0) ?
                 ZEROHASH :
-                key.GetHashCode() | REGULAR_HASH_BITS;
+                key | REGULAR_HASH_BITS;
         }
 
-        protected override bool keyEqual(long key, long entryKey)
+        protected override bool keyEqual(int key, int entryKey)
         {
             return key == entryKey;
         }
 
-        protected override NonBlockingDictionary<long, long, TValue> CreateNew()
+        protected override NonBlockingTable<int, int, TValue> CreateNew()
         {
-            return new NonBlockingDictionaryLongNoComparer<TValue>();
+            return new NonBlockingDictionaryIntNoComparer<TValue>();
         }
-
-        protected override long keyFromEntry(long entryKey)
+        protected override int keyFromEntry(int entryKey)
         {
             return entryKey;
         }

@@ -10,8 +10,8 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class NonBlockingDictionaryRef<TKey, TKeyStore, TValue>
-            : NonBlockingDictionary<TKey, TKey, TValue>
+    internal sealed class NonBlockingTableRef<TKey, TKeyStore, TValue>
+            : NonBlockingTable<TKey, TKey, TValue>
                     where TKey : class
     {
         protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter slots)
@@ -46,9 +46,9 @@ namespace NonBlocking
             return key == entryKey || keyComparer.Equals(key, entryKey);
         }
 
-        protected override NonBlockingDictionary<TKey, TKey, TValue> CreateNew()
+        protected override NonBlockingTable<TKey, TKey, TValue> CreateNew()
         {
-            return new NonBlockingDictionaryRef<TKey, TKey, TValue>();
+            return new NonBlockingTableRef<TKey, TKey, TValue>();
         }
 
         protected override TKey keyFromEntry(TKey entryKey)

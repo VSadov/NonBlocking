@@ -11,136 +11,29 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal  abstract partial class NonBlockingDictionary<TKey, TKeyStore, TValue>
-        : NonBlockingDictionary<TKey, TValue>,
-        IEnumerable,
-        IDictionary
+    internal  abstract partial class NonBlockingTable<TKey, TKeyStore, TValue>
+        : NonBlockingTable<TKey, TValue>
     {
-        public override int Count
-        {
-            get
-            {
-                return this.GetTableInfo(this._topTable).Size;
-            }
-        }
 
-        public sealed override void Clear()
-        {
-            var newTable = CreateNew()._topTable;
-            Volatile.Write(ref _topTable, newTable);
-        }
-
-        public override void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
-        {
-            if (array == null)
-            {
-                throw new ArgumentNullException("array");
-            }
-            if (arrayIndex < 0)
-            {
-                throw new ArgumentOutOfRangeException("index");
-            }
-
-            foreach(var entry in this)
-            {
-                array[arrayIndex++] = entry;
-            }
-        }
-
-        public override void CopyTo(DictionaryEntry[] array, int arrayIndex)
-        {
-            if (array == null)
-            {
-                throw new ArgumentNullException("array");
-            }
-            if (arrayIndex < 0)
-            {
-                throw new ArgumentOutOfRangeException("index");
-            }
-
-            foreach (var entry in this)
-            {
-                array[arrayIndex++] = new DictionaryEntry(entry.Key, entry.Value);
-            }
-        }
-
-        public override void CopyTo(object[] array, int arrayIndex)
-        {
-            if (array == null)
-            {
-                throw new ArgumentNullException("array");
-            }
-            if (arrayIndex < 0)
-            {
-                throw new ArgumentOutOfRangeException("index");
-            }
-
-            var length = array.Length;
-            foreach (var entry in this)
-            {
-                if ((uint)arrayIndex < (uint)length)
-                {
-                    array[arrayIndex++] = entry;
-                }
-                else
-                {
-                    throw new ArgumentException();
-                }
-            }
-        }
-
-        public override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        internal override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
             return new SnapshotKV(this);
         }
 
-        public override ReadOnlyCollection<TKey> Keys
-        {
-            get
-            {
-                var keys = new List<TKey>(Count);
-                foreach (var kv in this)
-                {
-                    keys.Add(kv.Key);
-                }
-
-                return new ReadOnlyCollection<TKey>(keys);
-            }
-        }
-
-        public override ReadOnlyCollection<TValue> Values
-        {
-            get
-            {
-                var values = new List<TValue>(Count);
-                foreach (var kv in this)
-                {
-                    values.Add(kv.Value);
-                }
-
-                return new ReadOnlyCollection<TValue>(values);
-            }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return new SnapshotKV(this);
-        }
-
-        IDictionaryEnumerator IDictionary.GetEnumerator()
+        internal override IDictionaryEnumerator GetdIDictEnumerator()
         {
             return new SnapshotIDict(this);
         }
 
         private class Snapshot : IDisposable
         {
-            private readonly NonBlockingDictionary<TKey, TKeyStore, TValue> dict;
+            private readonly NonBlockingTable<TKey, TKeyStore, TValue> dict;
             private readonly Entry[] _table;
             private int _idx;              
             protected TKey _curKey, _nextK;
             protected object _curValue, _nextV;
 
-            public Snapshot(NonBlockingDictionary<TKey, TKeyStore, TValue> dict)
+            public Snapshot(NonBlockingTable<TKey, TKeyStore, TValue> dict)
             {
                 // linearization point.
                 // if table is quiescent and has no copy in progress,
@@ -148,7 +41,7 @@ namespace NonBlocking
                 while (true)
                 {
                     this.dict = dict;
-                    var table = dict._topTable;
+                    var table = dict._table;
                     var tableInfo = dict.GetTableInfo(table);
                     if (tableInfo._newTable == null)
                     {
@@ -183,7 +76,7 @@ namespace NonBlocking
                     {
                         var nextK = dict.keyFromEntry(nextEntry.key);
 
-                        object nextV = dict.tryGetValue(nextK);
+                        object nextV = dict.TryGetValue(nextK);
                         if (nextV != null)
                         {
                             _nextK = nextK;
@@ -220,7 +113,7 @@ namespace NonBlocking
 
         private sealed class SnapshotKV : Snapshot, IEnumerator<KeyValuePair<TKey, TValue>>
         {
-            public SnapshotKV(NonBlockingDictionary<TKey, TKeyStore, TValue> dict) : base(dict) { }
+            public SnapshotKV(NonBlockingTable<TKey, TKeyStore, TValue> dict) : base(dict) { }
 
             public KeyValuePair<TKey, TValue> Current
             {
@@ -241,7 +134,7 @@ namespace NonBlocking
 
         private sealed class SnapshotIDict : Snapshot, IDictionaryEnumerator
         {
-            public SnapshotIDict(NonBlockingDictionary<TKey, TKeyStore, TValue> dict) : base(dict) { }
+            public SnapshotIDict(NonBlockingTable<TKey, TKeyStore, TValue> dict) : base(dict) { }
 
             public DictionaryEntry Entry
             {

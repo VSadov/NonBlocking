@@ -20,7 +20,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestBasicScenarios()
         {
-            NonBlockingDictionary<int, int> cd = NonBlockingDictionary.Create<int, int>();
+            NonBlockingDictionary<int, int> cd = new NonBlockingDictionary<int, int>();
 
             Task[] tks = new Task[2];
             tks[0] = Task.Run(() =>
@@ -75,7 +75,7 @@ namespace NonBlockingTests
 
         private static void TestAdd1(int cLevel, int initSize, int threads, int addsPerThread)
         {
-            NonBlockingDictionary<int, int> dictConcurrent = NonBlockingDictionary.Create<int, int>(cLevel, 1);
+            NonBlockingDictionary<int, int> dictConcurrent = new NonBlockingDictionary<int, int>(cLevel, 1);
             IDictionary<int, int> dict = dictConcurrent;
 
             int count = threads;
@@ -144,7 +144,7 @@ namespace NonBlockingTests
 
         private static void TestUpdate1(int cLevel, int threads, int updatesPerThread)
         {
-            IDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>(cLevel, 1);
+            IDictionary<int, int> dict = new NonBlockingDictionary<int, int>(cLevel, 1);
 
             for (int i = 1; i <= updatesPerThread; i++) dict[i] = i;
 
@@ -212,7 +212,7 @@ namespace NonBlockingTests
 
         private static void TestRead1(int cLevel, int threads, int readsPerThread)
         {
-            IDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>(cLevel, 1);
+            IDictionary<int, int> dict = new NonBlockingDictionary<int, int>(cLevel, 1);
 
             for (int i = 0; i < readsPerThread; i += 2) dict[i] = i;
 
@@ -258,7 +258,7 @@ namespace NonBlockingTests
 
         private static void TestRemove1(int cLevel, int threads, int removesPerThread)
         {
-            NonBlockingDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>(cLevel, 1);
+            NonBlockingDictionary<int, int> dict = new NonBlockingDictionary<int, int>(cLevel, 1);
             string methodparameters = string.Format("* TestRemove1(cLevel={0}, threads={1}, removesPerThread={2})", cLevel, threads, removesPerThread);
             int N = 2 * threads * removesPerThread;
 
@@ -327,7 +327,7 @@ namespace NonBlockingTests
 
         private static void TestRemove2(int removesPerThread)
         {
-            NonBlockingDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>();
+            NonBlockingDictionary<int, int> dict = new NonBlockingDictionary<int, int>();
 
             for (int i = 0; i < removesPerThread; i++) dict[i] = -i;
 
@@ -376,7 +376,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestRemove3()
         {
-            NonBlockingDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>();
+            NonBlockingDictionary<int, int> dict = new NonBlockingDictionary<int, int>();
 
             dict[99] = -99;
 
@@ -431,7 +431,7 @@ namespace NonBlockingTests
 
         private static void TestGetOrAddOrUpdate(int cLevel, int initSize, int threads, int addsPerThread, bool isAdd)
         {
-            NonBlockingDictionary<int, int> dict = NonBlockingDictionary.Create<int, int>(cLevel, 1);
+            NonBlockingDictionary<int, int> dict = new NonBlockingDictionary<int, int>(cLevel, 1);
 
             int count = threads;
             using (ManualResetEvent mre = new ManualResetEvent(false))
@@ -506,7 +506,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestBugFix669376()
         {
-            var cd = NonBlockingDictionary.Create<string, int>(new OrdinalStringComparer());
+            var cd = new NonBlockingDictionary<string, int>(new OrdinalStringComparer());
             cd["test"] = 10;
             Assert.True(cd.ContainsKey("TEST"), "Customized comparer didn't work");
         }
@@ -529,7 +529,7 @@ namespace NonBlockingTests
         //TODO: VS
         //public static void TestConstructor()
         //{
-        //    var dictionary = NonBlockingDictionary.Create<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
+        //    var dictionary = new NonBlockingDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
         //    Assert.False(dictionary.IsEmpty);
         //    Assert.Equal(1, dictionary.Keys.Count);
         //    Assert.Equal(1, dictionary.Values.Count);
@@ -539,8 +539,8 @@ namespace NonBlockingTests
         //[Fact]
         //public static void TestDebuggerAttributes()
         //{
-        //    DebuggerAttributes.ValidateDebuggerDisplayReferences(NonBlockingDictionary.Create<string, int>());
-        //    DebuggerAttributes.ValidateDebuggerTypeProxyProperties(NonBlockingDictionary.Create<string, int>());
+        //    DebuggerAttributes.ValidateDebuggerDisplayReferences(new NonBlockingDictionary<string, int>());
+        //    DebuggerAttributes.ValidateDebuggerTypeProxyProperties(new NonBlockingDictionary<string, int>());
         //}
 
         //TODO: VS
@@ -549,53 +549,53 @@ namespace NonBlockingTests
         //{
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>((ICollection<KeyValuePair<int, int>>)null));
+        //       () => new NonBlockingDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>((IEqualityComparer<int>)null));
+        //       () => new NonBlockingDictionary<int, int>((IEqualityComparer<int>)null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null IEqualityComparer is passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
+        //       () => new NonBlockingDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection and non null IEqualityComparer passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>(new[] { new KeyValuePair<int, int>(1, 1) }, null));
+        //       () => new NonBlockingDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) }, null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when non null collection and null IEqualityComparer passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<string, int>(new[] { new KeyValuePair<string, int>(null, 1) }));
+        //       () => new NonBlockingDictionary<string, int>(new[] { new KeyValuePair<string, int>(null, 1) }));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when collection has null key passed");
         //    Assert.Throws<ArgumentException>(
-        //       () => NonBlockingDictionary.Create<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
+        //       () => new NonBlockingDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw AE when collection has duplicate keys passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>(1, null, EqualityComparer<int>.Default));
+        //       () => new NonBlockingDictionary<int, int>(1, null, EqualityComparer<int>.Default));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>(1, new[] { new KeyValuePair<int, int>(1, 1) }, null));
+        //       () => new NonBlockingDictionary<int, int>(1, new[] { new KeyValuePair<int, int>(1, 1) }, null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
 
         //    Assert.Throws<ArgumentNullException>(
-        //       () => NonBlockingDictionary.Create<int, int>(1, 1, null));
+        //       () => new NonBlockingDictionary<int, int>(1, 1, null));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
 
         //    Assert.Throws<ArgumentOutOfRangeException>(
-        //       () => NonBlockingDictionary.Create<int, int>(0, 10));
+        //       () => new NonBlockingDictionary<int, int>(0, 10));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw AORE when <1 concurrencyLevel passed");
 
         //    Assert.Throws<ArgumentOutOfRangeException>(
-        //       () => NonBlockingDictionary.Create<int, int>(-1, 0));
+        //       () => new NonBlockingDictionary<int, int>(-1, 0));
         //    // "TestConstructor:  FAILED.  Constructor didn't throw AORE when < 0 capacity passed");
         //}
 
         [Fact]
         public static void TestExceptions()
         {
-            var dictionary = NonBlockingDictionary.Create<string, int>();
+            var dictionary = new NonBlockingDictionary<string, int>();
 
             Assert.Throws<ArgumentNullException>(
                () => dictionary.TryAdd(null, 0));
@@ -653,7 +653,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestIDictionary()
         {
-            IDictionary dictionary = NonBlockingDictionary.Create<string, int>();
+            IDictionary dictionary = new NonBlockingDictionary<string, int>();
             Assert.False(dictionary.IsReadOnly);
 
             // Empty dictionary should not enumerate
@@ -705,7 +705,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestIDictionary_Negative()
         {
-            IDictionary dictionary = NonBlockingDictionary.Create<string, int>();
+            IDictionary dictionary = new NonBlockingDictionary<string, int>();
             Assert.Throws<ArgumentNullException>(
                () => dictionary.Add(null, 1));
             // "TestIDictionary:  FAILED.  Add didn't throw ANE when null key is passed");
@@ -747,7 +747,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestICollection()
         {
-            ICollection dictionary = NonBlockingDictionary.Create<int, int>();
+            ICollection dictionary = new NonBlockingDictionary<int, int>();
             Assert.False(dictionary.IsSynchronized, "TestICollection:  FAILED.  IsSynchronized returned true!");
 
             int key = -1;
@@ -775,7 +775,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestICollection_Negative()
         {
-            ICollection dictionary = NonBlockingDictionary.Create<int, int>();
+            ICollection dictionary = new NonBlockingDictionary<int, int>();
             Assert.False(dictionary.IsSynchronized, "TestICollection:  FAILED.  IsSynchronized returned true!");
 
             Assert.Throws<NotSupportedException>(() => { var obj = dictionary.SyncRoot; });
@@ -794,7 +794,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestClear()
         {
-            var dictionary = NonBlockingDictionary.Create<int, int>();
+            var dictionary = new NonBlockingDictionary<int, int>();
             for (int i = 0; i < 10; i++)
                 dictionary.TryAdd(i, i);
 
@@ -810,7 +810,7 @@ namespace NonBlockingTests
 
         public static void TestTryUpdate()
         {
-            var dictionary = NonBlockingDictionary.Create<string, int>();
+            var dictionary = new NonBlockingDictionary<string, int>();
             Assert.Throws<ArgumentNullException>(
                () => dictionary.TryUpdate(null, 0, 0));
             // "TestTryUpdate:  FAILED.  TryUpdate didn't throw ANE when null key is passed");
@@ -883,7 +883,7 @@ namespace NonBlockingTests
             }
 
             //test TryUpdate with non atomic values (intPtr > 8)
-            var dict = NonBlockingDictionary.Create<int, Struct16>();
+            var dict = new NonBlockingDictionary<int, Struct16>();
             dict.TryAdd(1, new Struct16(1, -1));
             Assert.True(dict.TryUpdate(1, new Struct16(2, -2), new Struct16(1, -1)), "TestTryUpdate:  FAILED.  TryUpdate failed for non atomic values ( > 8 bytes)");
         }

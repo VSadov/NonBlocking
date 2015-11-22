@@ -10,8 +10,8 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class NonBlockingDictionaryBoxed<TKey, TValue>
-            : NonBlockingDictionary<TKey, Boxed<TKey>, TValue>
+    internal sealed class NonBlockingTableBoxed<TKey, TValue>
+            : NonBlockingTable<TKey, Boxed<TKey>, TValue>
     {
         protected override bool TryClaimSlotForPut(ref Boxed<TKey> entryKey, TKey key, Counter slots)
         {
@@ -52,9 +52,9 @@ namespace NonBlocking
             return keyComparer.Equals(key, entryKey.Value);
         }
 
-        protected override NonBlockingDictionary<TKey, Boxed<TKey>, TValue> CreateNew()
+        protected override NonBlockingTable<TKey, Boxed<TKey>, TValue> CreateNew()
         {
-            return new NonBlockingDictionaryBoxed<TKey, TValue>();
+            return new NonBlockingTableBoxed<TKey, TValue>();
         }
 
         protected override TKey keyFromEntry(Boxed<TKey> entryKey)

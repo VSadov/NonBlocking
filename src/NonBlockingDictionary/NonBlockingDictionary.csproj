@@ -36,15 +36,17 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="NonBlockingTable.Enumerators.cs" />
+    <Compile Include="NonBlockingTable`2.cs" />
     <Compile Include="NonBlockingDictionary.cs" />
-    <Compile Include="NonBlockingDictionaryImpl.API.cs" />
-    <Compile Include="NonBlockingDictionaryLong.cs" />
-    <Compile Include="NonBlockingDictionaryObj.cs" />
-    <Compile Include="NonBlockingDictionaryRef.cs" />
-    <Compile Include="NonBlockingDictionaryInt.cs" />
-    <Compile Include="NonBlockingDictionaryFactory.cs" />
+    <Compile Include="NonBlockingTableLong.cs" />
+    <Compile Include="NonBlockingTableBoxed.cs" />
+    <Compile Include="NonBlockingTableRef.cs" />
+    <Compile Include="NonBlockingTableInt.cs" />
+    <Compile Include="NonBlockingTable.cs" />
     <Compile Include="Counter.cs" />
-    <Compile Include="NonBlockingDictionaryImpl.cs" />
+    <Compile Include="NonBlockingTable.TableInfo.cs" />
+    <Compile Include="NonBlockingTable`3.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />
