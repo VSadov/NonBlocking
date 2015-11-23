@@ -8,21 +8,21 @@ using System.Collections.Generic;
 
 namespace NonBlocking
 {
-    internal abstract class NonBlockingTable<TKey, TValue>
-        : NonBlockingTable
+    internal abstract class DictionaryImpl<TKey, TValue>
+        : DictionaryImpl
     {
         // TODO: move to leafs
         internal IEqualityComparer<TKey> keyComparer;
 
-        internal static Func<IEqualityComparer<TKey>, NonBlockingTable<TKey, TValue>> CreateRefUnsafe =
+        internal static Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
             (IEqualityComparer<TKey> comparer) =>
             {
-                var method = typeof(NonBlockingTable).
+                var method = typeof(DictionaryImpl).
                     GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
                     MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
 
-                var del = (Func<IEqualityComparer<TKey>, NonBlockingTable<TKey, TValue>>)Delegate.CreateDelegate(
-                    typeof(Func<IEqualityComparer<TKey>, NonBlockingTable<TKey, TValue>>),
+                var del = (Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
+                    typeof(Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>),
                     method);
 
                 var result = del(comparer);
@@ -31,7 +31,7 @@ namespace NonBlocking
                 return result;
             };
 
-        internal NonBlockingTable() { }         
+        internal DictionaryImpl() { }         
 
         internal abstract void Clear();
         internal abstract int Count { get; }

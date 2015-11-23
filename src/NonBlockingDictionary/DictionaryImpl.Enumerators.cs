@@ -11,8 +11,8 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal  abstract partial class NonBlockingTable<TKey, TKeyStore, TValue>
-        : NonBlockingTable<TKey, TValue>
+    internal  abstract partial class DictionaryImpl<TKey, TKeyStore, TValue>
+        : DictionaryImpl<TKey, TValue>
     {
 
         internal override IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
@@ -27,13 +27,13 @@ namespace NonBlocking
 
         private class Snapshot : IDisposable
         {
-            private readonly NonBlockingTable<TKey, TKeyStore, TValue> dict;
+            private readonly DictionaryImpl<TKey, TKeyStore, TValue> dict;
             private readonly Entry[] _table;
             private int _idx;              
             protected TKey _curKey, _nextK;
             protected object _curValue, _nextV;
 
-            public Snapshot(NonBlockingTable<TKey, TKeyStore, TValue> dict)
+            public Snapshot(DictionaryImpl<TKey, TKeyStore, TValue> dict)
             {
                 // linearization point.
                 // if table is quiescent and has no copy in progress,
@@ -113,7 +113,7 @@ namespace NonBlocking
 
         private sealed class SnapshotKV : Snapshot, IEnumerator<KeyValuePair<TKey, TValue>>
         {
-            public SnapshotKV(NonBlockingTable<TKey, TKeyStore, TValue> dict) : base(dict) { }
+            public SnapshotKV(DictionaryImpl<TKey, TKeyStore, TValue> dict) : base(dict) { }
 
             public KeyValuePair<TKey, TValue> Current
             {
@@ -134,7 +134,7 @@ namespace NonBlocking
 
         private sealed class SnapshotIDict : Snapshot, IDictionaryEnumerator
         {
-            public SnapshotIDict(NonBlockingTable<TKey, TKeyStore, TValue> dict) : base(dict) { }
+            public SnapshotIDict(DictionaryImpl<TKey, TKeyStore, TValue> dict) : base(dict) { }
 
             public DictionaryEntry Entry
             {

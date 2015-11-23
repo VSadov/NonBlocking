@@ -16,8 +16,8 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal abstract partial class NonBlockingTable<TKey, TKeyStore, TValue>
-        : NonBlockingTable<TKey, TValue>
+    internal abstract partial class DictionaryImpl<TKey, TKeyStore, TValue>
+        : DictionaryImpl<TKey, TValue>
     {
         public struct Entry
         {
@@ -38,7 +38,7 @@ namespace NonBlocking
         const uint RESIZE_MILLIS_TARGET = (uint)1000;
 
         // create a fresh empty dictionary (used in Clear) 
-        protected abstract NonBlockingTable<TKey, TKeyStore, TValue> CreateNew();
+        protected abstract DictionaryImpl<TKey, TKeyStore, TValue> CreateNew();
 
         // convert key from its storage form (noop or unboxing) used in Key enumarators
         protected abstract TKey keyFromEntry(TKeyStore entryKey);
@@ -78,12 +78,12 @@ namespace NonBlocking
             return REPROBE_LIMIT + (lenMask >> REPROBE_LIMIT_SHIFT);
         }
 
-        internal NonBlockingTable() :
+        internal DictionaryImpl() :
             this(MIN_SIZE)
         { }
 
         // TODO: VS need to make public entry point
-        internal NonBlockingTable(int capacity)
+        internal DictionaryImpl(int capacity)
         {
             if (capacity < 0)
             {

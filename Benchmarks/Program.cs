@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using NonBlocking;
 using System.Threading;
-using System.Collections.Concurrent;
+using Concurrent = System.Collections.Concurrent;
 
 namespace NonBlockingTests
 {
@@ -74,8 +74,8 @@ namespace NonBlockingTests
 
         private static long GetBench()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
@@ -93,8 +93,8 @@ namespace NonBlockingTests
 
         private static long GetBenchSmall()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 10000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 10000, (i) => { var dummy = dict[i]; });
@@ -112,8 +112,8 @@ namespace NonBlockingTests
 
         private static long GetBenchSmallSequential()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
             //var dict = new System.Collections.Generic.Dictionary<int, string>();
 
             for(int i = 0; i < 10000; i++)
@@ -141,8 +141,8 @@ namespace NonBlockingTests
 
         private static long GetBenchRef()
         {
-            var dict = new NonBlockingDictionary<object, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<object, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<object, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<object, string>();
 
             var rnd = new Random();
 
@@ -168,8 +168,8 @@ namespace NonBlockingTests
 
         private static void AssignBenchSmall()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             var listV = new List<string>();
             for (int i = 0; i < 10000; i++)
@@ -192,8 +192,8 @@ namespace NonBlockingTests
 
         private static long  AddBenchSmall()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             var listV = new List<string>();
             for (int i = 0; i < 10000; i++)
@@ -218,8 +218,8 @@ namespace NonBlockingTests
 
         private static long GetOrAddTBenchSmall()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 10000, (i) => dict[i] = "ww");
             var sw = Stopwatch.StartNew();
@@ -238,8 +238,8 @@ namespace NonBlockingTests
 
         private static long GetOrAddFuncBenchSmall()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 10000, (i) => dict[i] = "ww");
             var sw = Stopwatch.StartNew();
@@ -256,8 +256,8 @@ namespace NonBlockingTests
 
         private static long GetOrAddTBenchSmall1()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 10000, (i) => dict[i] = "ww");
             var sw = Stopwatch.StartNew();
@@ -284,8 +284,8 @@ namespace NonBlockingTests
 
         private static long GetOrAddFuncBenchSmall1()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 10000, (i) => dict[i] = "ww");
             var sw = Stopwatch.StartNew();
@@ -314,8 +314,8 @@ namespace NonBlockingTests
         private static long AddBenchSmallSequential()
         {
             //var dict = new System.Collections.Generic.Dictionary<int, string>();
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             var listV = new List<string>();
             for (int i = 0; i < 10000; i++)
@@ -360,8 +360,8 @@ namespace NonBlockingTests
 
         private static void AssignBench()
         {
-            var dict = new NonBlockingDictionary<int, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             var listV = new List<string>();
             for (int i = 0; i < 100000; i++)
@@ -384,8 +384,8 @@ namespace NonBlockingTests
 
         private static void AssignBenchRef()
         {
-            var dict = new NonBlockingDictionary<object, string>();
-            //var dict = new System.Collections.Concurrent.ConcurrentDictionary<object, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<object, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<object, string>();
 
             var list = new List<object>();
             for (int i = 0; i < 100000; i++)
@@ -414,7 +414,7 @@ namespace NonBlockingTests
 
         private static void ChurnSequential()
         {
-            var dict = new NonBlockingDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
 
             for (int i = 0; i < 1000000; i++)
             {
@@ -434,7 +434,7 @@ namespace NonBlockingTests
 
         private static void ChurnConcurrent()
         {
-            var dict = new NonBlockingDictionary<int, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
             //var dict = new ConcurrentDictionary<int, string>();
 
             var threadCnt = 200;

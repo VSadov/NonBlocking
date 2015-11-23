@@ -7,9 +7,9 @@ using System.Runtime.CompilerServices;
 
 namespace NonBlocking
 {
-    internal abstract class NonBlockingTable
+    internal abstract class DictionaryImpl
     {
-        internal NonBlockingTable() { }
+        internal DictionaryImpl() { }
 
         internal enum ValueMatch
         {
@@ -87,10 +87,10 @@ namespace NonBlocking
             return (object)value;
         }
 
-        internal static NonBlockingTable<TKey, TValue> CreateRef<TKey, TValue>(IEqualityComparer<TKey> comparer = null)
+        internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(IEqualityComparer<TKey> comparer = null)
             where TKey : class
         {
-            var result = new NonBlockingTableRef<TKey, TKey, TValue>();
+            var result = new DictionaryImplRef<TKey, TKey, TValue>();
             result.keyComparer = comparer ?? EqualityComparer<TKey>.Default;
             return result;
         }

@@ -10,20 +10,20 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class NonBlockingTableInt<TValue>
-                : NonBlockingTable<int, int, TValue>
+    internal sealed class DictionaryImplLong<TValue>
+                : DictionaryImpl<long, long, TValue>
     {
-        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
+        private bool TryClaimSlot(ref long entryKey, long key, Counter slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -41,7 +41,7 @@ namespace NonBlocking
             return key == entryKeyValue || keyComparer.Equals(key, entryKey);
         }
 
-        protected override int hash(int key)
+        protected override int hash(long key)
         {
             if (key == 0)
             {
@@ -51,36 +51,36 @@ namespace NonBlocking
             return base.hash(key);
         }
 
-        protected override bool keyEqual(int key, int entryKey)
+        protected override bool keyEqual(long key, long entryKey)
         {
             return key == entryKey || keyComparer.Equals(key, entryKey);
         }
 
-        protected override NonBlockingTable<int, int, TValue> CreateNew()
+        protected override DictionaryImpl<long, long, TValue> CreateNew()
         {
-            return new NonBlockingTableInt<TValue>();
+            return new DictionaryImplLong<TValue>();
         }
 
-        protected override int keyFromEntry(int entryKey)
+        protected override long keyFromEntry(long entryKey)
         {
             return entryKey;
         }
     }
 
-    internal sealed class NonBlockingDictionaryIntNoComparer<TValue>
-            : NonBlockingTable<int, int, TValue>
+    internal sealed class DictionaryImplLongNoComparer<TValue>
+            : DictionaryImpl<long, long, TValue>
     {
-        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
+        private bool TryClaimSlot(ref long entryKey, long key, Counter slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -98,23 +98,24 @@ namespace NonBlocking
             return key == entryKeyValue;
         }
 
-        protected override int hash(int key)
+        protected override int hash(long key)
         {
             return (key == 0) ?
                 ZEROHASH :
-                key | REGULAR_HASH_BITS;
+                key.GetHashCode() | REGULAR_HASH_BITS;
         }
 
-        protected override bool keyEqual(int key, int entryKey)
+        protected override bool keyEqual(long key, long entryKey)
         {
             return key == entryKey;
         }
 
-        protected override NonBlockingTable<int, int, TValue> CreateNew()
+        protected override DictionaryImpl<long, long, TValue> CreateNew()
         {
-            return new NonBlockingDictionaryIntNoComparer<TValue>();
+            return new DictionaryImplLongNoComparer<TValue>();
         }
-        protected override int keyFromEntry(int entryKey)
+
+        protected override long keyFromEntry(long entryKey)
         {
             return entryKey;
         }
