@@ -36,22 +36,36 @@ namespace NonBlocking
         // represents forcefully dead entry 
         // we insert it in old table during rehashing
         // to reduce chances that more entries are added
-        internal const int TOMBPRIMEHASH = 1 << 31;
+        protected const int TOMBPRIMEHASH = 1 << 31;
 
         // we cannot distigush zero keys from uninitialized state
         // so we force them to have this special hash instead
-        internal const int ZEROHASH = 1 << 30;
+        protected const int ZEROHASH = 1 << 30;
 
         // all regular hashes have these bits set
         // to be different from 0, TOMBPRIMEHASH or ZEROHASH
-        internal const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
+        protected const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
-        internal static bool EntryValueNullOrDead(object entryValue)
+        protected const int REPROBE_LIMIT = 4;
+        protected const int REPROBE_LIMIT_SHIFT = 1;
+        // Heuristic to decide if we have reprobed toooo many times.  Running over
+        // the reprobe limit on a 'get' call acts as a 'miss'; on a 'put' call it
+        // can trigger a table resize.  Several places must have exact agreement on
+        // what the reprobe_limit is, so we share it here.
+        // NOTE: Not static for perf reasons    
+        //       (some JITs insert useless code related to generics if this is a static)
+        protected static int ReprobeLimit(int lenMask)
+        {
+            // 1/2 of table with some extra
+            return REPROBE_LIMIT + (lenMask >> REPROBE_LIMIT_SHIFT);
+        }
+
+        protected static bool EntryValueNullOrDead(object entryValue)
         {
             return entryValue == null | entryValue == TOMBSTONE;
         }
 
-        internal static int ReduceHashToIndex(int fullHash, int lenMask)
+        protected static int ReduceHashToIndex(int fullHash, int lenMask)
         {
             var h = fullHash & ~REGULAR_HASH_BITS;
             if (h <= lenMask)
@@ -87,11 +101,11 @@ namespace NonBlocking
             return (object)value;
         }
 
-        internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(IEqualityComparer<TKey> comparer = null)
+        internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(ConcurrentDictionary<TKey, TValue> topDict, IEqualityComparer<TKey> comparer = null)
             where TKey : class
         {
-            var result = new DictionaryImplRef<TKey, TKey, TValue>();
-            result.keyComparer = comparer ?? EqualityComparer<TKey>.Default;
+            var result = new DictionaryImplRef<TKey, TKey, TValue>(topDict);
+            result._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
             return result;
         }
     }

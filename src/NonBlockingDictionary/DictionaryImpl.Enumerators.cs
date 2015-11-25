@@ -27,30 +27,28 @@ namespace NonBlocking
 
         private class Snapshot : IDisposable
         {
-            private readonly DictionaryImpl<TKey, TKeyStore, TValue> dict;
-            private readonly Entry[] _table;
+            private readonly DictionaryImpl<TKey, TKeyStore, TValue> _table;
             private int _idx;              
             protected TKey _curKey, _nextK;
             protected object _curValue, _nextV;
 
             public Snapshot(DictionaryImpl<TKey, TKeyStore, TValue> dict)
             {
+                this._table = dict;
+
                 // linearization point.
                 // if table is quiescent and has no copy in progress,
                 // we can simply iterate over its table.
                 while (true)
                 {
-                    this.dict = dict;
-                    var table = dict._table;
-                    var tableInfo = dict.GetTableInfo(table);
-                    if (tableInfo._newTable == null)
+                    if (_table._newTable == null)
                     {
-                        this._table = table;
                         break;
                     }
 
                     // there is a copy in progress, finish it and try again
-                    tableInfo.HelpCopyImpl(dict, table, copy_all: true);
+                    _table.HelpCopyImpl(copy_all: true);
+                    this._table = (DictionaryImpl<TKey, TKeyStore, TValue>)(this._table._topDict._table);
                 }
 
                 // Warm-up the iterator
@@ -68,15 +66,16 @@ namespace NonBlocking
                 _curValue = _nextV;
                 _nextV = NULLVALUE;
 
-                while (_idx < _table.Length - 1)
+                var entries = this._table._entries;
+                while (_idx < entries.Length - 1)
                 {  // Scan array
-                    var nextEntry = _table[_idx++];
+                    var nextEntry = entries[_idx++];
 
                     if (nextEntry.value != null)
                     {
-                        var nextK = dict.keyFromEntry(nextEntry.key);
+                        var nextK = _table.keyFromEntry(nextEntry.key);
 
-                        object nextV = dict.TryGetValue(nextK);
+                        object nextV = _table.TryGetValue(nextK);
                         if (nextV != null)
                         {
                             _nextK = nextK;

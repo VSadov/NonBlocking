@@ -18,7 +18,8 @@ namespace NonBlocking
         IDictionary,
         ICollection
     {
-        private readonly DictionaryImpl<TKey, TValue> dict;
+        internal DictionaryImpl<TKey, TValue> _table;
+        internal uint _lastResizeTickMillis;
 
         public ConcurrentDictionary(
             int cLevel,
@@ -36,7 +37,7 @@ namespace NonBlocking
                 if (typeof(TKey) == typeof(ValueType) ||
                     !(default(TKey) is ValueType))
                 {
-                    dict = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(comparer);
+                    _table = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(this, comparer);
                     return;
                 }
             }
@@ -46,12 +47,12 @@ namespace NonBlocking
                 {
                     if (comparer == null)
                     {
-                        dict = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntNoComparer<TValue>();
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntNoComparer<TValue>((ConcurrentDictionary<int, TValue>)(object)this);
                     }
                     else
                     {
-                        dict = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplInt<TValue>();
-                        dict.keyComparer = comparer;
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplInt<TValue>((ConcurrentDictionary<int, TValue>)(object)this);
+                        _table._keyComparer = comparer;
                     }
                     return;
                 }
@@ -60,19 +61,19 @@ namespace NonBlocking
                 {
                     if (comparer == null)
                     {
-                        dict = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLongNoComparer<TValue>();
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLongNoComparer<TValue>((ConcurrentDictionary<long, TValue>)(object)this);
                     }
                     else
                     {
-                        dict = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLong<TValue>();
-                        dict.keyComparer = comparer;
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLong<TValue>((ConcurrentDictionary<long, TValue>)(object)this);
+                        _table._keyComparer = comparer;
                     }
                     return ;
                 }
             }
 
-            dict = new DictionaryImplBoxed<TKey, TValue>();
-            dict.keyComparer = comparer ?? EqualityComparer<TKey>.Default;
+            _table = new DictionaryImplBoxed<TKey, TValue>(this);
+            _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 
         public void Add(TKey key, TValue value)
@@ -87,13 +88,13 @@ namespace NonBlocking
         {
             object oldValObj = null;
             object newValObj = ToObjectValue(value);
-            return dict.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
+            return _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
         }
         
         public bool Remove(TKey key)
         {
             object oldValObj = null;
-            var found = dict.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
+            var found = _table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
             Debug.Assert(!(oldValObj is Prime));
 
             return found;
@@ -102,7 +103,7 @@ namespace NonBlocking
         public bool TryRemove(TKey key, out TValue value)
         {
             object oldValObj = null;
-            var found = dict.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
+            var found = _table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
 
             Debug.Assert(!(oldValObj is Prime));
             Debug.Assert(found ^ oldValObj == null);
@@ -123,7 +124,7 @@ namespace NonBlocking
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            object oldValObj = dict.TryGetValue(key);
+            object oldValObj = _table.TryGetValue(key);
 
             Debug.Assert(!(oldValObj is Prime));
 
@@ -152,7 +153,7 @@ namespace NonBlocking
         {
             get
             {
-                object oldValObj = dict.TryGetValue(key);
+                object oldValObj = _table.TryGetValue(key);
 
                 Debug.Assert(!(oldValObj is Prime));
 
@@ -179,7 +180,7 @@ namespace NonBlocking
             {
                 object oldValObj = null;
                 object newValObj = ToObjectValue(value);
-                dict.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
+                _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
             }
         }
 
@@ -205,14 +206,14 @@ namespace NonBlocking
         {
             object oldValObj = ToObjectValue(comparisonValue);
             object newValObj = ToObjectValue(value);
-            return dict.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
+            return _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
         }
 
         public TValue GetOrAdd(TKey key, TValue value)
         {
             object oldValObj = null;
             object newValObj = ToObjectValue(value);
-            if (dict.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
+            if (_table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
             {
                 return value;
             }
@@ -229,13 +230,13 @@ namespace NonBlocking
 
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
-            return dict.GetOrAdd(key, valueFactory);
+            return _table.GetOrAdd(key, valueFactory);
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {
             object oldValObj = ToObjectValue(item.Value);
-            return dict.PutIfMatch(item.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
+            return _table.PutIfMatch(item.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
@@ -243,9 +244,9 @@ namespace NonBlocking
         bool ICollection.IsSynchronized => false;
         bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
 
-        public bool IsEmpty => dict.Count == 0;
-        public int Count => dict.Count;
-        public void Clear() => dict.Clear();
+        public bool IsEmpty => _table.Count == 0;
+        public int Count => _table.Count;
+        public void Clear() => _table.Clear();
 
         IEnumerable<TKey> IReadOnlyDictionary<TKey, TValue>.Keys => Keys;
         IEnumerable<TValue> IReadOnlyDictionary<TKey, TValue>.Values => Values;
@@ -485,17 +486,17 @@ namespace NonBlocking
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            return dict.GetEnumerator();
+            return _table.GetEnumerator();
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return dict.GetEnumerator();
+            return _table.GetEnumerator();
         }
 
         IDictionaryEnumerator IDictionary.GetEnumerator()
         {
-            return dict.GetdIDictEnumerator();
+            return _table.GetdIDictEnumerator();
         }
 
         public ReadOnlyCollection<TKey> Keys

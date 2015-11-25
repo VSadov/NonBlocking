@@ -14,6 +14,16 @@ namespace NonBlocking
             : DictionaryImpl<TKey, TKey, TValue>
                     where TKey : class
     {
+        internal DictionaryImplRef(ConcurrentDictionary<TKey, TValue> topDict)
+            : base(topDict)
+        {
+        }
+
+        internal DictionaryImplRef(DictionaryImplRef<TKey, TKeyStore, TValue> other, int capacity)
+            : base(other, capacity)
+        {
+        }
+
         protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
@@ -38,17 +48,17 @@ namespace NonBlocking
                 }
             }
 
-            return key == entryKeyValue || keyComparer.Equals(key, entryKeyValue);
+            return key == entryKeyValue || _keyComparer.Equals(key, entryKeyValue);
         }
 
         protected override bool keyEqual(TKey key, TKey entryKey)
         {
-            return key == entryKey || keyComparer.Equals(key, entryKey);
+            return key == entryKey || _keyComparer.Equals(key, entryKey);
         }
 
-        protected override DictionaryImpl<TKey, TKey, TValue> CreateNew()
+        protected override DictionaryImpl<TKey, TKey, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplRef<TKey, TKey, TValue>();
+            return new DictionaryImplRef<TKey, TKeyStore, TValue>(this, capacity);
         }
 
         protected override TKey keyFromEntry(TKey entryKey)

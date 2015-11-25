@@ -45,7 +45,6 @@
     <Compile Include="DictionaryImplInt.cs" />
     <Compile Include="DictionaryImpl.cs" />
     <Compile Include="Counter.cs" />
-    <Compile Include="DictionaryImpl.TableInfo.cs" />
     <Compile Include="DictionaryImpl`3.cs" />
   </ItemGroup>
   <ItemGroup>

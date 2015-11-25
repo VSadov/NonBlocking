@@ -12,20 +12,20 @@ namespace NonBlocking
         : DictionaryImpl
     {
         // TODO: move to leafs
-        internal IEqualityComparer<TKey> keyComparer;
+        internal IEqualityComparer<TKey> _keyComparer;
 
-        internal static Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
-            (IEqualityComparer<TKey> comparer) =>
+        internal static Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
+            (ConcurrentDictionary <TKey, TValue> topDict, IEqualityComparer<TKey> comparer) =>
             {
                 var method = typeof(DictionaryImpl).
                     GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
                     MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
 
-                var del = (Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
-                    typeof(Func<IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>),
+                var del = (Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
+                    typeof(Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>),
                     method);
 
-                var result = del(comparer);
+                var result = del(topDict, comparer);
                 CreateRefUnsafe = del;
 
                 return result;

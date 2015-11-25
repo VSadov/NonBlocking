@@ -13,6 +13,16 @@ namespace NonBlocking
     internal sealed class DictionaryImplLong<TValue>
                 : DictionaryImpl<long, long, TValue>
     {
+        internal DictionaryImplLong(ConcurrentDictionary<long, TValue> topDict)
+            : base(topDict)
+        {
+        }
+
+        internal DictionaryImplLong(DictionaryImplLong<TValue> other, int capacity)
+            : base(other, capacity)
+        {
+        }
+
         protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
@@ -38,7 +48,7 @@ namespace NonBlocking
                 }
             }
 
-            return key == entryKeyValue || keyComparer.Equals(key, entryKey);
+            return key == entryKeyValue || _keyComparer.Equals(key, entryKey);
         }
 
         protected override int hash(long key)
@@ -53,12 +63,12 @@ namespace NonBlocking
 
         protected override bool keyEqual(long key, long entryKey)
         {
-            return key == entryKey || keyComparer.Equals(key, entryKey);
+            return key == entryKey || _keyComparer.Equals(key, entryKey);
         }
 
-        protected override DictionaryImpl<long, long, TValue> CreateNew()
+        protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLong<TValue>();
+            return new DictionaryImplLong<TValue>(this, capacity);
         }
 
         protected override long keyFromEntry(long entryKey)
@@ -70,6 +80,16 @@ namespace NonBlocking
     internal sealed class DictionaryImplLongNoComparer<TValue>
             : DictionaryImpl<long, long, TValue>
     {
+        internal DictionaryImplLongNoComparer(ConcurrentDictionary<long, TValue> topDict)
+            : base(topDict)
+        {
+        }
+
+        internal DictionaryImplLongNoComparer(DictionaryImplLongNoComparer<TValue> other, int capacity)
+            : base(other, capacity)
+        {
+        }
+
         protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
@@ -110,9 +130,9 @@ namespace NonBlocking
             return key == entryKey;
         }
 
-        protected override DictionaryImpl<long, long, TValue> CreateNew()
+        protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLongNoComparer<TValue>();
+            return new DictionaryImplLongNoComparer<TValue>(this, capacity);
         }
 
         protected override long keyFromEntry(long entryKey)

@@ -13,6 +13,16 @@ namespace NonBlocking
     internal sealed class DictionaryImplBoxed<TKey, TValue>
             : DictionaryImpl<TKey, Boxed<TKey>, TValue>
     {
+        internal DictionaryImplBoxed(ConcurrentDictionary<TKey, TValue> topDict)
+            : base(topDict)
+        {
+        }
+
+        internal DictionaryImplBoxed(DictionaryImplBoxed<TKey, TValue> other, int capacity)
+            : base(other, capacity)
+        {
+        }
+
         protected override bool TryClaimSlotForPut(ref Boxed<TKey> entryKey, TKey key, Counter slots)
         {
             var entryKeyValue = entryKey;
@@ -27,7 +37,7 @@ namespace NonBlocking
                 }
             }
 
-            return keyComparer.Equals(key, entryKey.Value);
+            return _keyComparer.Equals(key, entryKey.Value);
         }
 
         protected override bool TryClaimSlotForCopy(ref Boxed<TKey> entryKey,Boxed<TKey> key, Counter slots)
@@ -44,17 +54,17 @@ namespace NonBlocking
                 }
             }
 
-            return keyComparer.Equals(key.Value, entryKey.Value);
+            return _keyComparer.Equals(key.Value, entryKey.Value);
         }
 
         protected override bool keyEqual(TKey key, Boxed<TKey> entryKey)
         {
-            return keyComparer.Equals(key, entryKey.Value);
+            return _keyComparer.Equals(key, entryKey.Value);
         }
 
-        protected override DictionaryImpl<TKey, Boxed<TKey>, TValue> CreateNew()
+        protected override DictionaryImpl<TKey, Boxed<TKey>, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplBoxed<TKey, TValue>();
+            return new DictionaryImplBoxed<TKey, TValue>(this, capacity);
         }
 
         protected override TKey keyFromEntry(Boxed<TKey> entryKey)
