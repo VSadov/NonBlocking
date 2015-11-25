@@ -13,13 +13,13 @@ namespace NonBlocking
     internal sealed class DictionaryImplBoxed<TKey, TValue>
             : DictionaryImpl<TKey, Boxed<TKey>, TValue>
     {
-        internal DictionaryImplBoxed(ConcurrentDictionary<TKey, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplBoxed(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplBoxed(DictionaryImplBoxed<TKey, TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplBoxed(int capacity, DictionaryImplBoxed<TKey, TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -64,7 +64,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<TKey, Boxed<TKey>, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplBoxed<TKey, TValue>(this, capacity);
+            return new DictionaryImplBoxed<TKey, TValue>(capacity, this);
         }
 
         protected override TKey keyFromEntry(Boxed<TKey> entryKey)

@@ -80,13 +80,8 @@ namespace NonBlocking
         // or getting existing slot suitable for storing a given key in its store form (could be boxed).
         protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
 
-        internal DictionaryImpl(ConcurrentDictionary<TKey, TValue> topDict, int capacity = 0)
+        internal DictionaryImpl(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
         {
-            if (capacity < 0)
-            {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
-            }
-
             capacity = Math.Max(capacity, MIN_SIZE);
 
             capacity = AlignToPowerOfTwo(capacity);
@@ -95,7 +90,7 @@ namespace NonBlocking
             this._topDict = topDict;
         }
 
-        protected DictionaryImpl(DictionaryImpl<TKey, TKeyStore, TValue> other, int capacity)
+        protected DictionaryImpl(int capacity, DictionaryImpl<TKey, TKeyStore, TValue> other)
         {
             capacity = AlignToPowerOfTwo(capacity);
             this._entries = new Entry[capacity];
@@ -143,7 +138,7 @@ namespace NonBlocking
         {
             var newTable = CreateNew(MIN_SIZE);
             newTable._size = new Counter();
-            Volatile.Write(ref _topDict._table, newTable);
+            _topDict._table = newTable;
         }
 
         /// <summary>

@@ -13,13 +13,13 @@ namespace NonBlocking
     internal sealed class DictionaryImplLong<TValue>
                 : DictionaryImpl<long, long, TValue>
     {
-        internal DictionaryImplLong(ConcurrentDictionary<long, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplLong(int capacity, ConcurrentDictionary<long, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplLong(DictionaryImplLong<TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplLong(int capacity, DictionaryImplLong<TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -68,7 +68,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLong<TValue>(this, capacity);
+            return new DictionaryImplLong<TValue>(capacity, this);
         }
 
         protected override long keyFromEntry(long entryKey)
@@ -80,13 +80,13 @@ namespace NonBlocking
     internal sealed class DictionaryImplLongNoComparer<TValue>
             : DictionaryImpl<long, long, TValue>
     {
-        internal DictionaryImplLongNoComparer(ConcurrentDictionary<long, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplLongNoComparer(int capacity, ConcurrentDictionary<long, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplLongNoComparer(DictionaryImplLongNoComparer<TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplLongNoComparer(int capacity, DictionaryImplLongNoComparer<TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -132,7 +132,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLongNoComparer<TValue>(this, capacity);
+            return new DictionaryImplLongNoComparer<TValue>(capacity, this);
         }
 
         protected override long keyFromEntry(long entryKey)

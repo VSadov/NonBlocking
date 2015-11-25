@@ -14,18 +14,18 @@ namespace NonBlocking
         // TODO: move to leafs
         internal IEqualityComparer<TKey> _keyComparer;
 
-        internal static Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
-            (ConcurrentDictionary <TKey, TValue> topDict, IEqualityComparer<TKey> comparer) =>
+        internal static Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
+            (ConcurrentDictionary <TKey, TValue> topDict, int capacity) =>
             {
                 var method = typeof(DictionaryImpl).
                     GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
                     MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
 
-                var del = (Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
-                    typeof(Func<ConcurrentDictionary<TKey, TValue>, IEqualityComparer<TKey>, DictionaryImpl<TKey, TValue>>),
+                var del = (Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
+                    typeof(Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>),
                     method);
 
-                var result = del(topDict, comparer);
+                var result = del(topDict, capacity);
                 CreateRefUnsafe = del;
 
                 return result;

@@ -21,23 +21,150 @@ namespace NonBlocking
         internal DictionaryImpl<TKey, TValue> _table;
         internal uint _lastResizeTickMillis;
 
-        public ConcurrentDictionary(
-            int cLevel,
-            int size,
-            IEqualityComparer<TKey> comparer = null)
-            :this(comparer)
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level, has the default initial capacity, and uses the default comparer for the key type.</summary>
+        public ConcurrentDictionary() : this(31)
         {
         }
 
-        public ConcurrentDictionary(
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified concurrency level and capacity, and uses the default comparer for the key type.</summary>
+        /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> concurrently.</param>
+        /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
+        /// <exception cref="T:System.ArgumentOutOfRangeException">
+        ///   <paramref name="concurrencyLevel" /> is less than 1.-or-<paramref name="capacity" /> is less than 0.</exception>
+        public ConcurrentDictionary(int concurrencyLevel, int capacity) : this(capacity)
+        {
+            if (concurrencyLevel < 1)
+            {
+                throw new ArgumentOutOfRangeException("concurrencyLevel");
+            }
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" />, has the default concurrency level, has the default initial capacity, and uses the default comparer for the key type.</summary>
+        /// <param name="collection">The <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" /> whose elements are copied to the new <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" />.</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        ///   <paramref name="collection" /> or any of its keys is a null reference (Nothing in Visual Basic)</exception>
+        /// <exception cref="T:System.ArgumentException">
+        ///   <paramref name="collection" /> contains one or more duplicate keys.</exception>
+        public ConcurrentDictionary(IEnumerable<KeyValuePair<TKey, TValue>> collection) : this()
+        {
+            if (collection == null)
+            {
+                throw new ArgumentNullException("collection");
+            }
+            this.InitializeFromCollection(collection);
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level and capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        ///   <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
+        public ConcurrentDictionary(IEqualityComparer<TKey> comparer) : this(31, comparer)
+        {
+            if (comparer == null)
+            {
+                throw new ArgumentNullException("comparer");
+            }
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable" />, has the default concurrency level, has the default initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <param name="collection">The <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" /> whose elements are copied to the new <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" />.</param>
+        /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        ///   <paramref name="collection" /> is a null reference (Nothing in Visual Basic). -or- <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
+        public ConcurrentDictionary(IEnumerable<KeyValuePair<TKey, TValue>> collection, IEqualityComparer<TKey> comparer) : this(comparer)
+        {
+            if (collection == null)
+            {
+                throw new ArgumentNullException("collection");
+            }
+            if (comparer == null)
+            {
+                throw new ArgumentNullException("comparer");
+            }
+            this.InitializeFromCollection(collection);
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable" />, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> concurrently.</param>
+        /// <param name="collection">The <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" /> whose elements are copied to the new <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" />.</param>
+        /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        ///   <paramref name="collection" /> is a null reference (Nothing in Visual Basic). -or- <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
+        /// <exception cref="T:System.ArgumentOutOfRangeException">
+        ///   <paramref name="concurrencyLevel" /> is less than 1.</exception>
+        /// <exception cref="T:System.ArgumentException">
+        ///   <paramref name="collection" /> contains one or more duplicate keys.</exception>
+        public ConcurrentDictionary(int concurrencyLevel, IEnumerable<KeyValuePair<TKey, TValue>> collection, IEqualityComparer<TKey> comparer) : this(comparer)
+        {
+            if (concurrencyLevel < 1)
+            {
+                throw new ArgumentOutOfRangeException("concurrencyLevel");
+            }
+            if (collection == null)
+            {
+                throw new ArgumentNullException("collection");
+            }
+            if (comparer == null)
+            {
+                throw new ArgumentNullException("comparer");
+            }
+            this.InitializeFromCollection(collection);
+        }
+
+        private void InitializeFromCollection(IEnumerable<KeyValuePair<TKey, TValue>> collection)
+        {
+            foreach (KeyValuePair<TKey, TValue> current in collection)
+            {
+                if (!this.TryAdd(current.Key, current.Value))
+                {
+                    throw new ArgumentException("Collection contains duplicate keys");
+                }
+            }
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified concurrency level, has the specified initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> concurrently.</param>
+        /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
+        /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
+        /// <exception cref="T:System.ArgumentNullException">
+        ///   <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
+        /// <exception cref="T:System.ArgumentOutOfRangeException">
+        ///   <paramref name="concurrencyLevel" /> is less than 1. -or- <paramref name="capacity" /> is less than 0.</exception>
+        public ConcurrentDictionary(int concurrencyLevel, int capacity, IEqualityComparer<TKey> comparer) : this(capacity, comparer)
+        {
+            if (concurrencyLevel < 1)
+            {
+                throw new ArgumentOutOfRangeException("concurrencyLevel");
+            }
+            if (comparer == null)
+            {
+                throw new ArgumentNullException("comparer");
+            }
+        }
+
+        private ConcurrentDictionary(
+            int capacity,
             IEqualityComparer<TKey> comparer = null)
         {
+            if (capacity < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(capacity));
+            }
+
             if (default(TKey) == null)
             {
                 if (typeof(TKey) == typeof(ValueType) ||
                     !(default(TKey) is ValueType))
                 {
-                    _table = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(this, comparer);
+                    _table = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(this, capacity);
+                    _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
                     return;
                 }
             }
@@ -47,11 +174,11 @@ namespace NonBlocking
                 {
                     if (comparer == null)
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntNoComparer<TValue>((ConcurrentDictionary<int, TValue>)(object)this);
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntNoComparer<TValue>(capacity, (ConcurrentDictionary<int, TValue>)(object)this);
                     }
                     else
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplInt<TValue>((ConcurrentDictionary<int, TValue>)(object)this);
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplInt<TValue>(capacity, (ConcurrentDictionary<int, TValue>)(object)this);
                         _table._keyComparer = comparer;
                     }
                     return;
@@ -61,18 +188,18 @@ namespace NonBlocking
                 {
                     if (comparer == null)
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLongNoComparer<TValue>((ConcurrentDictionary<long, TValue>)(object)this);
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLongNoComparer<TValue>(capacity, (ConcurrentDictionary<long, TValue>)(object)this);
                     }
                     else
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLong<TValue>((ConcurrentDictionary<long, TValue>)(object)this);
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLong<TValue>(capacity, (ConcurrentDictionary<long, TValue>)(object)this);
                         _table._keyComparer = comparer;
                     }
                     return ;
                 }
             }
 
-            _table = new DictionaryImplBoxed<TKey, TValue>(this);
+            _table = new DictionaryImplBoxed<TKey, TValue>(capacity, this);
             _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
         }
 

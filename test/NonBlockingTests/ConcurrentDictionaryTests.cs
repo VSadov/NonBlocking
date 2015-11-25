@@ -526,71 +526,68 @@ namespace NonBlockingTests
             }
         }
 
-        //TODO: VS
-        //public static void TestConstructor()
-        //{
-        //    var dictionary = new DictionaryImpl<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
-        //    Assert.False(dictionary.IsEmpty);
-        //    Assert.Equal(1, dictionary.Keys.Count);
-        //    Assert.Equal(1, dictionary.Values.Count);
-        //}
+        public static void TestConstructor()
+        {
+            var dictionary = new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
+            Assert.False(dictionary.IsEmpty);
+            Assert.Equal(1, dictionary.Keys.Count);
+            Assert.Equal(1, dictionary.Values.Count);
+        }
 
-        //TODO: VS
         //[Fact]
         //public static void TestDebuggerAttributes()
         //{
-        //    DebuggerAttributes.ValidateDebuggerDisplayReferences(new DictionaryImpl<string, int>());
-        //    DebuggerAttributes.ValidateDebuggerTypeProxyProperties(new DictionaryImpl<string, int>());
+        //    DebuggerAttributes.ValidateDebuggerDisplayReferences(new NonBlocking.ConcurrentDictionary<string, int>());
+        //    DebuggerAttributes.ValidateDebuggerTypeProxyProperties(new NonBlocking.ConcurrentDictionary<string, int>());
         //}
 
-        //TODO: VS
-        //[Fact]
-        //public static void TestConstructor_Negative()
-        //{
+        [Fact]
+        public static void TestConstructor_Negative()
+        {
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>((ICollection<KeyValuePair<int, int>>)null));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>((IEqualityComparer<int>)null));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null IEqualityComparer is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>((IEqualityComparer<int>)null));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null IEqualityComparer is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection and non null IEqualityComparer passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection and non null IEqualityComparer passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>(new[] { new KeyValuePair<int, int>(1, 1) }, null));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when non null collection and null IEqualityComparer passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) }, null));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when non null collection and null IEqualityComparer passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<string, int>(new[] { new KeyValuePair<string, int>(null, 1) }));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when collection has null key passed");
-        //    Assert.Throws<ArgumentException>(
-        //       () => new DictionaryImpl<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw AE when collection has duplicate keys passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new NonBlocking.ConcurrentDictionary<string, int>(new[] { new KeyValuePair<string, int>(null, 1) }));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when collection has null key passed");
+            Assert.Throws<ArgumentException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
+            // "TestConstructor:  FAILED.  Constructor didn't throw AE when collection has duplicate keys passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>(1, null, EqualityComparer<int>.Default));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, null, EqualityComparer<int>.Default));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>(1, new[] { new KeyValuePair<int, int>(1, 1) }, null));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, new[] { new KeyValuePair<int, int>(1, 1) }, null));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
 
-        //    Assert.Throws<ArgumentNullException>(
-        //       () => new DictionaryImpl<int, int>(1, 1, null));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, 1, null));
+            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
 
-        //    Assert.Throws<ArgumentOutOfRangeException>(
-        //       () => new DictionaryImpl<int, int>(0, 10));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw AORE when <1 concurrencyLevel passed");
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(0, 10));
+            // "TestConstructor:  FAILED.  Constructor didn't throw AORE when <1 concurrencyLevel passed");
 
-        //    Assert.Throws<ArgumentOutOfRangeException>(
-        //       () => new DictionaryImpl<int, int>(-1, 0));
-        //    // "TestConstructor:  FAILED.  Constructor didn't throw AORE when < 0 capacity passed");
-        //}
+            Assert.Throws<ArgumentOutOfRangeException>(
+               () => new  NonBlocking.ConcurrentDictionary<int, int>(-1, 0));
+            // "TestConstructor:  FAILED.  Constructor didn't throw AORE when < 0 capacity passed");
+        }
 
         [Fact]
         public static void TestExceptions()

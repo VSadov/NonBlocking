@@ -13,13 +13,13 @@ namespace NonBlocking
     internal sealed class DictionaryImplInt<TValue>
                 : DictionaryImpl<int, int, TValue>
     {
-        internal DictionaryImplInt(ConcurrentDictionary<int, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplInt(int capacity, ConcurrentDictionary<int, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplInt(DictionaryImplInt<TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplInt(int capacity, DictionaryImplInt<TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -68,7 +68,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<int, int, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplInt<TValue>(this, capacity);
+            return new DictionaryImplInt<TValue>(capacity, this);
         }
 
         protected override int keyFromEntry(int entryKey)
@@ -80,13 +80,13 @@ namespace NonBlocking
     internal sealed class DictionaryImplIntNoComparer<TValue>
             : DictionaryImpl<int, int, TValue>
     {
-        internal DictionaryImplIntNoComparer(ConcurrentDictionary<int, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplIntNoComparer(int capacity, ConcurrentDictionary<int, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplIntNoComparer(DictionaryImplIntNoComparer<TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplIntNoComparer(int capacity, DictionaryImplIntNoComparer<TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -132,7 +132,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<int, int, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplIntNoComparer<TValue>(this, capacity);
+            return new DictionaryImplIntNoComparer<TValue>(capacity, this);
         }
 
         protected override int keyFromEntry(int entryKey)

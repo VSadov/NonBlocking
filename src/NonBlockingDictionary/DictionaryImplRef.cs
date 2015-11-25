@@ -14,13 +14,13 @@ namespace NonBlocking
             : DictionaryImpl<TKey, TKey, TValue>
                     where TKey : class
     {
-        internal DictionaryImplRef(ConcurrentDictionary<TKey, TValue> topDict)
-            : base(topDict)
+        internal DictionaryImplRef(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
+            : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplRef(DictionaryImplRef<TKey, TKeyStore, TValue> other, int capacity)
-            : base(other, capacity)
+        internal DictionaryImplRef(int capacity, DictionaryImplRef<TKey, TKeyStore, TValue> other)
+            : base(capacity, other)
         {
         }
 
@@ -58,7 +58,7 @@ namespace NonBlocking
 
         protected override DictionaryImpl<TKey, TKey, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplRef<TKey, TKeyStore, TValue>(this, capacity);
+            return new DictionaryImplRef<TKey, TKeyStore, TValue>(capacity, this);
         }
 
         protected override TKey keyFromEntry(TKey entryKey)

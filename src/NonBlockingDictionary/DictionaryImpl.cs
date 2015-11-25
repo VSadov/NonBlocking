@@ -101,11 +101,10 @@ namespace NonBlocking
             return (object)value;
         }
 
-        internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(ConcurrentDictionary<TKey, TValue> topDict, IEqualityComparer<TKey> comparer = null)
+        internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(ConcurrentDictionary<TKey, TValue> topDict, int capacity)
             where TKey : class
         {
-            var result = new DictionaryImplRef<TKey, TKey, TValue>(topDict);
-            result._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
+            var result = new DictionaryImplRef<TKey, TKey, TValue>(capacity, topDict);
             return result;
         }
     }
