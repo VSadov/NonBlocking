@@ -232,7 +232,7 @@ namespace NonBlocking
         // since slot without a value is as good as no slot at all
         internal sealed override bool PutIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
         {
-           if (key == null)
+            if (key == null)
             {
                 throw new ArgumentNullException("key");
             }
@@ -602,20 +602,20 @@ namespace NonBlocking
 
             TRY_WITH_NEW_TABLE:
 
-            var entries = curTable._entries;
-            int lenMask = entries.Length - 1;
+            var curEntries = curTable._entries;
+            int lenMask = curEntries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobe_cnt = 0;
             while (true)
             {
-                var entryHash = entries[idx].hash;
+                var entryHash = curEntries[idx].hash;
                 if (entryHash == 0)
                 {
                     // Slot is completely clean, claim the hash
                     Debug.Assert(fullHash != 0);
-                    entryHash = Interlocked.CompareExchange(ref entries[idx].hash, fullHash, 0);
+                    entryHash = Interlocked.CompareExchange(ref curEntries[idx].hash, fullHash, 0);
                     if (entryHash == 0)
                     {
                         entryHash = fullHash;
@@ -631,7 +631,7 @@ namespace NonBlocking
                 if (entryHash == fullHash)
                 {
                     // hash is good, one way or another, claim the key
-                    if (curTable.TryClaimSlotForCopy(ref entries[idx].key, key, curTable._slots))
+                    if (curTable.TryClaimSlotForCopy(ref curEntries[idx].key, key, curTable._slots))
                     {
                         break;
                     }
@@ -658,7 +658,7 @@ namespace NonBlocking
             } // End of spinning till we get a Key slot
 
             // Found the proper Key slot, now update the Value. 
-            var entryValue = entries[idx].value;
+            var entryValue = curEntries[idx].value;
             if (entryValue != null)
             {
                 // someone else copied, not us
@@ -691,7 +691,7 @@ namespace NonBlocking
             // table-copy does not (effectively) increase the number of live k/v pairs
             // so no need to update size
             // otherwise someone else copied the value
-            return Interlocked.CompareExchange(ref entries[idx].value, value, null) == null;
+            return Interlocked.CompareExchange(ref curEntries[idx].value, value, null) == null;
         }
 
         ///////////////////////////////////////////////////////////
@@ -743,7 +743,7 @@ namespace NonBlocking
             int toCopy = oldEntries.Length;
 
 #if DEBUG
-                const int CHUNK_SIZE = 16;
+            const int CHUNK_SIZE = 16;
 #else
             const int CHUNK_SIZE = 1024;
 #endif

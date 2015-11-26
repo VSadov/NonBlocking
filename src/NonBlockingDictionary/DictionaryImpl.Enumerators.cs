@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal  abstract partial class DictionaryImpl<TKey, TKeyStore, TValue>
+    internal abstract partial class DictionaryImpl<TKey, TKeyStore, TValue>
         : DictionaryImpl<TKey, TValue>
     {
 
@@ -28,7 +28,7 @@ namespace NonBlocking
         private class Snapshot : IDisposable
         {
             private readonly DictionaryImpl<TKey, TKeyStore, TValue> _table;
-            private int _idx;              
+            private int _idx;
             protected TKey _curKey, _nextK;
             protected object _curValue, _nextV;
 
@@ -67,7 +67,7 @@ namespace NonBlocking
                 _nextV = NULLVALUE;
 
                 var entries = this._table._entries;
-                while (_idx < entries.Length - 1)
+                while (_idx < entries.Length)
                 {  // Scan array
                     var nextEntry = entries[_idx++];
 

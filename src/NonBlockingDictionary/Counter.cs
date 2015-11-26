@@ -36,8 +36,8 @@ namespace NonBlocking
         private int cellCount;
 
         // default counter
-        private int cnt;      
-                
+        private int cnt;
+
         public Counter()
         {
         }
@@ -49,7 +49,7 @@ namespace NonBlocking
 
             if (cells != null)
             {
-                for(int i = 0; i < cells.Length; i++)
+                for (int i = 0; i < cells.Length; i++)
                 {
                     var cell = cells[i];
                     if (cell != null)
@@ -146,7 +146,7 @@ namespace NonBlocking
                 var cells = this.cells;
                 if (cells == null)
                 {
-                    var newCells = new Cell[32];
+                    var newCells = new Cell[MAX_CELL_COUNT];
                     cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
                 }
 
