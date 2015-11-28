@@ -18,125 +18,172 @@ namespace NonBlockingTests
     {
         static void Main(string[] args)
         {
-            //for (;;)
-            //{
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
+            if (Stopwatch.IsHighResolution)
+            {
+                System.Console.WriteLine("Timer: High Resolution");
+            }
+            else
+            {
+                System.Console.WriteLine("Timer: Low Resolution");
+            }
 
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
+            EmptyAction();
+            CounterPerf();
 
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            RunOnce();
-            //}
-
-            //ChurnSequential();
-            //ChurnConcurrent();
+            GetBenchNB();
+            GetBenchCD();
+            GetBenchRndNB();
+            GetBenchRndCD();
         }
 
-        private static void RunOnce()
+        private static void EmptyAction()
         {
-            var arr = new long[] {
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),
-            GetBenchSmall(),};
+            var benchmarkName = "======== EmptyAction 1M Ops/sec:";
 
-            System.Console.WriteLine(arr.Min());
+            Counter cnt = new Counter();
+            Action<int> act = _ => {};
+
+            RunBench(benchmarkName, act);
         }
 
-        private static long GetBench()
+        private static void CounterPerf()
+        {
+            var benchmarkName = "======== Counter 1M Ops/sec:";
+
+            Counter cnt = new Counter();
+            Action<int> act = _ => { cnt.increment(); };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var sw = Stopwatch.StartNew();
+            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
 
-            for (int j = 0; j < 5000; j++)
-            {
-                Parallel.For(0, 50000, (i) => { var dummy = dict[i]; });
-            }
+            Action<int> act = (i) => {var dummy = dict[i % 100000]; };
 
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
+            RunBench(benchmarkName, act);
         }
 
-        private static long GetBenchSmall()
+        private static void GetBenchCD()
         {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
+            var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
-            Parallel.For(0, 10000, (i) => dict[i] = i.ToString());
-            Parallel.For(0, 10000, (i) => { var dummy = dict[i]; });
+            Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var sw = Stopwatch.StartNew();
+            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
 
-            for (int j = 0; j < 50000; j++)
-            {
-                Parallel.For(0, 5000, (i) => { var dummy = dict[i]; });
-            }
+            Action<int> act = (i) => {var dummy = dict[i % 100000]; };
 
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
+            RunBench(benchmarkName, act);
         }
 
-        private static long GetBenchSmallSequential()
+        private static void GetBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-            //var dict = new System.Collections.Generic.Dictionary<int, string>();
 
-            for(int i = 0; i < 10000; i++)
-            {
-                dict[i] = i.ToString();
-            }
-            for (int i = 0; i < 10000; i++)
-            {
-                var dummy = dict[i];
-            }
+            Parallel.For(0, 100000, (i) => dict[MixBits(i)] = "qq");
+            Parallel.For(0, 100000, (i) => { var dummy = dict[MixBits(i)]; });
 
-            var sw = Stopwatch.StartNew();
+            var benchmarkName = "======== Get NonBlocking Rnd 1M Ops/sec:";
 
-            for (int j = 0; j < 50000; j++)
+            Action<int> act = (i) => 
             {
-                for(int i = 0; i < 5000; i++)
+                int randIdx = MixBits(i);
+                string dummy;
+                dict.TryGetValue(randIdx, out dummy);
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchRndCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, string>();
+
+            Parallel.For(0, 100000, (i) => dict[MixBits(i)] = "qq");
+            Parallel.For(0, 100000, (i) => { var dummy = dict[MixBits(i)]; });
+
+            var benchmarkName = "======== Get Concurrent Rnd 1M Ops/sec:";
+
+            Action<int> act = (i) =>
+            {
+                int randIdx = MixBits(i);
+                string dummy;
+                dict.TryGetValue(randIdx, out dummy);
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+
+
+
+
+        private static long RunBenchmark(Action<int> action, int threads, int time)
+        {
+            Counter cnt = new Counter();
+            Task[] workers = new Task[threads];
+            Stopwatch sw = Stopwatch.StartNew();
+            ManualResetEventSlim e = new ManualResetEventSlim();
+            long stop_time = 0;
+
+            Action body = () =>
+            {
+                int iteration = 0;
+                e.Wait();
+                while (sw.ElapsedMilliseconds < stop_time)
                 {
-                    var dummy = dict[i];
+                    const int batch = 10000;
+                    for (int i = 0; i < batch; i++)
+                    {
+                        action(iteration++);
+                    }
+                    cnt.increment(batch);
                 }
+            };
+
+            for (int i = 0; i < workers.Length; i++)
+            {
+                workers[i] = Task.Factory.StartNew(body, TaskCreationOptions.LongRunning);
             }
 
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
+            stop_time = sw.ElapsedMilliseconds + time;
+            e.Set();
+
+            Task.WaitAll(workers);
+            return cnt.Value;
+        }
+
+        private static void RunBench(string benchmarkName, Action<int> action)
+        {
+            System.Console.WriteLine(benchmarkName);
+            var max_threads = Environment.ProcessorCount;
+            for (int i = 1; i <= max_threads; i++)
+            {
+                var MOps = RunBenchmark(action, i, 3000) / 3000000;
+                System.Console.Write(MOps + " ");
+            }
+            System.Console.WriteLine();
+        }
+
+        private static int MixBits(int i)
+        {
+            uint h = (uint)i;
+            // 32-bit finalizer for MurmurHash3.
+            h ^= h >> 16;
+            h *= 0x85ebca6b;
+            h ^= h >> 13;
+            h *= 0xc2b2ae35;
+            h ^= h >> 16;
+
+            return (int)h;
         }
 
         private static long GetBenchRef()

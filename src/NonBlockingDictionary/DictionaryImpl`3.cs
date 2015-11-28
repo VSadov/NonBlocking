@@ -704,7 +704,7 @@ namespace NonBlocking
             {
                 // counter does not lose counts, but reports of increments/decrements can be delayed
                 // it might be confusing if we ever report negative size.
-                var size = _size.get();
+                var size = _size.Value;
                 var negMask = ~(size >> 31);
                 return size & negMask;
             }
@@ -714,7 +714,7 @@ namespace NonBlocking
         {
             get
             {
-                return (int)_slots.estimate_get();
+                return (int)_slots.EstimatedValue;
             }
         }
 

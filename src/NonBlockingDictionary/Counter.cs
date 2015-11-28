@@ -42,46 +42,52 @@ namespace NonBlocking
         {
         }
 
-        public int get()
+        public int Value
         {
-            var count = this.cnt;
-            var cells = this.cells;
-
-            if (cells != null)
+            get
             {
-                for (int i = 0; i < cells.Length; i++)
+                var count = this.cnt;
+                var cells = this.cells;
+
+                if (cells != null)
                 {
-                    var cell = cells[i];
-                    if (cell != null)
+                    for (int i = 0; i < cells.Length; i++)
                     {
-                        count += cell.counter.cnt;
-                    }
-                    else
-                    {
-                        break;
+                        var cell = cells[i];
+                        if (cell != null)
+                        {
+                            count += cell.counter.cnt;
+                        }
+                        else
+                        {
+                            break;
+                        }
                     }
                 }
-            }
 
-            return count;
+                return count;
+            }
         }
 
-        internal int estimate_get()
+        internal int EstimatedValue
         {
-            return get();
+            get
+            {
+                return Value;
 
-            // TODO: is there a scenario where the following is cheaper?
-            //       we woud need to have a lot of counters.
+                // TODO: is there a scenario where the following is cheaper?
+                //       we woud need to have a lot of counters.
 
-            //var curTicks = DateTime.UtcNow.Ticks;
-            //// more than millisecond passed?
-            //if (curTicks - lastTicks > TimeSpan.TicksPerMillisecond)
-            //{
-            //    lastCnt = get();
-            //    lastTicks = curTicks;
-            //}
+                //var curTicks = DateTime.UtcNow.Ticks;
+                //// more than millisecond passed?
+                //if (curTicks - lastTicks > TimeSpan.TicksPerMillisecond)
+                //{
+                //    lastCnt = get();
+                //    lastTicks = curTicks;
+                //}
 
-            //return lastCnt;
+                //return lastCnt;
+            }
         }
 
         public void increment()
@@ -97,6 +103,26 @@ namespace NonBlocking
             var drift = cell == null ?
                 increment(ref cnt) :
                 increment(ref cell.counter.cnt);
+
+            if (drift > MAX_DRIFT)
+            {
+                TryAddCell(curCellCount);
+            }
+        }
+
+        public void increment(int c)
+        {
+            Cell cell = null;
+
+            int curCellCount = this.cellCount;
+            if (curCellCount > 1 & this.cells != null)
+            {
+                cell = this.cells[GetIndex(curCellCount)];
+            }
+
+            var drift = cell == null ?
+                increment(ref cnt, c) :
+                increment(ref cell.counter.cnt, c);
 
             if (drift > MAX_DRIFT)
             {
@@ -127,6 +153,11 @@ namespace NonBlocking
         private static int increment(ref int val)
         {
             return -val + Interlocked.Increment(ref val) - 1;
+        }
+
+        private static int increment(ref int val, int inc)
+        {
+            return -val + Interlocked.Add(ref val, inc) - inc;
         }
 
         private static int decrement(ref int val)
