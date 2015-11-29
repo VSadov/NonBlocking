@@ -24,17 +24,17 @@ namespace NonBlocking
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref TKey entryKey, TKey key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref TKey entryKey, TKey key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref TKey entryKey, TKey key, Counter slots)
+        private bool TryClaimSlot(ref TKey entryKey, TKey key, Counter32 slots)
         {
             var entryKeyValue = entryKey;
             if (entryKeyValue == null)
@@ -43,7 +43,7 @@ namespace NonBlocking
                 if (entryKeyValue == null)
                 {
                     // claimed a new slot
-                    slots.increment();
+                    slots.Increment();
                     return true;
                 }
             }

@@ -23,8 +23,8 @@ namespace NonBlocking
         internal DictionaryImpl<TKey, TKeyStore, TValue> _newTable;
 
         protected readonly ConcurrentDictionary<TKey, TValue> _topDict;
-        private readonly Counter _slots = new Counter();
-        private Counter _size;
+        private readonly Counter32 _slots = new Counter32();
+        private Counter32 _size;
 
         // Sometimes many threads race to create a new very large table.  Only 1
         // wins the race, but the losers all allocate a junk large table with
@@ -74,11 +74,11 @@ namespace NonBlocking
 
         // claiming (by writing atomically to the entryKey location) 
         // or getting existing slot suitable for storing a given key.
-        protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter slots);
+        protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter32 slots);
 
         // claiming (by writing atomically to the entryKey location) 
         // or getting existing slot suitable for storing a given key in its store form (could be boxed).
-        protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter slots);
+        protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter32 slots);
 
         internal DictionaryImpl(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
         {
@@ -86,7 +86,7 @@ namespace NonBlocking
 
             capacity = AlignToPowerOfTwo(capacity);
             this._entries = new Entry[capacity];
-            this._size = new Counter();
+            this._size = new Counter32();
             this._topDict = topDict;
         }
 
@@ -137,7 +137,7 @@ namespace NonBlocking
         internal sealed override void Clear()
         {
             var newTable = CreateNew(MIN_SIZE);
-            newTable._size = new Counter();
+            newTable._size = new Counter32();
             _topDict._table = newTable;
         }
 
@@ -277,7 +277,7 @@ namespace NonBlocking
                             if (entryHash == ZEROHASH)
                             {
                                 // "added" entry for zero key
-                                curTable._slots.increment();
+                                curTable._slots.Increment();
                                 break;
                             }
                         }
@@ -397,7 +397,7 @@ namespace NonBlocking
                         oldVal = null;
                         if (newVal != TOMBSTONE)
                         {
-                            curTable._size.increment();
+                            curTable._size.Increment();
                         }
                     }
                     else
@@ -405,7 +405,7 @@ namespace NonBlocking
                         oldVal = prev;
                         if (newVal == TOMBSTONE)
                         {
-                            curTable._size.decrement();
+                            curTable._size.Decrement();
                         }
                     }
 
@@ -473,7 +473,7 @@ namespace NonBlocking
                         if (entryHash == ZEROHASH)
                         {
                             // "added" entry for zero key
-                            curTable._slots.increment();
+                            curTable._slots.Increment();
                             break;
                         }
                     }
@@ -558,7 +558,7 @@ namespace NonBlocking
                 {
                     // CAS succeeded - we did the update!
                     // Adjust sizes
-                    curTable._size.increment();
+                    curTable._size.Increment();
                     goto DONE;
                 }
                 // Else CAS failed
@@ -622,7 +622,7 @@ namespace NonBlocking
                         if (entryHash == ZEROHASH)
                         {
                             // "added" entry for zero key
-                            curTable._slots.increment();
+                            curTable._slots.Increment();
                             break;
                         }
                     }

@@ -67,13 +67,14 @@ namespace NonBlocking
 
         protected static int ReduceHashToIndex(int fullHash, int lenMask)
         {
-            var h = fullHash & ~REGULAR_HASH_BITS;
-            if (h <= lenMask)
+            fullHash = fullHash & ~REGULAR_HASH_BITS;
+            var h2 = fullHash << 1;
+            if ((uint)h2 <= (uint)lenMask)
             {
-                return h;
+                return h2;
             }
 
-            return MixAndMask((uint)h, lenMask);
+            return MixAndMask((uint)fullHash, lenMask);
         }
 
         private static int MixAndMask(uint h, int lenMask)

@@ -23,17 +23,17 @@ namespace NonBlocking
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
+        private bool TryClaimSlot(ref int entryKey, int key, Counter32 slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -43,7 +43,7 @@ namespace NonBlocking
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
-                    slots.increment();
+                    slots.Increment();
                     return true;
                 }
             }
@@ -90,17 +90,17 @@ namespace NonBlocking
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForPut(ref int entryKey, int key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter slots)
+        protected override bool TryClaimSlotForCopy(ref int entryKey, int key, Counter32 slots)
         {
             return TryClaimSlot(ref entryKey, key, slots);
         }
 
-        private bool TryClaimSlot(ref int entryKey, int key, Counter slots)
+        private bool TryClaimSlot(ref int entryKey, int key, Counter32 slots)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -110,7 +110,7 @@ namespace NonBlocking
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
-                    slots.increment();
+                    slots.Increment();
                     return true;
                 }
             }

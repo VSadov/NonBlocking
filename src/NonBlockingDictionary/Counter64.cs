@@ -11,7 +11,7 @@ using System.Threading;
 namespace NonBlocking
 {
     [StructLayout(LayoutKind.Sequential)]
-    public sealed class Counter
+    public sealed class Counter64
     {
         public static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2;
         public const int MAX_DRIFT = 1;
@@ -23,7 +23,7 @@ namespace NonBlocking
             {
                 // 64 bytes - sizeof(int) - sizeof(objecHeader32)
                 [FieldOffset(52)]
-                public int cnt;
+                public long cnt;
             }
 
             public SpacedCounter counter;
@@ -36,13 +36,13 @@ namespace NonBlocking
         private int cellCount;
 
         // default counter
-        private int cnt;
+        private long cnt;
 
-        public Counter()
+        public Counter64()
         {
         }
 
-        public int Value
+        public long Value
         {
             get
             {
@@ -69,7 +69,7 @@ namespace NonBlocking
             }
         }
 
-        internal int EstimatedValue
+        internal long EstimatedValue
         {
             get
             {
@@ -90,7 +90,7 @@ namespace NonBlocking
             }
         }
 
-        public void increment()
+        public void Increment()
         {
             Cell cell = null;
 
@@ -110,7 +110,7 @@ namespace NonBlocking
             }
         }
 
-        public void increment(int c)
+        public void Add(int c)
         {
             Cell cell = null;
 
@@ -121,8 +121,8 @@ namespace NonBlocking
             }
 
             var drift = cell == null ?
-                increment(ref cnt, c) :
-                increment(ref cell.counter.cnt, c);
+                add(ref cnt, c) :
+                add(ref cell.counter.cnt, c);
 
             if (drift > MAX_DRIFT)
             {
@@ -130,7 +130,7 @@ namespace NonBlocking
             }
         }
 
-        public void decrement()
+        public void Decrement()
         {
             Cell cell = null;
 
@@ -150,17 +150,17 @@ namespace NonBlocking
             }
         }
 
-        private static int increment(ref int val)
+        private static long increment(ref long val)
         {
             return -val + Interlocked.Increment(ref val) - 1;
         }
 
-        private static int increment(ref int val, int inc)
+        private static long add(ref long val, int inc)
         {
             return -val + Interlocked.Add(ref val, inc) - inc;
         }
 
-        private static int decrement(ref int val)
+        private static long decrement(ref long val)
         {
             return val - Interlocked.Decrement(ref val) - 1;
         }

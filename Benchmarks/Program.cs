@@ -28,7 +28,8 @@ namespace NonBlockingTests
             }
 
             EmptyAction();
-            CounterPerf();
+            Counter32Perf();
+            Counter64Perf();
 
             GetBenchNB();
             GetBenchCD();
@@ -40,18 +41,28 @@ namespace NonBlockingTests
         {
             var benchmarkName = "======== EmptyAction 1M Ops/sec:";
 
-            Counter cnt = new Counter();
+            Counter64 cnt = new Counter64();
             Action<int> act = _ => {};
 
             RunBench(benchmarkName, act);
         }
 
-        private static void CounterPerf()
+        private static void Counter32Perf()
         {
-            var benchmarkName = "======== Counter 1M Ops/sec:";
+            var benchmarkName = "======== Counter32 1M Ops/sec:";
 
-            Counter cnt = new Counter();
-            Action<int> act = _ => { cnt.increment(); };
+            Counter32 cnt = new Counter32();
+            Action<int> act = _ => { cnt.Increment(); };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void Counter64Perf()
+        {
+            var benchmarkName = "======== Counter64 1M Ops/sec:";
+
+            Counter64 cnt = new Counter64();
+            Action<int> act = _ => { cnt.Increment(); };
 
             RunBench(benchmarkName, act);
         }
@@ -88,16 +99,15 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
 
-            Parallel.For(0, 100000, (i) => dict[MixBits(i)] = "qq");
-            Parallel.For(0, 100000, (i) => { var dummy = dict[MixBits(i)]; });
+            Parallel.For(0, 100000, (i) => dict[i] = "qq");
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get NonBlocking Rnd 1M Ops/sec:";
+            var benchmarkName = "======== Random Get NonBlocking 1M Ops/sec:";
 
             Action<int> act = (i) => 
             {
-                int randIdx = MixBits(i);
                 string dummy;
-                dict.TryGetValue(randIdx, out dummy);
+                dict.TryGetValue(RandomizeBits(i), out dummy);
             };
 
             RunBench(benchmarkName, act);
@@ -107,16 +117,15 @@ namespace NonBlockingTests
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
-            Parallel.For(0, 100000, (i) => dict[MixBits(i)] = "qq");
-            Parallel.For(0, 100000, (i) => { var dummy = dict[MixBits(i)]; });
+            Parallel.For(0, 100000, (i) => dict[i] = "qq");
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get Concurrent Rnd 1M Ops/sec:";
+            var benchmarkName = "======== Random Get Concurrent 1M Ops/sec:";
 
             Action<int> act = (i) =>
             {
-                int randIdx = MixBits(i);
                 string dummy;
-                dict.TryGetValue(randIdx, out dummy);
+                dict.TryGetValue(RandomizeBits(i), out dummy);
             };
 
             RunBench(benchmarkName, act);
@@ -128,7 +137,7 @@ namespace NonBlockingTests
 
         private static long RunBenchmark(Action<int> action, int threads, int time)
         {
-            Counter cnt = new Counter();
+            Counter64 cnt = new Counter64();
             Task[] workers = new Task[threads];
             Stopwatch sw = Stopwatch.StartNew();
             ManualResetEventSlim e = new ManualResetEventSlim();
@@ -145,7 +154,7 @@ namespace NonBlockingTests
                     {
                         action(iteration++);
                     }
-                    cnt.increment(batch);
+                    cnt.Add(batch);
                 }
             };
 
@@ -173,7 +182,7 @@ namespace NonBlockingTests
             System.Console.WriteLine();
         }
 
-        private static int MixBits(int i)
+        private static int RandomizeBits(int i)
         {
             uint h = (uint)i;
             // 32-bit finalizer for MurmurHash3.

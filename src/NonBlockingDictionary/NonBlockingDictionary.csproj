@@ -36,6 +36,7 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Counter64.cs" />
     <Compile Include="DictionaryImpl.Enumerators.cs" />
     <Compile Include="DictionaryImpl`2.cs" />
     <Compile Include="ConcurrentDictionary.cs" />
@@ -44,7 +45,7 @@
     <Compile Include="DictionaryImplRef.cs" />
     <Compile Include="DictionaryImplInt.cs" />
     <Compile Include="DictionaryImpl.cs" />
-    <Compile Include="Counter.cs" />
+    <Compile Include="Counter32.cs" />
     <Compile Include="DictionaryImpl`3.cs" />
   </ItemGroup>
   <ItemGroup>
