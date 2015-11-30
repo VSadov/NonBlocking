@@ -21,8 +21,8 @@ namespace NonBlocking
             [StructLayout(LayoutKind.Explicit)]
             public struct SpacedCounter
             {
-                // 64 bytes - sizeof(int) - sizeof(objecHeader32)
-                [FieldOffset(52)]
+                // 64 bytes - sizeof(long) - sizeof(objecHeader64)
+                [FieldOffset(40)]
                 public long cnt;
             }
 

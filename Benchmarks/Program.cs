@@ -28,6 +28,8 @@ namespace NonBlockingTests
             }
 
             EmptyAction();
+            InterlockedIncrement();
+
             Counter32Perf();
             Counter64Perf();
 
@@ -40,9 +42,15 @@ namespace NonBlockingTests
         private static void EmptyAction()
         {
             var benchmarkName = "======== EmptyAction 1M Ops/sec:";
-
-            Counter64 cnt = new Counter64();
             Action<int> act = _ => {};
+            RunBench(benchmarkName, act);
+        }
+
+        private static void InterlockedIncrement()
+        {
+            var benchmarkName = "======== InterlockedIncrement 1M Ops/sec:";
+            int cnt = 0;
+            Action<int> act = _ => { Interlocked.Increment(ref cnt); };
 
             RunBench(benchmarkName, act);
         }
