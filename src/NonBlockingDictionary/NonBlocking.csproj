@@ -7,8 +7,8 @@
     <ProjectGuid>{4F3E002D-DDBA-438C-A99F-42DE9BC277B8}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>NonBlockingDictionary</RootNamespace>
-    <AssemblyName>NonBlockingDictionary</AssemblyName>
+    <RootNamespace>NonBlocking</RootNamespace>
+    <AssemblyName>NonBlocking</AssemblyName>
     <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
@@ -36,17 +36,17 @@
     <Reference Include="Microsoft.CSharp" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Counter64.cs" />
-    <Compile Include="DictionaryImpl.Enumerators.cs" />
-    <Compile Include="DictionaryImpl`2.cs" />
-    <Compile Include="ConcurrentDictionary.cs" />
-    <Compile Include="DictionaryImplLong.cs" />
-    <Compile Include="DictionaryImplBoxed.cs" />
-    <Compile Include="DictionaryImplRef.cs" />
-    <Compile Include="DictionaryImplInt.cs" />
-    <Compile Include="DictionaryImpl.cs" />
-    <Compile Include="Counter32.cs" />
-    <Compile Include="DictionaryImpl`3.cs" />
+    <Compile Include="Counter\Counter64.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImpl.Enumerators.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImpl`2.cs" />
+    <Compile Include="ConcurrentDictionary\ConcurrentDictionary.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImplLong.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImplBoxed.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImplRef.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImplInt.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImpl.cs" />
+    <Compile Include="Counter\Counter32.cs" />
+    <Compile Include="ConcurrentDictionary\DictionaryImpl`3.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Properties\" />

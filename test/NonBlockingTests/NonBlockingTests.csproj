@@ -63,9 +63,9 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NonBlockingDictionary\NonBlockingDictionary.csproj">
+    <ProjectReference Include="..\..\src\NonBlockingDictionary\NonBlocking.csproj">
       <Project>{4f3e002d-ddba-438c-a99f-42de9bc277b8}</Project>
-      <Name>NonBlockingDictionary</Name>
+      <Name>NonBlocking</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
