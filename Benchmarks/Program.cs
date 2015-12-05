@@ -37,6 +37,12 @@ namespace NonBlockingTests
             GetBenchCD();
             GetBenchRndNB();
             GetBenchRndCD();
+
+            AddBenchRndNB();
+            AddBenchRndCD();
+
+            GetOrAddFuncBenchRndNB();
+            GetOrAddFuncBenchRndCD();
         }
 
         private static void EmptyAction()
@@ -139,9 +145,77 @@ namespace NonBlockingTests
             RunBench(benchmarkName, act);
         }
 
+        private static void AddBenchRndNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
 
+            var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
 
+            Action<int> act = (i) =>
+            {
+                if (i > 100000)
+                {
+                    dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                }
+                dict.TryAdd(RandomizeBits(i), "qq");
+            };
 
+            RunBench(benchmarkName, act);
+        }
+
+        private static void AddBenchRndCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, string>();
+
+            var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
+
+            Action<int> act = (i) =>
+            {
+                if (i > 100000)
+                {
+                    dict = new Concurrent.ConcurrentDictionary<int, string>();
+                }
+                dict.TryAdd(RandomizeBits(i), "qq");
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetOrAddFuncBenchRndNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+
+            var benchmarkName = "======== Random GetOrAdd Func NonBlocking 1M Ops/sec:";
+
+            Action<int> act = (i) =>
+            {
+                if (i > 100000)
+                {
+                    dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                }
+                dict.GetOrAdd(RandomizeBits(i), (_)=>"qq");
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetOrAddFuncBenchRndCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, string>();
+
+            var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M Ops/sec:";
+
+            Action<int> act = (i) =>
+            {
+                if (i > 100000)
+                {
+                    dict = new Concurrent.ConcurrentDictionary<int, string>();
+                }
+                dict.GetOrAdd(RandomizeBits(i), (_) => "qq");
+            };
+
+            RunBench(benchmarkName, act);
+        }
 
         private static long RunBenchmark(Action<int> action, int threads, int time)
         {
@@ -184,8 +258,27 @@ namespace NonBlockingTests
             var max_threads = Environment.ProcessorCount;
             for (int i = 1; i <= max_threads; i++)
             {
-                var MOps = RunBenchmark(action, i, 3000) / 3000000;
-                System.Console.Write(MOps + " ");
+                var MOps = RunBenchmark(action, i, 3000)  / 3000000.0;
+                if (MOps > 1000)
+                {
+                    System.Console.Write("{0:f0} ", MOps);
+                }
+                else if (MOps > 100)
+                {
+                    System.Console.Write("{0:f1} ", MOps);
+                }
+                else if (MOps > 10)
+                {
+                    System.Console.Write("{0:f2} ", MOps);
+                }
+                else if (MOps > 1)
+                {
+                    System.Console.Write("{0:f3} ", MOps);
+                }
+                else
+                {
+                    System.Console.Write("{0:f4} ", MOps);
+                }
             }
             System.Console.WriteLine();
         }
@@ -203,278 +296,6 @@ namespace NonBlockingTests
             return (int)h;
         }
 
-        private static long GetBenchRef()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<object, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<object, string>();
-
-            var rnd = new Random();
-
-            var list = new List<object>();
-            for (int i = 0; i < 100000; i++)
-            {
-                list.Add(rnd.Next());
-            }
-
-            Parallel.For(0, 100000, (i) => dict[list[i]] = i.ToString());
-            Parallel.For(0, 100000, (i) => { var dummy = dict[list[i]]; });
-
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 3000; j++)
-            {
-                Parallel.For(0, 50000, (i) => { var dummy = dict[list[i]]; });
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static void AssignBenchSmall()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            var listV = new List<string>();
-            for (int i = 0; i < 10000; i++)
-            {
-                listV.Add(i.ToString());
-            }
-
-            Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 10000; j++)
-            {
-                Parallel.For(1, 10000, (i) => dict[i - 1] = listV[i]);
-                Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
-            }
-
-            sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
-        }
-
-        private static long  AddBenchSmall()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            var listV = new List<string>();
-            for (int i = 0; i < 10000; i++)
-            {
-                listV.Add(i.ToString());
-            }
-
-            Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 5000; j++)
-            {
-                Parallel.For(1, 10000, (i) => dict[i - 1] = listV[i]);
-                Parallel.For(1, 10000, (i) => { string s; dict.TryRemove(i - 1, out s); });
-                Parallel.For(0, 10000, (i) => dict[i] = listV[i]);
-                Parallel.For(0, 10000, (i) => { string s; dict.TryRemove(i, out s); });
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static long GetOrAddTBenchSmall()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            Parallel.For(0, 10000, (i) => dict[i] = "ww");
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 5000; j++)
-            {
-                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, "aa"));
-                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, "bb"));
-                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, "aa"));
-                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, "bb"));
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static long GetOrAddFuncBenchSmall()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            Parallel.For(0, 10000, (i) => dict[i] = "ww");
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 5000; j++)
-            {
-                Parallel.For(1, 10000, (i) => dict.GetOrAdd(i - 1, (_)=>"aa"));
-                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, (_) => "bb"));
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static long GetOrAddTBenchSmall1()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            Parallel.For(0, 10000, (i) => dict[i] = "ww");
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 10000; j++)
-            {
-                Parallel.For(0, 10000, (i) =>
-                {
-                    string s;
-                    if (i % 3 == 0)
-                    {
-                        dict.TryRemove(i, out s);
-                    }
-                });
-                Debug.Assert(dict.Count == 6666);
-
-                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, "aa"));
-                Debug.Assert(dict.Count == 10000);
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static long GetOrAddFuncBenchSmall1()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            Parallel.For(0, 10000, (i) => dict[i] = "ww");
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 10000; j++)
-            {
-                //dict.Clear();
-                Parallel.For(0, 10000, (i) =>
-                {
-                    string s;
-                    //if (i % 3 == 0)
-                    {
-                        dict.TryRemove(i, out s);
-                    }
-                });
-                //Debug.Assert(dict.Count == 6666);
-
-                Parallel.For(0, 10000, (i) => dict.GetOrAdd(i, (_) => "aa"));
-                Debug.Assert(dict.Count == 10000);
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static long AddBenchSmallSequential()
-        {
-            //var dict = new System.Collections.Generic.Dictionary<int, string>();
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            var listV = new List<string>();
-            for (int i = 0; i < 10000; i++)
-            {
-                listV.Add(i.ToString());
-            }
-
-            for (int i = 0; i < 10000; i++)
-            {
-                dict[i] = listV[i];
-            }
-
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 5000; j++)
-            {
-                for(int i = 0; i < 10000; i++)
-                {
-                    dict[i - 1] = listV[i];
-                }
-
-                for (int i = 0; i < 10000; i++)
-                {
-                    string s; dict.TryRemove(i - 1, out s);
-                }
-
-                for (int i = 0; i < 10000; i++)
-                {
-                    dict[i] = listV[i];
-                }
-
-                for (int i = 0; i < 10000; i++)
-                {
-                    string s; dict.TryRemove(i, out s);
-                }
-
-            }
-
-            sw.Stop();
-            return sw.ElapsedMilliseconds;
-        }
-
-        private static void AssignBench()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
-
-            var listV = new List<string>();
-            for (int i = 0; i < 100000; i++)
-            {
-                listV.Add(i.ToString());
-            }
-
-            Parallel.For(0, 100000, (i) => dict[i] = listV[i]);
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 1000; j++)
-            {
-                Parallel.For(1, 100000, (i) => dict[i - 1] = listV[i]);
-                Parallel.For(0, 100000, (i) => dict[i] = listV[i]);
-            }
-
-            sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
-        }
-
-        private static void AssignBenchRef()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<object, string>();
-            //var dict = new Concurrent.ConcurrentDictionary<object, string>();
-
-            var list = new List<object>();
-            for (int i = 0; i < 100000; i++)
-            {
-                list.Add(i);
-            }
-
-            var listV = new List<string>();
-            for (int i = 0; i < 100000; i++)
-            {
-                listV.Add(i.ToString());
-            }
-
-            Parallel.For(0, 100000, (i) => dict[list[i]] = listV[i]);
-            var sw = Stopwatch.StartNew();
-
-            for (int j = 0; j < 1000; j++)
-            {
-                Parallel.For(1, 100000, (i) => dict[list[i - 1]] = listV[i]);
-                Parallel.For(0, 100000, (i) => dict[list[i]] = listV[i]);
-            }
-
-            sw.Stop();
-            System.Console.WriteLine(sw.ElapsedMilliseconds);
-        }
 
         private static void ChurnSequential()
         {
