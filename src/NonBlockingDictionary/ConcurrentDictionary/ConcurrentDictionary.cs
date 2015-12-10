@@ -28,6 +28,13 @@ namespace NonBlocking
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
+        /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level and uses the default comparer for the key type.</summary>
+        public ConcurrentDictionary(int capacity) : this(capacity, null)
+        {
+        }
+
+        // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
         /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified concurrency level and capacity, and uses the default comparer for the key type.</summary>
         /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> concurrently.</param>
         /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>

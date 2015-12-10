@@ -48,7 +48,7 @@ namespace NonBlockingTests
         private static void EmptyAction()
         {
             var benchmarkName = "======== EmptyAction 1M Ops/sec:";
-            Action<int> act = _ => {};
+            Action<int, int> act = (_, __) => { };
             RunBench(benchmarkName, act);
         }
 
@@ -56,7 +56,7 @@ namespace NonBlockingTests
         {
             var benchmarkName = "======== InterlockedIncrement 1M Ops/sec:";
             int cnt = 0;
-            Action<int> act = _ => { Interlocked.Increment(ref cnt); };
+            Action<int, int> act = (_, __) => { Interlocked.Increment(ref cnt); };
 
             RunBench(benchmarkName, act);
         }
@@ -66,7 +66,7 @@ namespace NonBlockingTests
             var benchmarkName = "======== Counter32 1M Ops/sec:";
 
             Counter32 cnt = new Counter32();
-            Action<int> act = _ => { cnt.Increment(); };
+            Action<int, int> act = (_, __) => { cnt.Increment(); };
 
             RunBench(benchmarkName, act);
         }
@@ -76,7 +76,7 @@ namespace NonBlockingTests
             var benchmarkName = "======== Counter64 1M Ops/sec:";
 
             Counter64 cnt = new Counter64();
-            Action<int> act = _ => { cnt.Increment(); };
+            Action<int, int> act = (_, __) => { cnt.Increment(); };
 
             RunBench(benchmarkName, act);
         }
@@ -90,7 +90,7 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
 
-            Action<int> act = (i) => {var dummy = dict[i % 100000]; };
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
             RunBench(benchmarkName, act);
         }
@@ -104,7 +104,7 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
 
-            Action<int> act = (i) => {var dummy = dict[i % 100000]; };
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
             RunBench(benchmarkName, act);
         }
@@ -118,10 +118,10 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random Get NonBlocking 1M Ops/sec:";
 
-            Action<int> act = (i) => 
+            Action<int, int> act = (i, threadBias) =>
             {
                 string dummy;
-                dict.TryGetValue(RandomizeBits(i), out dummy);
+                dict.TryGetValue(RandomizeBits(i + threadBias), out dummy);
             };
 
             RunBench(benchmarkName, act);
@@ -136,10 +136,10 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random Get Concurrent 1M Ops/sec:";
 
-            Action<int> act = (i) =>
+            Action<int, int> act = (i, threadBias) =>
             {
                 string dummy;
-                dict.TryGetValue(RandomizeBits(i), out dummy);
+                dict.TryGetValue(RandomizeBits(i + threadBias), out dummy);
             };
 
             RunBench(benchmarkName, act);
@@ -151,13 +151,13 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
 
-            Action<int> act = (i) =>
+            Action<int, int> act = (i, threadBias) =>
             {
-                if (i > 100000)
+                dict.TryAdd(RandomizeBits(i + threadBias), "qq");
+                if (i % 100000 == 0 && dict.Count >= 100000)
                 {
                     dict = new NonBlocking.ConcurrentDictionary<int, string>();
                 }
-                dict.TryAdd(RandomizeBits(i), "qq");
             };
 
             RunBench(benchmarkName, act);
@@ -169,13 +169,13 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
 
-            Action<int> act = (i) =>
+            Action<int, int> act = (i, threadBias) =>
             {
-                if (i > 100000)
+                dict.TryAdd(RandomizeBits(i + threadBias), "qq");
+                if (i % 100000 == 0 && dict.Count >= 100000)
                 {
                     dict = new Concurrent.ConcurrentDictionary<int, string>();
                 }
-                dict.TryAdd(RandomizeBits(i), "qq");
             };
 
             RunBench(benchmarkName, act);
@@ -187,13 +187,13 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random GetOrAdd Func NonBlocking 1M Ops/sec:";
 
-            Action<int> act = (i) =>
+            Action<int, int> act = (i, threadBias) =>
             {
-                if (i > 100000)
+                dict.GetOrAdd(RandomizeBits(i + threadBias), (_) => "qq");
+                if (i % 100000 == 0 && dict.Count >= 100000)
                 {
                     dict = new NonBlocking.ConcurrentDictionary<int, string>();
                 }
-                dict.GetOrAdd(RandomizeBits(i), (_)=>"qq");
             };
 
             RunBench(benchmarkName, act);
@@ -205,19 +205,19 @@ namespace NonBlockingTests
 
             var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M Ops/sec:";
 
-            Action<int> act = (i) =>
+            Action<int, int> act = (i, threadBias) =>
             {
-                if (i > 100000)
+                dict.GetOrAdd(RandomizeBits(i + threadBias), (_) => "qq");
+                if (i % 100000 == 0 && dict.Count >= 100000)
                 {
                     dict = new Concurrent.ConcurrentDictionary<int, string>();
                 }
-                dict.GetOrAdd(RandomizeBits(i), (_) => "qq");
             };
 
             RunBench(benchmarkName, act);
         }
 
-        private static long RunBenchmark(Action<int> action, int threads, int time)
+        private static long RunBenchmark(Action<int, int> action, int threads, int time)
         {
             Counter64 cnt = new Counter64();
             Task[] workers = new Task[threads];
@@ -228,13 +228,14 @@ namespace NonBlockingTests
             Action body = () =>
             {
                 int iteration = 0;
+                int threadBias = RandomizeBits(Environment.CurrentManagedThreadId);
                 e.Wait();
                 while (sw.ElapsedMilliseconds < stop_time)
                 {
                     const int batch = 10000;
                     for (int i = 0; i < batch; i++)
                     {
-                        action(iteration++);
+                        action(iteration++, threadBias);
                     }
                     cnt.Add(batch);
                 }
@@ -252,13 +253,13 @@ namespace NonBlockingTests
             return cnt.Value;
         }
 
-        private static void RunBench(string benchmarkName, Action<int> action)
+        private static void RunBench(string benchmarkName, Action<int, int> action)
         {
             System.Console.WriteLine(benchmarkName);
             var max_threads = Environment.ProcessorCount;
             for (int i = 1; i <= max_threads; i++)
             {
-                var MOps = RunBenchmark(action, i, 3000)  / 3000000.0;
+                var MOps = RunBenchmark(action, i, 3000) / 3000000.0;
                 if (MOps > 1000)
                 {
                     System.Console.Write("{0:f0} ", MOps);

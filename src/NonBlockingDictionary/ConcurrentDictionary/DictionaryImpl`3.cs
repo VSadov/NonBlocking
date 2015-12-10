@@ -591,7 +591,7 @@ namespace NonBlocking
             return result;
         }
 
-        private bool CopySlot(TKeyStore key, object value, int fullHash)
+        private bool PutSlotCopy(TKeyStore key, object value, int fullHash)
         {
             Debug.Assert(key != null);
             Debug.Assert(value != TOMBSTONE);
@@ -772,6 +772,7 @@ namespace NonBlocking
                         if (claimedChunk > (toCopy / (CHUNK_SIZE / 2)))
                         {
                             panic = true;
+                            //System.Console.WriteLine("panic");
                             break;
                         }
 
@@ -908,11 +909,18 @@ namespace NonBlocking
             var hash = _oldEntry.hash;
             if (hash == 0)
             {
-                if (Interlocked.CompareExchange(ref _oldEntry.hash, TOMBPRIMEHASH, 0) == 0)
+                hash = Interlocked.CompareExchange(ref _oldEntry.hash, TOMBPRIMEHASH, 0);
+                if (hash == 0)
                 {
-                    // slot was not claimed
-                    return false;
+                    // slot was not claimed, copy is done here
+                    return true;
                 }
+            }
+
+            if (hash == TOMBPRIMEHASH)
+            {
+                // slot was trivially copied, but not by us
+                return false;
             }
 
             // Prevent new values from appearing in the old table.
@@ -968,7 +976,7 @@ namespace NonBlocking
 
             if (box == TOMBPRIME)
             {
-                // Copy already complete here!
+                // Copy already complete here, but not by us.
                 return false;
             }
 
@@ -985,7 +993,7 @@ namespace NonBlocking
             // regular read is ok because because value is always CASed down after the key
             // and we ensured that we read the key after the value with fences above
             var key = _oldEntry.key;
-            bool copiedIntoNew = newTable.CopySlot(key, originalValue, hash);
+            bool copiedIntoNew = newTable.PutSlotCopy(key, originalValue, hash);
 
             // Finally, now that any old value is exposed in the new table, we can
             // forever hide the old-table value by gently inserting TOMBPRIME value.  
@@ -998,6 +1006,8 @@ namespace NonBlocking
                 _oldEntry.value = TOMBPRIME;
             }
 
+            // if we failed to copy, it means something has already appeared in
+            // the new table and old value should have been copied before that (not by us).
             return copiedIntoNew;
         }
 
