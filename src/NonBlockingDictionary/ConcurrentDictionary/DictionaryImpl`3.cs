@@ -23,7 +23,7 @@ namespace NonBlocking
         internal DictionaryImpl<TKey, TKeyStore, TValue> _newTable;
 
         protected readonly ConcurrentDictionary<TKey, TValue> _topDict;
-        private readonly Counter32 _slots = new Counter32();
+        protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
 
         // Sometimes many threads race to create a new very large table.  Only 1
@@ -74,11 +74,11 @@ namespace NonBlocking
 
         // claiming (by writing atomically to the entryKey location) 
         // or getting existing slot suitable for storing a given key.
-        protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key, Counter32 slots);
+        protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key);
 
         // claiming (by writing atomically to the entryKey location) 
         // or getting existing slot suitable for storing a given key in its store form (could be boxed).
-        protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key, Counter32 slots);
+        protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key);
 
         internal DictionaryImpl(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
         {
@@ -277,7 +277,7 @@ namespace NonBlocking
                             if (entryHash == ZEROHASH)
                             {
                                 // "added" entry for zero key
-                                curTable._slots.Increment();
+                                curTable.allocatedSlotCount.Increment();
                                 break;
                             }
                         }
@@ -288,7 +288,7 @@ namespace NonBlocking
                 {
                     // hash is good, one way or another, 
                     // try claiming the slot for the key
-                    if (curTable.TryClaimSlotForPut(ref curEntries[idx].key, key, curTable._slots))
+                    if (curTable.TryClaimSlotForPut(ref curEntries[idx].key, key))
                     {
                         break;
                     }
@@ -473,7 +473,7 @@ namespace NonBlocking
                         if (entryHash == ZEROHASH)
                         {
                             // "added" entry for zero key
-                            curTable._slots.Increment();
+                            curTable.allocatedSlotCount.Increment();
                             break;
                         }
                     }
@@ -483,7 +483,7 @@ namespace NonBlocking
                 {
                     // hash is good, one way or another, 
                     // try claiming the slot for the key
-                    if (curTable.TryClaimSlotForPut(ref curEntries[idx].key, key, curTable._slots))
+                    if (curTable.TryClaimSlotForPut(ref curEntries[idx].key, key))
                     {
                         break;
                     }
@@ -622,7 +622,7 @@ namespace NonBlocking
                         if (entryHash == ZEROHASH)
                         {
                             // "added" entry for zero key
-                            curTable._slots.Increment();
+                            curTable.allocatedSlotCount.Increment();
                             break;
                         }
                     }
@@ -631,7 +631,7 @@ namespace NonBlocking
                 if (entryHash == fullHash)
                 {
                     // hash is good, one way or another, claim the key
-                    if (curTable.TryClaimSlotForCopy(ref curEntries[idx].key, key, curTable._slots))
+                    if (curTable.TryClaimSlotForCopy(ref curEntries[idx].key, key))
                     {
                         break;
                     }
@@ -687,10 +687,10 @@ namespace NonBlocking
             // We are finally prepared to update the existing table
             Debug.Assert(entryValue == null);
 
-            // if CAS succeeded - we did the update!
+            // if CAS succeeds - we did the update!
+            // otherwise someone else copied the value
             // table-copy does not (effectively) increase the number of live k/v pairs
             // so no need to update size
-            // otherwise someone else copied the value
             return Interlocked.CompareExchange(ref curEntries[idx].value, value, null) == null;
         }
 
@@ -714,7 +714,7 @@ namespace NonBlocking
         {
             get
             {
-                return (int)_slots.EstimatedValue;
+                return (int)allocatedSlotCount.EstimatedValue;
             }
         }
 

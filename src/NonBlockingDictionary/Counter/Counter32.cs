@@ -32,16 +32,16 @@ namespace NonBlocking
         // spaced out counters
         private Cell[] cells;
 
-        // how many cells we have
-        private int cellCount;
-
-        // delayed count
-        private uint lastCntTicks;
-        private int lastCnt;
-
         // default counter
         private int cnt;
 
+        // how many cells we have
+        private int cellCount;
+
+        // delayed estimated count
+        private int lastCntTicks;
+        private int lastCnt;
+        
         public Counter32()
         {
         }
@@ -77,12 +77,12 @@ namespace NonBlocking
         {
             get
             {
-                if (this.cellCount == 0)
+                if (this.cells == null)
                 {
-                    return Value;
+                    return this.cnt;
                 }
 
-                var curTicks = (uint)Environment.TickCount;
+                var curTicks = Environment.TickCount;
                 // more than a millisecond passed?
                 if (curTicks != lastCntTicks)
                 {

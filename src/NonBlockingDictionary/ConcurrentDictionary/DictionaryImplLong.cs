@@ -23,17 +23,17 @@ namespace NonBlocking
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter32 slots)
+        protected override bool TryClaimSlotForPut(ref long entryKey, long key)
         {
-            return TryClaimSlot(ref entryKey, key, slots);
+            return TryClaimSlot(ref entryKey, key);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter32 slots)
+        protected override bool TryClaimSlotForCopy(ref long entryKey, long key)
         {
-            return TryClaimSlot(ref entryKey, key, slots);
+            return TryClaimSlot(ref entryKey, key);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key, Counter32 slots)
+        private bool TryClaimSlot(ref long entryKey, long key)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -43,7 +43,7 @@ namespace NonBlocking
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
-                    slots.Increment();
+                    this.allocatedSlotCount.Increment();
                     return true;
                 }
             }
@@ -90,17 +90,17 @@ namespace NonBlocking
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key, Counter32 slots)
+        protected override bool TryClaimSlotForPut(ref long entryKey, long key)
         {
-            return TryClaimSlot(ref entryKey, key, slots);
+            return TryClaimSlot(ref entryKey, key);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key, Counter32 slots)
+        protected override bool TryClaimSlotForCopy(ref long entryKey, long key)
         {
-            return TryClaimSlot(ref entryKey, key, slots);
+            return TryClaimSlot(ref entryKey, key);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key, Counter32 slots)
+        private bool TryClaimSlot(ref long entryKey, long key)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
@@ -110,7 +110,7 @@ namespace NonBlocking
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
-                    slots.Increment();
+                    this.allocatedSlotCount.Increment();
                     return true;
                 }
             }
