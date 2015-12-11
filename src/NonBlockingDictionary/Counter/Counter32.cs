@@ -13,8 +13,8 @@ namespace NonBlocking
     [StructLayout(LayoutKind.Sequential)]
     public sealed class Counter32
     {
-        public static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2;
-        public const int MAX_DRIFT = 1;
+        private static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2;
+        private const int MAX_DRIFT = 1;
 
         private class Cell
         {
@@ -34,6 +34,10 @@ namespace NonBlocking
 
         // how many cells we have
         private int cellCount;
+
+        // delayed count
+        private uint lastCntTicks;
+        private int lastCnt;
 
         // default counter
         private int cnt;
@@ -69,24 +73,24 @@ namespace NonBlocking
             }
         }
 
-        internal int EstimatedValue
+        public int EstimatedValue
         {
             get
             {
-                return Value;
+                if (this.cellCount == 0)
+                {
+                    return Value;
+                }
 
-                // TODO: is there a scenario where the following is cheaper?
-                //       we woud need to have a lot of counters.
+                var curTicks = (uint)Environment.TickCount;
+                // more than a millisecond passed?
+                if (curTicks != lastCntTicks)
+                {
+                    lastCnt = Value;
+                    lastCntTicks = curTicks;
+                }
 
-                //var curTicks = DateTime.UtcNow.Ticks;
-                //// more than millisecond passed?
-                //if (curTicks - lastTicks > TimeSpan.TicksPerMillisecond)
-                //{
-                //    lastCnt = get();
-                //    lastTicks = curTicks;
-                //}
-
-                //return lastCnt;
+                return lastCnt;
             }
         }
 

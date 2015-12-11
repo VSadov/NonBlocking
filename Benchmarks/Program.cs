@@ -33,6 +33,8 @@ namespace NonBlockingTests
             Counter32Perf();
             Counter64Perf();
 
+            Counter32GetEstimatedPerf();
+
             GetBenchNB();
             GetBenchCD();
             GetBenchRndNB();
@@ -67,6 +69,16 @@ namespace NonBlockingTests
 
             Counter32 cnt = new Counter32();
             Action<int, int> act = (_, __) => { cnt.Increment(); };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void Counter32GetEstimatedPerf()
+        {
+            var benchmarkName = "======== Counter32 Estimated Get 1M Ops/sec:";
+
+            Counter32 cnt = new Counter32();
+            Action<int, int> act = (_, __) => { cnt.Increment(); var dummy = cnt.EstimatedValue; };
 
             RunBench(benchmarkName, act);
         }
