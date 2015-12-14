@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NonBlocking", "src\NonBlockingDictionary\NonBlocking.csproj", "{4F3E002D-DDBA-438C-A99F-42DE9BC277B8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NonBlocking", "src\NonBlocking\NonBlocking.csproj", "{4F3E002D-DDBA-438C-A99F-42DE9BC277B8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NonBlockingTests", "test\NonBlockingTests\NonBlockingTests.csproj", "{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}"
 EndProject

@@ -45,7 +45,7 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\src\NonBlockingDictionary\NonBlocking.csproj">
+    <ProjectReference Include="..\src\NonBlocking\NonBlocking.csproj">
       <Project>{4f3e002d-ddba-438c-a99f-42de9bc277b8}</Project>
       <Name>NonBlocking</Name>
     </ProjectReference>
