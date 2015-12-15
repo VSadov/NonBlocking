@@ -133,7 +133,8 @@ namespace NonBlockingTests
             Action<int, int> act = (i, threadBias) =>
             {
                 string dummy;
-                dict.TryGetValue(RandomizeBits(i + threadBias), out dummy);
+                int randomIndex = GetRandomIndex(i, threadBias, 100000);
+                dict.TryGetValue(randomIndex, out dummy);
             };
 
             RunBench(benchmarkName, act);
@@ -151,24 +152,46 @@ namespace NonBlockingTests
             Action<int, int> act = (i, threadBias) =>
             {
                 string dummy;
-                dict.TryGetValue(RandomizeBits(i + threadBias), out dummy);
+                int randomIndex = GetRandomIndex(i, threadBias, 100000);
+                dict.TryGetValue(randomIndex, out dummy);
             };
 
             RunBench(benchmarkName, act);
         }
 
+        private static int GetRandomIndex(int i, int threadBias, uint limit)
+        {
+            return (int)((uint)RandomizeBits(i + threadBias) % limit);
+        }
+
+        private static bool Every8K(int i)
+        {
+            const int mask8K = 8192 - 1;
+            return (i & mask8K) == mask8K;
+        }
+
         private static void AddBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
 
             var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
-                dict.TryAdd(RandomizeBits(i + threadBias), "qq");
-                if (i % 100000 == 0 && dict.Count >= 100000)
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict.TryAdd(randomIndex, "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
                 {
-                    dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    {
+                        dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                    }
                 }
             };
 
@@ -178,15 +201,25 @@ namespace NonBlockingTests
         private static void AddBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
 
             var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
-                dict.TryAdd(RandomizeBits(i + threadBias), "qq");
-                if (i % 100000 == 0 && dict.Count >= 100000)
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict.TryAdd(randomIndex, "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
                 {
-                    dict = new Concurrent.ConcurrentDictionary<int, string>();
+                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    {
+                        dict = new Concurrent.ConcurrentDictionary<int, string>();
+                    }
                 }
             };
 
@@ -196,15 +229,25 @@ namespace NonBlockingTests
         private static void GetOrAddFuncBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
 
             var benchmarkName = "======== Random GetOrAdd Func NonBlocking 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
-                dict.GetOrAdd(RandomizeBits(i + threadBias), (_) => "qq");
-                if (i % 100000 == 0 && dict.Count >= 100000)
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict.GetOrAdd(randomIndex, (_) => "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
                 {
-                    dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    {
+                        dict = new NonBlocking.ConcurrentDictionary<int, string>();
+                    }
                 }
             };
 
@@ -214,15 +257,25 @@ namespace NonBlockingTests
         private static void GetOrAddFuncBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
 
             var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
-                dict.GetOrAdd(RandomizeBits(i + threadBias), (_) => "qq");
-                if (i % 100000 == 0 && dict.Count >= 100000)
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict.GetOrAdd(randomIndex, (_) => "qq");
+
+                // after making about 1000000 adds, start with a new table
+                var c = cnt;
+                c.Increment();
+                if (Every8K(i) && c.Value > 1000000)
                 {
-                    dict = new Concurrent.ConcurrentDictionary<int, string>();
+                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    {
+                        dict = new Concurrent.ConcurrentDictionary<int, string>();
+                    }
                 }
             };
 
@@ -294,6 +347,8 @@ namespace NonBlockingTests
                 }
             }
             System.Console.WriteLine();
+            GC.Collect();
+            GC.Collect();
         }
 
         private static int RandomizeBits(int i)
