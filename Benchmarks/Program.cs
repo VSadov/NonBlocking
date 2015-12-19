@@ -45,6 +45,9 @@ namespace NonBlockingTests
 
             GetOrAddFuncBenchRndNB();
             GetOrAddFuncBenchRndCD();
+
+            WriteBenchRndNB();
+            WriteBenchRndCD();
         }
 
         private static void EmptyAction()
@@ -277,6 +280,42 @@ namespace NonBlockingTests
                         dict = new Concurrent.ConcurrentDictionary<int, string>();
                     }
                 }
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void WriteBenchRndNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
+
+            var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict[randomIndex] = "qq";
+                dict[randomIndex] = "aa";
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void WriteBenchRndCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, string>();
+            var cnt = new Counter32();
+
+            var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict[randomIndex] = "qq";
+                dict[randomIndex] = "aa";
             };
 
             RunBench(benchmarkName, act);
