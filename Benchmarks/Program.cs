@@ -288,9 +288,8 @@ namespace NonBlockingTests
         private static void WriteBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
 
-            var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Random Write NonBlocking 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -306,9 +305,8 @@ namespace NonBlockingTests
         private static void WriteBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
 
-            var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Random Write Concurrent 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
