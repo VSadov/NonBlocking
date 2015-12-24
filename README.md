@@ -28,10 +28,12 @@ NonBlocking Dictionary tends to scale linearly with number of threads if hardwar
 
 ## Benchmarks
 
-The test machine is 
-The benchmarks run as 64bit process.
-Y - number of operations in 1000000 ops per second.
-X - number of threads
+The test machine is  
+	Intel(R) Xeon(R) CPU E5-2698B v3 @ 2.00GHz	Sockets:	2	Virtual processors:	32.
+
+The benchmarks perform various operations on {int --> string} dictionaries and run as 64bit process.  
+Y - number of operations in 1000000 ops per second.  
+X - number of threads  
 
 ![Get](/../pictures//Graphs/Read.png?raw=true "Random Get")
 
@@ -43,7 +45,7 @@ One interesting observation - An average Add operation on a clean dictionary res
 
 The limits of the hardware are more pronounced on the next chart where reads are done off a fresh table, not yet in a local CPU cache.
 The scenario is dominated by uncached reads and is bounded by about 32 MOps/second.  
-Since Add on average requires two uncached accesses, it seems to operate close to hardware limits.
+Since Add, on average, requires two uncached accesses, it seems to operate close to hardware limits.
 
 ![Get uncached](/../pictures//Graphs/ReadNocached.png?raw=true "Random Get fm Fresh table")
 
