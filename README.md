@@ -9,6 +9,13 @@ NonBlockingDictionary:
 - No locks are taken during any operation including Get, Add, Remove, internal resizes etc...
 - While multiple threads accessing NonBlockingDictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
 
+## Behavior differences compared to ConcurrentDictionary
+There is a subtle difference in when values are unreferenced after Remove. ConcurrentDictionary drops values eagerly on Remove, while in the case of NonBlockingDictionary only the key is removed and the corresponding value is dropped lazily.  
+
+ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is not an option for NonBlockingDictionary and thus only keys are immediately removed. The corresponding dead value will remain in the dictionary and is "shaken off" when there is a shortage of free slots.
+
+In a code that uses Remove and is sensitive to when values become GC-unreachable, like if values have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
+
 ## Implementation notes
 Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click.
 A good overview is here https://www.youtube.com/watch?v=HJ-719EGIts
