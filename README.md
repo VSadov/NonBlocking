@@ -10,7 +10,7 @@ NonBlockingDictionary:
 - While multiple threads accessing NonBlockingDictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
 
 ## Behavior differences compared to ConcurrentDictionary
-There is a subtle difference in when values are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlockingDictionary only the value is removed and the corresponding key is dropped lazily.  
+There is a subtle difference in when keys are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlockingDictionary only the value is removed and the corresponding key is dropped lazily.  
 
 ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is not an option for NonBlockingDictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and is "shaken off" when there is a shortage of free slots.
 
