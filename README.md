@@ -12,7 +12,7 @@ NonBlockingDictionary:
 ## Behavior differences compared to ConcurrentDictionary
 There is a subtle difference in when keys are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlockingDictionary only the value is removed and the corresponding key is dropped lazily.  
 
-ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is non the case for NonBlockingDictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and may become live again after corresponding Add, or, if still dead, "shaken off" when there is a shortage of free slots.
+ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is non the case for NonBlockingDictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and may become live again after a corresponding Add, or, if still dead, "shaken off" when there is a shortage of free slots.
 
 In a code that uses Remove and is sensitive to when keys become GC-unreachable, like if keys have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
 
