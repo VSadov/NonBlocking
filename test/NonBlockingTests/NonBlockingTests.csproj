@@ -63,13 +63,13 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\src\NonBlocking\NonBlocking.csproj">
-      <Project>{4f3e002d-ddba-438c-a99f-42de9bc277b8}</Project>
-      <Name>NonBlocking</Name>
-    </ProjectReference>
+    <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="Properties\" />
+    <ProjectReference Include="..\..\src\NonBlocking\NonBlocking.csproj">
+      <Project>{fad4fda1-2b65-487b-b9ea-37507c70573c}</Project>
+      <Name>NonBlocking</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

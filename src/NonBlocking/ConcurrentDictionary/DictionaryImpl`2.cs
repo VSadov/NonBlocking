@@ -5,6 +5,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace NonBlocking
 {
@@ -17,10 +18,8 @@ namespace NonBlocking
         internal static Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
             (ConcurrentDictionary <TKey, TValue> topDict, int capacity) =>
             {
-                var method = typeof(DictionaryImpl).
-                    GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
-                    MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
-
+                var mObj = new Func<ConcurrentDictionary<object, object>, int, DictionaryImpl<object, object>> (DictionaryImpl.CreateRef);
+                var method = mObj.GetMethodInfo().GetGenericMethodDefinition().MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
                 var del = (Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>)method
                     .CreateDelegate(typeof(Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>));
 
