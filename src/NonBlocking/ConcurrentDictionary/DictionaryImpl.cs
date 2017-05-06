@@ -52,8 +52,6 @@ namespace NonBlocking
         // the reprobe limit on a 'get' call acts as a 'miss'; on a 'put' call it
         // can trigger a table resize.  Several places must have exact agreement on
         // what the reprobe_limit is, so we share it here.
-        // NOTE: Not static for perf reasons    
-        //       (some JITs insert useless code related to generics if this is a static)
         protected static int ReprobeLimit(int lenMask)
         {
             // 1/2 of table with some extra
@@ -79,16 +77,12 @@ namespace NonBlocking
 
         private static int MixAndMask(uint h, int lenMask)
         {
-            // 32-bit finalizer for MurmurHash3.
-            h ^= h >> 16;
-            h *= 0x85ebca6b;
-            h ^= h >> 13;
-            h *= 0xc2b2ae35;
-            h ^= h >> 16;
-
-            h &= (uint)lenMask;
-
-            return (int)h;
+            // Fast rotation combiner with fixed seed. 
+            // In case if "rol 5" pattern is not recognized, do the bigger shift first (could be slower).
+            uint rol5 = (h >> 27) | (h << 5);
+            h = (rol5 + h) ^ 0xbeefbeef;
+            
+            return (int)h & lenMask;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
