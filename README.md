@@ -1,20 +1,20 @@
 # NonBlocking
-Implementation of a non-blocking dictionary and possibly other non-blocking data structures.
+Implementation of a non-blocking dictionary.
 
 ## Overview
 
-NonBlockingDictionary:
+NonBlocking dictionary:
 
-- NonBlockingDictionary has the same API as ConcurrentDictionary (except for construction).
+- NonBlocking dictionary has the same API as ConcurrentDictionary.
 - No locks are taken during any operation including Get, Add, Remove, internal resizes etc...
-- While multiple threads accessing NonBlockingDictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
+- While multiple threads accessing NonBlocking dictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
 
 ## Behavior differences compared to ConcurrentDictionary
-There is a subtle difference in when keys are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlockingDictionary only the value is removed and the corresponding key is dropped lazily.  
+There is a subtle difference in when keys are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlocking dictionary only the value is removed and the corresponding key is dropped lazily.  
 
-ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is non the case for NonBlockingDictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and may become live again after a corresponding Add, or, if still dead, "shaken off" when there is a shortage of free slots.
+ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is non the case for NonBlocking dictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and may become live again after a corresponding Add, or, if still dead, "shaken off" when there is a shortage of free slots.
 
-In a code that uses Remove and is sensitive to when keys become GC-unreachable, like if keys have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
+In code that uses Remove and is sensitive to when keys become GC-unreachable, like if keys have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
 
 ## Implementation notes
 Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click.
@@ -29,9 +29,9 @@ Memory model is assumed to be weak and honoring indirection data-dependency (sho
 
 ## Performance
 
-On most operations NonBlocking Dictionary is faster than ConcurrentDictionary.  
+On most operations NonBlocking dictionary is faster than ConcurrentDictionary.  
 It is particularly faster in write-heavy scenarios.  
-NonBlocking Dictionary tends to scale linearly with number of threads if hardware permits.  
+NonBlocking dictionary scales linearly with number of active threads if hardware permits.  
 
 ## Benchmarks
 
