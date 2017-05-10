@@ -9,7 +9,10 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace NonBlocking
-{
+{    
+    /// <summary>
+    /// Scalable 64bit counter that can be used from multiple threads.
+    /// </summary>
     [StructLayout(LayoutKind.Sequential)]
     public sealed class Counter64
     {
@@ -42,10 +45,20 @@ namespace NonBlocking
         // default counter
         private long cnt;
 
+        /// <summary>
+        /// Initializes a new instance of the <see
+        /// cref="Counter32"/>
+        /// </summary>
         public Counter64()
         {
         }
 
+        /// <summary>
+        /// Returns the value of the counter at the time of the call.
+        /// </summary>
+        /// <remarks>
+        /// The value may miss in-progress updates if the counter is being concurrently modified.
+        /// </remarks>
         public long Value
         {
             get
@@ -73,6 +86,12 @@ namespace NonBlocking
             }
         }
 
+        /// <summary>
+        /// Returns the approximate value of the counter at the time of the call.
+        /// </summary>
+        /// <remarks>
+        /// EstimatedValue could be significantly cheaper to obtain, but may be slightly delayed.
+        /// </remarks>
         public long EstimatedValue
         {
             get
@@ -94,6 +113,9 @@ namespace NonBlocking
             }
         }
 
+        /// <summary>
+        /// Increments the counter by 1.
+        /// </summary>
         public void Increment()
         {
             Cell cell = null;
@@ -114,7 +136,10 @@ namespace NonBlocking
             }
         }
 
-        public void Add(int c)
+        /// <summary>
+        /// Increments the counter by 'value'.
+        /// </summary>
+        public void Add(int value)
         {
             Cell cell = null;
 
@@ -125,8 +150,8 @@ namespace NonBlocking
             }
 
             var drift = cell == null ?
-                add(ref cnt, c) :
-                add(ref cell.counter.cnt, c);
+                add(ref cnt, value) :
+                add(ref cell.counter.cnt, value);
 
             if (drift > MAX_DRIFT)
             {
@@ -134,6 +159,9 @@ namespace NonBlocking
             }
         }
 
+        /// <summary>
+        /// Decrements the counter by 1.
+        /// </summary>
         public void Decrement()
         {
             Cell cell = null;
