@@ -1,5 +1,6 @@
 # NonBlocking
-Implementation of a non-blocking dictionary.
+Implementation of a non-blocking dictionary.  
+https://www.nuget.org/packages/NonBlocking
 
 ## Overview
 
