@@ -2,6 +2,11 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
+//
+// Doc comments match, where possible, System.Collection.Concurrent.ConcurrentDictionary in 
+// https://github.com/dotnet/corefx to ensure compatibility.
+//
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -31,20 +36,20 @@ namespace NonBlocking
         internal uint _lastResizeTickMillis;
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level, has the default initial capacity, and uses the default comparer for the key type.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default initial capacity, and uses the default comparer for the key type.</summary>
         public ConcurrentDictionary() : this(31)
         {
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
         /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level and uses the default comparer for the key type.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty and uses the default comparer for the key type.</summary>
         public ConcurrentDictionary(int capacity) : this(capacity, null)
         {
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified concurrency level and capacity, and uses the default comparer for the key type.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified capacity, and uses the default comparer for the key type.</summary>
         /// <param name="concurrencyLevel">Any number greater than '0'. This parameter is allowed for compatibility reasons and has no effect on the dictionary.</param>
         /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
         /// <exception cref="T:System.ArgumentOutOfRangeException">
@@ -58,7 +63,7 @@ namespace NonBlocking
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" />, has the default concurrency level, has the default initial capacity, and uses the default comparer for the key type.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" />, has the default initial capacity, and uses the default comparer for the key type.</summary>
         /// <param name="collection">The <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" /> whose elements are copied to the new <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" />.</param>
         /// <exception cref="T:System.ArgumentNullException">
         ///   <paramref name="collection" /> or any of its keys is a null reference (Nothing in Visual Basic)</exception>
@@ -74,7 +79,7 @@ namespace NonBlocking
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default concurrency level and capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
         /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
         /// <exception cref="T:System.ArgumentNullException">
         ///   <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
@@ -87,7 +92,7 @@ namespace NonBlocking
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable" />, has the default concurrency level, has the default initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that contains elements copied from the specified <see cref="T:System.Collections.IEnumerable" />, has the default initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
         /// <param name="collection">The <see cref="T:System.Collections.IEnumerable{KeyValuePair{TKey,TValue}}" /> whose elements are copied to the new <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" />.</param>
         /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
         /// <exception cref="T:System.ArgumentNullException">
@@ -145,7 +150,7 @@ namespace NonBlocking
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
-        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified concurrency level, has the specified initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
+        /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the specified initial capacity, and uses the specified <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" />.</summary>
         /// <param name="concurrencyLevel">Any number greater than '0'. This parameter is allowed for compatibility reasons and has no effect on the dictionary.</param>
         /// <param name="capacity">The initial number of elements that the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> can contain.</param>
         /// <param name="comparer">The <see cref="T:System.Collections.Generic.IEqualityComparer{TKey}" /> implementation to use when comparing keys.</param>
@@ -688,7 +693,7 @@ namespace NonBlocking
             var pairs = array as KeyValuePair<TKey, TValue>[];
             if (pairs != null)
             {
-                CopyTo(pairs, index);
+                CopyToPairs(pairs, index);
                 return;
             }
 
@@ -702,7 +707,7 @@ namespace NonBlocking
             var objects = array as object[];
             if (objects != null)
             {
-                CopyTo(objects, index);
+                CopyToObjects(objects, index);
                 return;
             }
 
@@ -851,9 +856,35 @@ namespace NonBlocking
         }
 
         /// <summary>
+        /// Copies the elements of the <see cref="T:System.Collections.Generic.ICollection"/> to an array of
+        /// type <see cref="T:System.Collections.Generic.KeyValuePair{TKey,TValue}"/>, starting at the
+        /// specified array index.
+        /// </summary>
+        /// <param name="array">The one-dimensional array of type <see
+        /// cref="T:System.Collections.Generic.KeyValuePair{TKey,TValue}"/>
+        /// that is the destination of the <see
+        /// cref="T:System.Collections.Generic.KeyValuePair{TKey,TValue}"/> elements copied from the <see
+        /// cref="T:System.Collections.ICollection"/>. The array must have zero-based indexing.</param>
+        /// <param name="index">The zero-based index in <paramref name="array"/> at which copying
+        /// begins.</param>
+        /// <exception cref="T:System.ArgumentNullException"><paramref name="array"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="T:System.ArgumentOutOfRangeException"><paramref name="index"/> is less than
+        /// 0.</exception>
+        /// <exception cref="T:System.ArgumentException"><paramref name="index"/> is equal to or greater than
+        /// the length of the <paramref name="array"/>. -or- The number of elements in the source <see
+        /// cref="T:System.Collections.ICollection"/>
+        /// is greater than the available space from <paramref name="index"/> to the end of the destination
+        /// <paramref name="array"/>.</exception>
+        void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int index)
+        {
+            CopyToPairs(array, index);
+        }
+
+        /// <summary>
         /// Copy dictionary contents to an array - shared implementation between ToArray and CopyTo.
         /// </summary>
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int index)
+        private void CopyToPairs(KeyValuePair<TKey, TValue>[] array, int index)
         {
             if (array == null)
             {
@@ -893,7 +924,7 @@ namespace NonBlocking
         /// <summary>
         /// Copy dictionary contents to an array - shared implementation between ToArray and CopyTo.
         /// </summary>
-        public void CopyTo(object[] array, int arrayIndex)
+        private void CopyToObjects(object[] array, int arrayIndex)
         {
             if (array == null)
             {

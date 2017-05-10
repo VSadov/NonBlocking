@@ -4,9 +4,29 @@
     <TargetFramework>netstandard1.0</TargetFramework>
 
     <PackageId>NonBlocking</PackageId>
-    <PackageVersion>1.0.0-rc2</PackageVersion>
-    <Authors>Vladimir Sadov</Authors>
-    <Description>Implementation of a lock-free dictionary on .Net</Description>
+    <PackageVersion>1.0.0-rc4</PackageVersion>
+    <Authors>Vladimir Sadov</Authors> 
+    <Description>
+      Implementation of a lock-free dictionary on .Net
+
+      Included types:
+      === NonBlocking.ConcurrentDictionary
+      Lock-free, wait-free implementation of a dictionary.
+      - has the same API as System.Collections.Concurrent.ConcurrentDictionary.
+      - No locks are taken during any operation including Get, Add, Remove, internal resizes etc...
+      - While multiple threads accessing NonBlocking dictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
+      - NonBlocking dictionary scales linearly with the number of active threads if hardware permits.
+
+      On most operations NonBlocking dictionary is faster than Concurrent, especially in write-heavy scenarios.
+
+      There is a subtle difference in the behavior of Remove. Concurrent dictionary removes both the value and the key on Remove, while holding a lock. NonBlocking dictionary only removes values, thus avoiding locking, and the corresponding key is dropped lazily when more space is needed. In code that relies on deterministic release of key objects (uncommon), Concurrent dictionary would be preferable.
+
+      Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click. A good overview could be found here: https://www.youtube.com/watch?v=HJ-719EGIts
+
+      === Counter32
+      === Counter64
+      Low-overhead scalable counters.
+    </Description>   
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>First release</PackageReleaseNotes>
     <Copyright>Copyright 2017 (c) Vladimir Sadov. All rights reserved.</Copyright>
