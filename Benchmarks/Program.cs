@@ -27,6 +27,8 @@ namespace NonBlockingTests
                 System.Console.WriteLine("Timer: Low Resolution");
             }
 
+            GetBenchNBObj();
+
             EmptyAction();
             InterlockedIncrement();
 
@@ -106,6 +108,23 @@ namespace NonBlockingTests
             var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchNBObj()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<object, string>();
+
+            var keys = new string[200000];
+            for (int i = 0; i < keys.Length; i++) keys[i] = i.ToString();
+
+            Parallel.For(0, 100000, (i) => dict[keys[i]] = i.ToString());
+            Parallel.For(0, 100000, (i) => { var dummy = dict[keys[i]]; });
+
+            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[keys[i % 100000]]; };
 
             RunBench(benchmarkName, act);
         }

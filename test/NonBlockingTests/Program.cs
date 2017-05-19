@@ -232,6 +232,54 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
         }
 
+        class NullIntolerantComparer : IEqualityComparer<object>
+        {
+            bool IEqualityComparer<object>.Equals(object x, object y)
+            {
+                if (x == null) throw new Exception("unexpected null");
+                if (y == null) throw new Exception("unexpected null");
+
+                return x == y;
+            }
+
+            int IEqualityComparer<object>.GetHashCode(object obj)
+            {
+                return obj.GetHashCode();
+            }
+        }
+        
+        [Fact()]
+        private static void AddSetRemoveConcurrentNullIntolerant()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<object, int>(new NullIntolerantComparer());
+
+            var keys = new object[100000];
+            for (int i = 0; i < keys.Length; i++) keys[i] = i;
+
+            Parallel.For(0, 10, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 10, (i) => dict[keys[i]] = i);
+            Parallel.For(0, 10, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+
+            Parallel.For(0, 100, (i) => dict[keys[i]] = i);
+            Parallel.For(0, 100, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+
+            Parallel.For(0, 1000, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 1000, (i) => dict[keys[i]] = i);
+            Parallel.For(0, 1000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.Remove(keys[i])) throw new Exception(); });
+
+            Parallel.For(0, 10000, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 10000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+
+            Parallel.For(0, 100000, (i) => dict[keys[i]] = i);
+            Parallel.For(0, 100000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+        }
+
         [Fact()]
         private static void AddSetRemoveConcurrentInt()
         {
@@ -303,12 +351,25 @@ namespace NonBlockingTests
             {
                 return i.ToString();
             }
+
+            public class Comparer : IEqualityComparer<S1>
+            {
+                bool IEqualityComparer<S1>.Equals(S1 x, S1 y)
+                {
+                    return x.i == y.i;
+                }
+
+                int IEqualityComparer<S1>.GetHashCode(S1 obj)
+                {
+                    return obj.i;
+                }
+            }
         }
 
         [Fact()]
         private static void AddSetRemoveConcurrentStruct()
         {
-            var dict = new NonBlocking.ConcurrentDictionary<S1, string>();
+            var dict = new NonBlocking.ConcurrentDictionary<S1, string>(new S1.Comparer());
 
             Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
@@ -673,6 +734,98 @@ namespace NonBlockingTests
                 });
         }
 
+        [Fact()]
+        private static void Relativity003()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<S1, int>(new S1.Comparer());
+
+            Parallel.ForEach(Enumerable.Range(0, 10001),
+                (i) =>
+                {
+                    if (i % 2 == 0)
+                    {
+                        // maintain "dict[i] < dict[i+1]"
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            dict[i + 1] = j + 1;
+                            dict[i] = j;
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            int first;
+                            int second;
+                            if (dict.TryGetValue(i - 1, out first))
+                            {
+                                if (dict.TryGetValue(i, out second))
+                                {
+                                    if (first >= second)
+                                    {
+                                        throw new Exception("value relation is incorrect");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new Exception("value must exist");
+                                }
+                            }
+                        }
+                    }
+
+                    // just add an item
+                    dict[10000 + i] = 0;
+                });
+        }
+
+        [Fact()]
+        private static void Relativity004()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<string, int>(new NullIntolerantComparer());
+
+            var keys = new string[30000];
+            for (int i = 0; i < keys.Length; i++) keys[i] = i.ToString();
+
+            Parallel.ForEach(Enumerable.Range(0, 10001),
+                (i) =>
+                {
+                    if (i % 2 == 0)
+                    {
+                        // maintain "dict[i] < dict[i+1]"
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            dict[keys[i + 1]] = j + 1;
+                            dict[keys[i]] = j;
+                        }
+                    }
+                    else
+                    {
+                        for (int j = 0; j < 10000; j++)
+                        {
+                            int first;
+                            int second;
+                            if (dict.TryGetValue(keys[i - 1], out first))
+                            {
+                                if (dict.TryGetValue(keys[i], out second))
+                                {
+                                    if (first >= second)
+                                    {
+                                        throw new Exception("value relation is incorrect");
+                                    }
+                                }
+                                else
+                                {
+                                    throw new Exception("value must exist");
+                                }
+                            }
+                        }
+                    }
+
+                    // just add an item
+                    dict[keys[10000 + i]] = 0;
+                });
+        }
 
         class BadHash
         {
