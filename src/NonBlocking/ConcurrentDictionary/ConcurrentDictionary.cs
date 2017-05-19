@@ -218,6 +218,48 @@ namespace NonBlocking
                     }
                     return ;
                 }
+
+                if (typeof(TKey) == typeof(uint))
+                {
+                    if (comparer == null)
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplUIntNoComparer<TValue>(capacity, (ConcurrentDictionary<uint, TValue>)(object)this);
+                    }
+                    else
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplUInt<TValue>(capacity, (ConcurrentDictionary<uint, TValue>)(object)this);
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(ulong))
+                {
+                    if (comparer == null)
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplULongNoComparer<TValue>(capacity, (ConcurrentDictionary<ulong, TValue>)(object)this);
+                    }
+                    else
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplULong<TValue>(capacity, (ConcurrentDictionary<ulong, TValue>)(object)this);
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(IntPtr))
+                {
+                    if (comparer == null)
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntPtrNoComparer<TValue>(capacity, (ConcurrentDictionary<IntPtr, TValue>)(object)this);
+                    }
+                    else
+                    {
+                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntPtr<TValue>(capacity, (ConcurrentDictionary<IntPtr, TValue>)(object)this);
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
             }
 
             _table = new DictionaryImplBoxed<TKey, TValue>(capacity, this);
