@@ -77,11 +77,12 @@ namespace NonBlocking
 
         private static int MixAndMask(uint h, int lenMask)
         {
-            // Fast rotation combiner with fixed seed. 
-            // In case if "rol 5" pattern is not recognized, do the bigger shift first (could be slower).
-            uint rol5 = (h >> 27) | (h << 5);
-            h = (rol5 + h) ^ 0xbeefbeef;
-            
+            // smudge the bits a little
+            // using algo from: http://burtleburtle.net/bob/hash/integer.html
+            h ^= (h >> 4);
+            h += (h << 5);
+            h ^= (h >> 11);
+
             return (int)h & lenMask;
         }
 
