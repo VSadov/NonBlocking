@@ -56,8 +56,12 @@ namespace NonBlocking
             //NOTE: slots are claimed in two stages - claim a hash, then set a key
             //      it is possible to observe a slot with a null key, but with hash already set
             //      that is not a match since the key is not yet in the table
-            return key == entryKey ||
-                entryKey != null && _keyComparer.Equals(key, entryKey);
+            if (key == entryKey)
+            {
+                return true;
+            }
+           
+            return entryKey != null && _keyComparer.Equals(entryKey, key);
         }
 
         protected override DictionaryImpl<TKey, TKey, TValue> CreateNew(int capacity)

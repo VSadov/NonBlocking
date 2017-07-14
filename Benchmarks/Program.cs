@@ -28,6 +28,13 @@ namespace NonBlockingTests
             }
 
             GetBenchNBObj();
+            GetBenchCDObj();
+
+            GetBenchNB_int();
+            GetBenchCD_int();
+
+            GetBenchNB();
+            GetBenchCD();
 
             EmptyAction();
             InterlockedIncrement();
@@ -37,8 +44,6 @@ namespace NonBlockingTests
 
             Counter32GetEstimatedPerf();
 
-            GetBenchNB();
-            GetBenchCD();
             GetBenchRndNB();
             GetBenchRndCD();
 
@@ -98,20 +103,6 @@ namespace NonBlockingTests
             RunBench(benchmarkName, act);
         }
 
-        private static void GetBenchNB()
-        {
-            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-
-            Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
-            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
-
-            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
-
-            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
-
-            RunBench(benchmarkName, act);
-        }
-
         private static void GetBenchNBObj()
         {
             var dict = new NonBlocking.ConcurrentDictionary<object, string>();
@@ -129,11 +120,70 @@ namespace NonBlockingTests
             RunBench(benchmarkName, act);
         }
 
+        private static void GetBenchCDObj()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<object, string>();
+
+            var keys = new string[200000];
+            for (int i = 0; i < keys.Length; i++) keys[i] = i.ToString();
+
+            Parallel.For(0, 100000, (i) => dict[keys[i]] = i.ToString());
+            Parallel.For(0, 100000, (i) => { var dummy = dict[keys[i]]; });
+
+            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[keys[i % 100000]]; };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, string>();
+
+            Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
+
+            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
+
+            RunBench(benchmarkName, act);
+        }
+
         private static void GetBenchCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
+
+            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchNB_int()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, int>();
+
+            Parallel.For(0, 100000, (i) => dict[i] = i);
+            Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
+
+            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void GetBenchCD_int()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, int>();
+
+            Parallel.For(0, 100000, (i) => dict[i] = i);
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
             var benchmarkName = "======== Get Concurrent 1M Ops/sec:";

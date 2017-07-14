@@ -12,7 +12,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using static NonBlocking.DictionaryImpl;
 
 namespace NonBlocking
@@ -34,6 +35,23 @@ namespace NonBlocking
     {
         internal DictionaryImpl<TKey, TValue> _table;
         internal uint _lastResizeTickMillis;
+
+        private readonly static Func<object, TValue> objToValueS =
+                (typeof(TValue).GetTypeInfo().IsValueType)?
+                    (Func<object, TValue>)objToValValue :
+                    objToValRef;
+
+        internal readonly Func<object, TValue> objToValue = objToValueS;
+        
+        private static TValue objToValRef(object value)
+        {
+            return Unsafe.As<object, TValue>(ref value);
+        }
+
+        private static TValue objToValValue(object value)
+        {
+            return (TValue)value;
+        }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
         /// <summary>Initializes a new instance of the <see cref="T:System.Collections.Concurrent.ConcurrentDictionary`2" /> class that is empty, has the default initial capacity, and uses the default comparer for the key type.</summary>
@@ -349,16 +367,34 @@ namespace NonBlocking
             Debug.Assert(!(oldValObj is Prime));
             Debug.Assert(found ^ oldValObj == null);
 
-            // PERF: this would be nice to have as a helper, 
-            // but it does not get inlined
-            if (default(TValue) == null && oldValObj == NULLVALUE)
+            if (!found)
             {
-                oldValObj = null;
+                value = default(TValue);
             }
+            else
+            {
+                // PERF: this would be nice to have as a helper, 
+                // but it does not get inlined
 
-            value = found ?
-                (TValue)oldValObj :
-                default(TValue);
+                // regular value type
+                if (default(TValue) != null)
+                {
+                    value = (TValue)oldValObj;
+                }
+                else
+                {
+                    // null
+                    if (oldValObj == NULLVALUE)
+                    {
+                        value = default(TValue);
+                    }
+                    else
+                    {
+                        // not null, dispatch ref types and nullables
+                        value = objToValue(oldValObj);
+                    }
+                }
+            }
 
             return found;
         }
@@ -386,14 +422,26 @@ namespace NonBlocking
             {
                 // PERF: this would be nice to have as a helper, 
                 // but it does not get inlined
-                if (default(TValue) == null && oldValObj == NULLVALUE)
-                {
-                    value = default(TValue);
-                }
-                else
+
+                // regular value type
+                if (default(TValue) != null)
                 {
                     value = (TValue)oldValObj;
                 }
+                else
+                {
+                    // null
+                    if (oldValObj == NULLVALUE)
+                    {
+                        value = default(TValue);
+                    }
+                    else
+                    {
+                        // not null, dispatch ref types and nullables
+                        value = objToValue(oldValObj);
+                    }
+                }
+
                 return true;
             }
             else
@@ -428,17 +476,26 @@ namespace NonBlocking
                 {
                     // PERF: this would be nice to have as a helper, 
                     // but it does not get inlined
-                    TValue value;
-                    if (default(TValue) == null && oldValObj == NULLVALUE)
+
+                    // regular value type
+                    if (default(TValue) != null)
                     {
-                        value = default(TValue);
+                        return (TValue)oldValObj;
+                    }
+
+                    TValue ret;
+                    // null
+                    if (oldValObj == NULLVALUE)
+                    {
+                        ret = default(TValue);
                     }
                     else
                     {
-                        value = (TValue)oldValObj;
+                        // not null, dispatch ref types and nullables
+                        ret = objToValue(oldValObj);
                     }
 
-                    return value;
+                    return ret;
                 }
 
                 throw new KeyNotFoundException();
@@ -546,12 +603,26 @@ namespace NonBlocking
 
             // PERF: this would be nice to have as a helper, 
             // but it does not get inlined
-            if (default(TValue) == null && oldValObj == NULLVALUE)
+
+            // regular value type
+            if (default(TValue) != null)
             {
-                oldValObj = null;
+                return (TValue)oldValObj;
             }
 
-            return (TValue)oldValObj;
+            TValue ret;
+            // null
+            if (oldValObj == NULLVALUE)
+            {
+                ret = default(TValue);
+            }
+            else
+            {
+                // not null, dispatch ref types and nullables
+                ret = objToValue(oldValObj);
+            }
+
+            return ret;
         }
 
         /// <summary>

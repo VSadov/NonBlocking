@@ -603,13 +603,28 @@ namespace NonBlocking
             }
 
             GOT_PREV_VALUE:
+
             // PERF: this would be nice to have as a helper, 
             // but it does not get inlined
-            if (default(TValue) == null && entryValue == NULLVALUE)
+
+            // regular value type
+            if (default(TValue) != null)
             {
-                entryValue = null;
+                result = (TValue)entryValue;
             }
-            result = (TValue)entryValue;
+            else
+            {
+                // null
+                if (entryValue == NULLVALUE)
+                {
+                    result = default(TValue);
+                }
+                else
+                {
+                    // not null, dispatch ref types and nullables
+                    result = _topDict.objToValue(entryValue);
+                }
+            }
 
             DONE:
             return result;
