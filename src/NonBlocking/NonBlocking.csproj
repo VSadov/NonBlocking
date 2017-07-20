@@ -4,7 +4,7 @@
     <TargetFramework>netstandard1.0</TargetFramework>
 
     <PackageId>NonBlocking</PackageId>
-    <PackageVersion>1.0.0-rc7</PackageVersion>
+    <PackageVersion>1.0.0</PackageVersion>
     <Authors>Vladimir Sadov</Authors> 
     <Description>
       Implementation of a lock-free dictionary on .Net
