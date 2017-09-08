@@ -126,32 +126,7 @@ namespace NonBlocking
                 cell = this.cells[GetIndex(curCellCount)];
             }
 
-            var drift = cell == null ?
-                increment(ref cnt) :
-                increment(ref cell.counter.cnt);
-
-            if (drift > MAX_DRIFT)
-            {
-                TryAddCell(curCellCount);
-            }
-        }
-
-        /// <summary>
-        /// Increments the counter by 'value'.
-        /// </summary>
-        public void Add(int value)
-        {
-            Cell cell = null;
-
-            int curCellCount = this.cellCount;
-            if (curCellCount > 1 & this.cells != null)
-            {
-                cell = this.cells[GetIndex(curCellCount)];
-            }
-
-            var drift = cell == null ?
-                increment(ref cnt, value) :
-                increment(ref cell.counter.cnt, value);
+            var drift = increment(ref ChooseCntRef(cell, ref cnt));
 
             if (drift > MAX_DRIFT)
             {
@@ -172,9 +147,7 @@ namespace NonBlocking
                 cell = this.cells[GetIndex(curCellCount)];
             }
 
-            var drift = cell == null ?
-                decrement(ref cnt) :
-                decrement(ref cell.counter.cnt);
+            var drift = decrement(ref ChooseCntRef(cell, ref cnt));
 
             if (drift > MAX_DRIFT)
             {
@@ -182,19 +155,50 @@ namespace NonBlocking
             }
         }
 
-        private static int increment(ref int val)
+        /// <summary>
+        /// Increments the counter by 'value'.
+        /// </summary>
+        public void Add(int value)
         {
-            return -val + Interlocked.Increment(ref val) - 1;
+            Cell cell = null;
+
+            int curCellCount = this.cellCount;
+            if (curCellCount > 1 & this.cells != null)
+            {
+                cell = this.cells[GetIndex(curCellCount)];
+            }
+
+            var drift = add(ref ChooseCntRef(cell, ref cnt), value);
+
+            if (drift > MAX_DRIFT)
+            {
+                TryAddCell(curCellCount);
+            }
         }
 
-        private static int increment(ref int val, int inc)
+        private static ref int ChooseCntRef(Cell cell, ref int cnt)
         {
-            return -val + Interlocked.Add(ref val, inc) - inc;
+            if (cell == null)
+            {
+                return ref cnt;
+            }
+
+            return ref cell.counter.cnt;
+        }
+
+        private static int increment(ref int val)
+        {
+            return -val - 1 + Interlocked.Increment(ref val);
+        }
+
+        private static int add(ref int val, int inc)
+        {
+            return -val - inc + Interlocked.Add(ref val, inc);
         }
 
         private static int decrement(ref int val)
         {
-            return val - Interlocked.Decrement(ref val) - 1;
+            return val - 1 - Interlocked.Decrement(ref val);
         }
 
         private static int GetIndex(int cellCount)
