@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -13,19 +14,14 @@ namespace NonBlocking
     /// <summary>
     /// Scalable 64bit counter that can be used from multiple threads.
     /// </summary>
-    [StructLayout(LayoutKind.Sequential)]
-    public sealed class Counter64
+    public sealed class Counter64 : CounterBase
     {
-        private static readonly int MAX_CELL_COUNT = Environment.ProcessorCount * 2;
-        private const int MAX_DRIFT = 0;
-
         private class Cell
         {
-            [StructLayout(LayoutKind.Explicit)]
+            [StructLayout(LayoutKind.Explicit, Size = CACHE_LINE * 2 - OBJ_HEADER_SIZE)]
             public struct SpacedCounter
             {
-                // 64 bytes - sizeof(long) - sizeof(objecHeader64)
-                [FieldOffset(40)]
+                [FieldOffset(CACHE_LINE - OBJ_HEADER_SIZE)]
                 public long cnt;
             }
 
@@ -35,15 +31,11 @@ namespace NonBlocking
         // spaced out counters
         private Cell[] cells;
 
-        // how many cells we have
-        private int cellCount;
-
-        // delayed count
-        private uint lastCntTicks;
-        private long lastCnt;
-
         // default counter
         private long cnt;
+
+        // delayed count
+        private long lastCnt;
 
         /// <summary>
         /// Initializes a new instance of the <see
@@ -118,17 +110,10 @@ namespace NonBlocking
         /// </summary>
         public void Increment()
         {
-            Cell cell = null;
-
             int curCellCount = this.cellCount;
-            if (curCellCount > 1 & this.cells != null)
-            {
-                cell = this.cells[GetIndex(curCellCount)];
-            }
+            var drift = increment(ref GetCntRef(curCellCount));
 
-            var drift = increment(ref ChooseCntRef(cell, ref cnt));
-
-            if (drift > MAX_DRIFT)
+            if (drift != 0)
             {
                 TryAddCell(curCellCount);
             }
@@ -139,17 +124,10 @@ namespace NonBlocking
         /// </summary>
         public void Decrement()
         {
-            Cell cell = null;
-
             int curCellCount = this.cellCount;
-            if (curCellCount > 1 & this.cells != null)
-            {
-                cell = this.cells[GetIndex(curCellCount)];
-            }
+            var drift = decrement(ref GetCntRef(curCellCount));
 
-            var drift = decrement(ref ChooseCntRef(cell, ref cnt));
-
-            if (drift > MAX_DRIFT)
+            if (drift != 0)
             {
                 TryAddCell(curCellCount);
             }
@@ -160,30 +138,29 @@ namespace NonBlocking
         /// </summary>
         public void Add(int value)
         {
-            Cell cell = null;
-
             int curCellCount = this.cellCount;
-            if (curCellCount > 1 & this.cells != null)
-            {
-                cell = this.cells[GetIndex(curCellCount)];
-            }
+            var drift = add(ref GetCntRef(curCellCount), value);
 
-            var drift = add(ref ChooseCntRef(cell, ref cnt), value);
-
-            if (drift > MAX_DRIFT)
+            if (drift != 0)
             {
                 TryAddCell(curCellCount);
             }
         }
 
-        private static ref long ChooseCntRef(Cell cell, ref long cnt)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private ref long GetCntRef(int curCellCount)
         {
-            if (cell == null)
+            if (this.cells != null & curCellCount > 1)
             {
-                return ref cnt;
+                var cell = this.cells[GetIndex(curCellCount)];
+
+                if (cell != null)
+                {
+                    return ref cell.counter.cnt;
+                }
             }
 
-            return ref cell.counter.cnt;
+            return ref cnt;
         }
 
         private static long increment(ref long val)
@@ -201,35 +178,35 @@ namespace NonBlocking
             return val - 1 - Interlocked.Decrement(ref val);
         }
 
-        private static int GetIndex(int cellCount)
-        {
-            return Environment.CurrentManagedThreadId % cellCount;
-        }
-
         private void TryAddCell(int curCellCount)
         {
             if (curCellCount < MAX_CELL_COUNT)
             {
-                var cells = this.cells;
-                if (cells == null)
-                {
-                    var newCells = new Cell[MAX_CELL_COUNT];
-                    cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
-                }
+                TryAddCellCore(curCellCount);
+            }
+        }
 
-                if (cells[curCellCount] == null)
-                {
-                    Interlocked.CompareExchange(ref cells[curCellCount], new Cell(), null);
-                }
+        private void TryAddCellCore(int curCellCount)
+        {
+            var cells = this.cells;
+            if (cells == null)
+            {
+                var newCells = new Cell[MAX_CELL_COUNT];
+                cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
+            }
 
-                if (this.cellCount == curCellCount)
-                {
-                    Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount);
-                    //if (Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount) == curCellCount)
-                    //{
-                    //    System.Console.WriteLine(curCellCount + 1);
-                    //}
-                }
+            if (cells[curCellCount] == null)
+            {
+                Interlocked.CompareExchange(ref cells[curCellCount], new Cell(), null);
+            }
+
+            if (this.cellCount == curCellCount)
+            {
+                Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount);
+                //if (Interlocked.CompareExchange(ref this.cellCount, curCellCount + 1, curCellCount) == curCellCount)
+                //{
+                //    System.Console.WriteLine(curCellCount + 1);
+                //}
             }
         }
     }
