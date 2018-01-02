@@ -120,6 +120,11 @@ namespace NonBlocking
 
         protected virtual int hash(TKey key)
         {
+            if (key == null)
+            {
+                throw new ArgumentNullException("key");
+            }
+
             int h = _keyComparer.GetHashCode(key);
 
             // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
@@ -147,13 +152,8 @@ namespace NonBlocking
         /// </summary>
         internal sealed override object TryGetValue(TKey key)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
-
+            int fullHash = this.hash(key);
             var curTable = this;
-            int fullHash = curTable.hash(key);
 
             TRY_WITH_NEW_TABLE:
 
@@ -165,9 +165,11 @@ namespace NonBlocking
             int reprobeCnt = 0;
             while (true)
             {
+                ref var entry = ref curEntries[idx];
+
                 // hash, key and value are all CAS-ed down and follow a specific sequence of states.
                 // hence the order of these reads is irrelevant and they do not need to be volatile
-                var entryHash = curEntries[idx].hash;
+                var entryHash = entry.hash;
                 if (entryHash == 0)
                 {
                     // the slot has not been claimed - a clear miss
@@ -176,10 +178,9 @@ namespace NonBlocking
 
                 // is this our slot?
                 if (fullHash == entryHash &&
-                    curTable.keyEqual(key, curEntries[idx].key))
+                    curTable.keyEqual(key, entry.key))
                 {
-                    var entryValue = curEntries[idx].value;
-
+                    var entryValue = entry.value;
                     if (EntryValueNullOrDead(entryValue))
                     {
                         break;
@@ -203,8 +204,8 @@ namespace NonBlocking
                 // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
-                if (++reprobeCnt >= ReprobeLimit(lenMask) |
-                    entryHash == TOMBPRIMEHASH)
+                if (entryHash == TOMBPRIMEHASH | 
+                    reprobeCnt >= ReprobeLimit(lenMask))
                 {
                     var newTable = curTable._newTable;
                     if (newTable != null)
@@ -221,6 +222,7 @@ namespace NonBlocking
                 curTable.ReprobeResizeCheck(reprobeCnt, lenMask);
 
                 // quadratic reprobe
+                reprobeCnt++;
                 idx = (idx + reprobeCnt) & lenMask;
             }
 
@@ -252,11 +254,6 @@ namespace NonBlocking
         // since slot without a value is as good as no slot at all
         internal sealed override bool PutIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
-
             var curTable = this;
             int fullHash = curTable.hash(key);
 
@@ -318,8 +315,8 @@ namespace NonBlocking
                 // and must reprobe or resize
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
-                if (++reprobeCnt >= ReprobeLimit(lenMask) |
-                    entryHash == TOMBPRIMEHASH)
+                if (entryHash == TOMBPRIMEHASH |
+                    reprobeCnt >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
                     var newTable1 = curTable.Resize();
@@ -332,6 +329,7 @@ namespace NonBlocking
                 curTable.ReprobeResizeCheck(reprobeCnt, lenMask);
 
                 // quadratic reprobing
+                reprobeCnt++;
                 idx = (idx + reprobeCnt) & lenMask;
             }
 
@@ -453,11 +451,6 @@ namespace NonBlocking
 
         internal sealed override TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
-
             if (valueFactory == null)
             {
                 throw new ArgumentNullException("valueFactory");
@@ -515,8 +508,8 @@ namespace NonBlocking
                 // and must reprobe or resize
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
-                if (++reprobeCnt >= ReprobeLimit(lenMask) |
-                    entryHash == TOMBPRIMEHASH)
+                if (entryHash == TOMBPRIMEHASH |
+                    reprobeCnt >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
                     var newTable1 = curTable.Resize();
@@ -529,6 +522,7 @@ namespace NonBlocking
                 curTable.ReprobeResizeCheck(reprobeCnt, lenMask);
 
                 // quadratic reprobing
+                reprobeCnt++;
                 idx = (idx + reprobeCnt) & lenMask;
             }
 
@@ -683,8 +677,8 @@ namespace NonBlocking
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that 
                 // we will not find an appropriate slot in this table
                 // but there could be more in the new one
-                if (++reprobeCnt >= ReprobeLimit(lenMask) |
-                    entryHash == TOMBPRIMEHASH)
+                if (entryHash == TOMBPRIMEHASH |
+                    reprobeCnt >= ReprobeLimit(lenMask))
                 {
                     var resized = curTable.Resize();
                     curTable = resized;
@@ -692,6 +686,7 @@ namespace NonBlocking
                 }
 
                 // quadratic reprobing
+                reprobeCnt++;
                 idx = (idx + reprobeCnt) & lenMask; // Reprobe!    
 
             } // End of spinning till we get a Key slot

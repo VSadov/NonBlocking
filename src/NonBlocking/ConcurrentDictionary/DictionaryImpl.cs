@@ -63,25 +63,15 @@ namespace NonBlocking
             return entryValue == null | entryValue == TOMBSTONE;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static int ReduceHashToIndex(int fullHash, int lenMask)
         {
-            fullHash = fullHash & ~REGULAR_HASH_BITS;
-            var h2 = fullHash << 1;
-            if ((uint)h2 <= (uint)lenMask)
-            {
-                return h2;
-            }
+            // spread hashcodes a little in case they differ by 1
+            var h = (uint)fullHash << 1;
 
-            return MixAndMask((uint)fullHash, lenMask);
-        }
-
-        private static int MixAndMask(uint h, int lenMask)
-        {
-            // smudge the bits a little
-            // using algo from: http://burtleburtle.net/bob/hash/integer.html
-            h ^= (h >> 4);
-            h += (h << 5);
-            h ^= (h >> 11);
+            // smudge bits down in case they differ only in higher bits
+            h ^= (uint)fullHash >> 15;
+            h ^= (uint)h >> 7;
 
             return (int)h & lenMask;
         }
