@@ -4,7 +4,7 @@
     <TargetFramework>netstandard1.0</TargetFramework>
 
     <PackageId>NonBlocking</PackageId>
-    <PackageVersion>1.0.0</PackageVersion>
+    <PackageVersion>1.0.2</PackageVersion>
     <Authors>Vladimir Sadov</Authors> 
     <Description>
       Implementation of a lock-free dictionary on .Net
@@ -28,15 +28,17 @@
       Low-overhead scalable counters.
     </Description>   
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <PackageReleaseNotes>First release</PackageReleaseNotes>
-    <Copyright>Copyright 2017 (c) Vladimir Sadov. All rights reserved.</Copyright>
+    <PackageReleaseNotes>Some performance improvements.</PackageReleaseNotes>
+    <Summary>Implementation of a lock-free dictionary on .Net</Summary>
+    <Copyright>Copyright 2018 (c) Vladimir Sadov. All rights reserved.</Copyright>
     <PackageTags>lock-free wait-free dictionary high-performance</PackageTags>
+    <PackageProjectUrl>https://github.com/VSadov/NonBlocking</PackageProjectUrl>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DocumentationFile>bin\Release\netstandard1.0\NonBlocking.xml</DocumentationFile>
-    <DebugType>pdbonly</DebugType>
-    <DebugSymbols>true</DebugSymbols>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
     <LangVersion>7.2</LangVersion>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
