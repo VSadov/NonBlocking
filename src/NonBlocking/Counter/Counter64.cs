@@ -150,17 +150,19 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private ref long GetCntRef(int curCellCount)
         {
+            ref var cntRef = ref cnt;
+
             if (this.cells != null & curCellCount > 1)
             {
                 var cell = this.cells[GetIndex(curCellCount)];
 
                 if (cell != null)
                 {
-                    return ref cell.counter.cnt;
+                    cntRef = ref cell.counter.cnt;
                 }
             }
 
-            return ref cnt;
+            return ref cntRef;
         }
 
         private static long increment(ref long val)

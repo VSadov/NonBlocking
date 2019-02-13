@@ -157,15 +157,13 @@ namespace NonBlocking
 
             TRY_WITH_NEW_TABLE:
 
-            var curEntries = curTable._entries;
-            var lenMask = curEntries.Length - 1;
-            int idx = ReduceHashToIndex(fullHash, lenMask);
+            int idx = ReduceHashToIndex(fullHash, curTable._entries.Length - 1);
 
             // Main spin/reprobe loop
             int reprobeCnt = 0;
             while (true)
             {
-                ref var entry = ref curEntries[idx];
+                ref var entry = ref curTable._entries[idx];
 
                 // hash, key and value are all CAS-ed down and follow a specific sequence of states.
                 // hence the order of these reads is irrelevant and they do not need to be volatile
@@ -186,7 +184,7 @@ namespace NonBlocking
                         break;
                     }
 
-                    if (!(entryValue is Prime))
+                    if (!(entryValue.GetType() == typeof(Prime)))
                     {
                         return entryValue;
                     }
@@ -204,6 +202,7 @@ namespace NonBlocking
                 // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
+                var lenMask = curTable._entries.Length - 1;
                 if (entryHash == TOMBPRIMEHASH | 
                     reprobeCnt >= ReprobeLimit(lenMask))
                 {
@@ -433,8 +432,9 @@ namespace NonBlocking
                 }
                 // Else CAS failed
 
-                // If a Prime'd value got installed, we need to re-run the put on the new table.  
-                if (prev is Prime)
+                // If a Prime'd value got installed, we need to re-run the put on the new table. 
+                Debug.Assert(prev != null);
+                if (prev.GetType() == typeof(Prime))
                 {
                     curTable = curTable.CopySlotAndGetNewTable(idx, shouldHelp: true);
                     goto TRY_WITH_NEW_TABLE;
@@ -582,7 +582,8 @@ namespace NonBlocking
                 // Else CAS failed
 
                 // If a Prime'd value got installed, we need to re-run the put on the new table.
-                if (prev is Prime)
+                Debug.Assert(prev != null);
+                if (prev.GetType() == typeof(Prime))
                 {
                     curTable = curTable.CopySlotAndGetNewTable(idx, shouldHelp: true);
                     goto TRY_WITH_NEW_TABLE;
@@ -590,7 +591,7 @@ namespace NonBlocking
 
                 // Otherwise we lost the CAS to another racing put.
                 entryValue = prev;
-                if (!EntryValueNullOrDead(entryValue))
+                if (entryValue != TOMBSTONE)
                 {
                     goto GOT_PREV_VALUE;
                 }

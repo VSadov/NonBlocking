@@ -66,12 +66,14 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected static int ReduceHashToIndex(int fullHash, int lenMask)
         {
-            // spread hashcodes a little in case they differ by 1
-            var h = (uint)fullHash << 1;
+            var h = (uint)fullHash;
 
             // smudge bits down in case they differ only in higher bits
-            h ^= (uint)fullHash >> 15;
-            h ^= (uint)h >> 7;
+            h ^= h >> 15;
+            h ^= h >> 7;
+
+            // spread hashcodes a little in case they differ by 1
+            h = h << 1;
 
             return (int)h & lenMask;
         }
