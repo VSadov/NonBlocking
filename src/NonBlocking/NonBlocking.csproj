@@ -26,11 +26,12 @@
       === Counter32
       === Counter64
       Low-overhead scalable counters.
-    </Description>   
+    </Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>Some performance improvements.</PackageReleaseNotes>
     <Summary>Implementation of a lock-free dictionary on .Net</Summary>
-    <Copyright>Copyright 2019 (c) Vladimir Sadov. All rights reserved.</Copyright>
+    <Copyright>Copyright 2020 (c) Vladimir Sadov. All rights reserved.</Copyright>
     <PackageTags>lock-free wait-free dictionary high-performance</PackageTags>
     <PackageProjectUrl>https://github.com/VSadov/NonBlocking</PackageProjectUrl>
   </PropertyGroup>
