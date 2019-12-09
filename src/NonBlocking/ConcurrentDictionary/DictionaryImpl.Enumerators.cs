@@ -73,7 +73,14 @@ namespace NonBlocking
 
                     if (nextEntry.value != null)
                     {
-                        var nextK = _table.keyFromEntry(nextEntry.key);
+                        var nextKstore = nextEntry.key;
+                        if (nextKstore == null)
+                        {
+                            // slot was deleted.
+                            continue;
+                        }
+
+                        var nextK = _table.keyFromEntry(nextKstore);
 
                         object nextV = _table.TryGetValue(nextK);
                         if (nextV != null)

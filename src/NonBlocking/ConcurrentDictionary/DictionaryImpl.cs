@@ -33,8 +33,8 @@ namespace NonBlocking
         internal static readonly Prime TOMBPRIME = new Prime(TOMBSTONE);
         internal static readonly object NULLVALUE = new object();
 
-        // represents forcefully dead entry 
-        // we insert it in old table during rehashing
+        // represents a trivially copied empty entry
+        // we insert it in the old table during rehashing
         // to reduce chances that more entries are added
         protected const int TOMBPRIMEHASH = 1 << 31;
 
@@ -44,6 +44,7 @@ namespace NonBlocking
 
         // all regular hashes have these bits set
         // to be different from 0, TOMBPRIMEHASH or ZEROHASH
+        // having only these bits set in a case of Ref key means that the slot is permanently deleted.
         protected const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
         protected const int REPROBE_LIMIT = 4;

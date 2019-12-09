@@ -42,7 +42,10 @@ namespace NonBlocking
                     objToValRef;
 
         internal readonly Func<object, TValue> objToValue = objToValueS;
-        
+
+        internal object _sweeperInstance;
+        internal int _sweepRequests;
+
         private static TValue objToValRef(object value)
         {
             return Unsafe.As<object, TValue>(ref value);

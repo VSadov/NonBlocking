@@ -12,7 +12,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace NonBlocking
 {
@@ -25,6 +28,87 @@ namespace NonBlocking
         protected readonly ConcurrentDictionary<TKey, TValue> _topDict;
         protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void SweepCheck()
+        {
+            if (_topDict._sweepRequests == 0)
+            {
+                _topDict._sweepRequests = 1;
+                Sweeper.TryRearm(this);
+            }
+        }
+
+        private class Sweeper
+        {
+            private DictionaryImpl<TKey, TKeyStore, TValue> _dict;
+
+            public static void TryRearm(DictionaryImpl<TKey, TKeyStore, TValue> dict)
+            {
+                ref var sweeperLocation = ref dict._topDict._sweeperInstance;
+                var sweeperInst = sweeperLocation as Sweeper;
+                if (sweeperInst != null && Interlocked.CompareExchange(ref sweeperLocation, null, sweeperInst) == sweeperInst)
+                {
+                    sweeperInst._dict = dict;
+                    GC.ReRegisterForFinalize(sweeperInst);
+                }
+            }
+
+            ~Sweeper()
+            {
+                Task.Run(() => Sweep());
+            }
+
+            private void Sweep()
+            {
+                var dict = _dict;
+                this._dict = null;
+
+                if (dict == null)
+                {
+                    // this could happen when table is destroyed
+                    return;
+                }
+
+                // any key removed after we start sweeping may not be swept
+                // signal to future removers that they need another request.
+                Interlocked.Exchange(ref dict._topDict._sweepRequests, 0);
+
+                var entries = dict._entries;
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    // if resizing, just help to resize instead
+                    if (dict._newTable != null)
+                    {
+                        do
+                        {
+                            dict.HelpCopyImpl(copy_all: true);
+                            dict = dict._newTable;
+                        } while (dict._newTable != null);
+                        break;
+                    }
+
+                    ref var e = ref entries[i];
+                    if (e.value == TOMBSTONE)
+                    {
+                        if (Interlocked.CompareExchange(ref e.value, TOMBPRIME, TOMBSTONE) == TOMBSTONE)
+                        {
+                            e.hash = REGULAR_HASH_BITS;
+                            e.key = default(TKeyStore);
+                            Interlocked.Increment(ref dict._copyDone);
+                        }
+                    }
+
+                }
+
+                // got new requests while sweeping. revisit after next GC.
+                dict._topDict._sweeperInstance = this;
+                if (dict._topDict._sweepRequests != 0)
+                {
+                    TryRearm(dict);
+                }
+            }
+        }
 
         // Sometimes many threads race to create a new very large table.  Only 1
         // wins the race, but the losers all allocate a junk large table with
@@ -88,6 +172,11 @@ namespace NonBlocking
             this._entries = new Entry[capacity];
             this._size = new Counter32();
             this._topDict = topDict;
+
+            if (!typeof(TKeyStore).GetTypeInfo().IsValueType)
+            {
+                topDict._sweeperInstance = new Sweeper();
+            }
         }
 
         protected DictionaryImpl(int capacity, DictionaryImpl<TKey, TKeyStore, TValue> other)
@@ -114,8 +203,10 @@ namespace NonBlocking
 
             int h = _keyComparer.GetHashCode(key);
 
-            // ensure that hash never matches 0, TOMBPRIMEHASH or ZEROHASH
-            return h | REGULAR_HASH_BITS;
+            // ensure that hash never matches 0, TOMBPRIMEHASH, ZEROHASH or REGULAR_HASH_BITS
+            return (h == 0) ?
+                    1 :
+                    h | REGULAR_HASH_BITS;
         }
 
         internal sealed override int Count
@@ -202,7 +293,7 @@ namespace NonBlocking
                     }
 
                     // no new table, so this is a miss
-                    break;
+                        break;
                 }
 
                 curTable.ReprobeResizeCheck(reprobeCnt, lenMask);
@@ -243,7 +334,7 @@ namespace NonBlocking
             var curTable = this;
             int fullHash = curTable.hash(key);
 
-            TRY_WITH_NEW_TABLE:
+        TRY_WITH_NEW_TABLE:
 
             Debug.Assert(newVal != null);
             Debug.Assert(!(newVal is Prime));
@@ -343,11 +434,13 @@ namespace NonBlocking
 
             // See if we are moving to a new table.
             // If so, copy our slot and retry in the new table.
-            if (newTable != null)
+            // Seeing TOMBPRIME entry while no newTable means the slot is in a process of being deleted
+            // Let CopySlotAndGetNewTable handle that case too.
+            if (newTable != null || entryValue == TOMBPRIME)
             {
                 var newTable1 = curTable.CopySlotAndGetNewTable(idx, shouldHelp: true);
-                Debug.Assert(newTable == newTable1);
-                curTable = newTable;
+                Debug.Assert(newTable == newTable1 || (newTable == null && newTable1 == this));
+                curTable = newTable1;
                 goto TRY_WITH_NEW_TABLE;
             }
 
@@ -412,6 +505,7 @@ namespace NonBlocking
                         if (newVal == TOMBSTONE)
                         {
                             curTable._size.Decrement();
+                            SweepCheck();
                         }
                     }
 
@@ -892,9 +986,20 @@ namespace NonBlocking
         {
             var newTable = this._newTable;
 
-            // We're only here because the caller saw a Prime, which implies a
-            // table-copy is in progress.
-            Debug.Assert(newTable != null);
+            // We're typically here because the caller saw a Prime, which implies a table-copy is in progress.
+            // However this could be just an entry partially swept.
+            // In such case return it is being "copied" into oblivion, so return the same table back to retry.
+            if (newTable == null)
+            {
+                Debug.Assert(!typeof(TKeyStore).GetTypeInfo().IsValueType);
+                // help with "copying" in case the sweeping thread is stuck. We do not want to come here again.
+                // we write unconditionally though, since this is a relatively rare case.
+                ref var e = ref this._entries[idx];
+                e.hash = REGULAR_HASH_BITS;
+                e.key = default(TKeyStore);
+
+                return this;
+            }
 
             if (CopySlot(ref this._entries[idx], newTable))
             {
