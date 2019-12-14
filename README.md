@@ -17,6 +17,8 @@ ConcurrentDictionary performs Remove under a lock and as such it can expell both
 
 In code that uses Remove and is sensitive to when keys become GC-unreachable, like if keys have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
 
+More deterministic release of keys will be available in the next version.
+
 ## Implementation notes
 Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click.
 A good overview is here https://www.youtube.com/watch?v=HJ-719EGIts
