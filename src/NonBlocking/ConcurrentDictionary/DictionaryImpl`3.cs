@@ -84,7 +84,7 @@ namespace NonBlocking
         {
             capacity = Math.Max(capacity, MIN_SIZE);
 
-            capacity = AlignToPowerOfTwo(capacity);
+            capacity = Util.AlignToPowerOfTwo(capacity);
             this._entries = new Entry[capacity];
             this._size = new Counter32();
             this._topDict = topDict;
@@ -92,7 +92,7 @@ namespace NonBlocking
 
         protected DictionaryImpl(int capacity, DictionaryImpl<TKey, TKeyStore, TValue> other)
         {
-            capacity = AlignToPowerOfTwo(capacity);
+            capacity = Util.AlignToPowerOfTwo(capacity);
             this._entries = new Entry[capacity];
             this._size = other._size;
             this._topDict = other._topDict;
@@ -103,19 +103,6 @@ namespace NonBlocking
         private static uint CurrentTickMillis()
         {
             return (uint)Environment.TickCount;
-        }
-
-        private static int AlignToPowerOfTwo(int size)
-        {
-            Debug.Assert(size > 0);
-
-            size--;
-            size |= size >> 1;
-            size |= size >> 2;
-            size |= size >> 4;
-            size |= size >> 8;
-            size |= size >> 16;
-            return size + 1;
         }
 
         protected virtual int hash(TKey key)
@@ -1099,7 +1086,7 @@ namespace NonBlocking
             }
 
             // Align up to a power of 2
-            newsz = AlignToPowerOfTwo(newsz);
+            newsz = Util.AlignToPowerOfTwo(newsz);
 
             // Size calculation: 2 words (K+V) per table entry, plus a handful.  We
             // guess at 32-bit pointers; 64-bit pointers screws up the size calc by

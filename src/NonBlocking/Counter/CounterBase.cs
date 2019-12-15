@@ -15,7 +15,7 @@ namespace NonBlocking
         private protected const int CACHE_LINE = 64;
         private protected const int OBJ_HEADER_SIZE = 8;
 
-        private protected static readonly int MAX_CELL_COUNT = Environment.ProcessorCount;
+        private protected static readonly int MAX_CELL_COUNT = Util.AlignToPowerOfTwo(Environment.ProcessorCount) + 1;
 
         // how many cells we have
         private protected int cellCount;
@@ -28,9 +28,18 @@ namespace NonBlocking
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private protected static int GetIndex(int cellCount)
+        private protected unsafe static int GetIndex(uint cellCount)
         {
-            return Environment.CurrentManagedThreadId % cellCount;
+            if (IntPtr.Size == 4)
+            {
+                uint addr = (uint)&cellCount;
+                return (int)(addr % cellCount);
+            }
+            else
+            {
+                ulong addr = (ulong)&cellCount;
+                return (int)(addr % cellCount);
+            }
         }
     }
 }

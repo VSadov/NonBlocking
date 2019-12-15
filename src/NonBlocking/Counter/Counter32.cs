@@ -154,7 +154,7 @@ namespace NonBlocking
 
             if (this.cells != null & curCellCount > 1)
             {
-                var cell = this.cells[GetIndex(curCellCount)];
+                var cell = this.cells[GetIndex((uint)curCellCount)];
 
                 if (cell != null)
                 {
