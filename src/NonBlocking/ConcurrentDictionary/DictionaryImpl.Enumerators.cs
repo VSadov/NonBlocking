@@ -7,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace NonBlocking
@@ -47,7 +48,7 @@ namespace NonBlocking
                     }
 
                     // there is a copy in progress, finish it and try again
-                    _table.HelpCopyImpl(copy_all: true);
+                    _table.HelpCopy(copy_all: true);
                     this._table = (DictionaryImpl<TKey, TKeyStore, TValue>)(this._table._topDict._table);
                 }
 
@@ -95,7 +96,7 @@ namespace NonBlocking
                             }
                             else
                             {
-                                _nextV = (TValue)nextV;
+                                _nextV = nextV;
                             }
 
 
@@ -131,7 +132,11 @@ namespace NonBlocking
                         throw new InvalidOperationException();
                     }
 
-                    return new KeyValuePair<TKey, TValue>(this._curKey, (TValue)curValue);
+                    var curValueUnboxed = default(TValue) != null ?
+                                            Unsafe.As<Boxed<TValue>>(curValue).Value :
+                                            (TValue)curValue;
+
+                    return new KeyValuePair<TKey, TValue>(this._curKey, curValueUnboxed);
                 }
             }
 
@@ -152,7 +157,11 @@ namespace NonBlocking
                         throw new InvalidOperationException();
                     }
 
-                    return new DictionaryEntry(this._curKey, (TValue)curValue);
+                    var curValueUnboxed = default(TValue) != null ?
+                        Unsafe.As<Boxed<TValue>>(curValue).Value :
+                        (TValue)curValue;
+
+                    return new DictionaryEntry(this._curKey, curValueUnboxed);
                 }
             }
 

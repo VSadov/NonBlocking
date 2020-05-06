@@ -5,6 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -76,6 +77,7 @@ namespace NonBlocking
         }
     }
 
+#pragma warning disable CS0659 // Type overrides Object.Equals(object o) but does not override Object.GetHashCode()
     internal class Boxed<T>
     {
         public readonly T Value;
@@ -84,5 +86,11 @@ namespace NonBlocking
         {
             this.Value = key;
         }
+
+        public override bool Equals(object obj)
+        {
+            return EqualityComparer<T>.Default.Equals(this.Value, Unsafe.As<Boxed<T>>(obj).Value);
+        }
     }
+#pragma warning restore CS0659 // Type overrides Object.Equals(object o) but does not override Object.GetHashCode()
 }

@@ -122,7 +122,7 @@ namespace NonBlocking
         {
             return (key == 0) ?
                 ZEROHASH :
-                key.GetHashCode() | REGULAR_HASH_BITS;
+                key.GetHashCode() | SPECIAL_HASH_BITS;
         }
 
         protected override bool keyEqual(long key, long entryKey)

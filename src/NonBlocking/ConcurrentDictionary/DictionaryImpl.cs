@@ -42,10 +42,10 @@ namespace NonBlocking
         // so we force them to have this special hash instead
         protected const int ZEROHASH = 1 << 30;
 
-        // all regular hashes have these bits set
-        // to be different from 0, TOMBPRIMEHASH or ZEROHASH
+        // all regular hashes have both these bits set
+        // to be different from either 0, TOMBPRIMEHASH or ZEROHASH
         // having only these bits set in a case of Ref key means that the slot is permanently deleted.
-        protected const int REGULAR_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
+        protected const int SPECIAL_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
         protected const int REPROBE_LIMIT = 4;
         protected const int REPROBE_LIMIT_SHIFT = 1;
@@ -61,7 +61,7 @@ namespace NonBlocking
 
         protected static bool EntryValueNullOrDead(object entryValue)
         {
-            return entryValue == null | entryValue == TOMBSTONE;
+            return entryValue == null || entryValue == TOMBSTONE;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -69,7 +69,7 @@ namespace NonBlocking
         {
             var h = (uint)fullHash;
 
-            // smudge bits down in case they differ only in higher bits
+            // smudge bits down, in case they differ only in higher bits
             h ^= h >> 15;
             h ^= h >> 7;
 
@@ -82,12 +82,12 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static object ToObjectValue<TValue>(TValue value)
         {
-            if (default(TValue) == null)
+            if (default(TValue) != null)
             {
-                return (object)value ?? NULLVALUE;
+                return new Boxed<TValue>(value);
             }
 
-            return (object)value;
+            return (object)value ?? NULLVALUE;
         }
 
         internal static DictionaryImpl<TKey, TValue> CreateRef<TKey, TValue>(ConcurrentDictionary<TKey, TValue> topDict, int capacity)

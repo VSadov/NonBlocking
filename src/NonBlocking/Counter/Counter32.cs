@@ -152,10 +152,10 @@ namespace NonBlocking
         {
             ref var cntRef = ref cnt;
 
-            if (this.cells != null & curCellCount > 1)
+            Cell[] cells;
+            if ((cells = this.cells) != null && curCellCount > 1)
             {
-                var cell = this.cells[GetIndex((uint)curCellCount)];
-
+                var cell = cells[GetIndex((uint)curCellCount)];
                 if (cell != null)
                 {
                     cntRef = ref cell.counter.cnt;
@@ -182,18 +182,19 @@ namespace NonBlocking
 
         private void TryAddCell(int curCellCount)
         {
-            if (curCellCount < MAX_CELL_COUNT)
+            if (curCellCount < s_MaxCellCount)
             {
                 TryAddCellCore(curCellCount);
             }
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private void TryAddCellCore(int curCellCount)
         {
             var cells = this.cells;
             if (cells == null)
             {
-                var newCells = new Cell[MAX_CELL_COUNT];
+                var newCells = new Cell[s_MaxCellCount];
                 cells = Interlocked.CompareExchange(ref this.cells, newCells, null) ?? newCells;
             }
 

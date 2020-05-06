@@ -19,8 +19,6 @@
 
       On most operations NonBlocking dictionary is faster than Concurrent, especially in write-heavy scenarios.
 
-      There is a subtle difference in the behavior of Remove. Concurrent dictionary removes both the value and the key on Remove, while holding a lock. NonBlocking dictionary only removes values, thus avoiding locking, and the corresponding key is released lazily when more space is needed. In code that relies on deterministic release of key objects (uncommon), Concurrent dictionary would be preferable.
-
       Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click. A good overview could be found here: https://www.youtube.com/watch?v=HJ-719EGIts
 
       === Counter32
