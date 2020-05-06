@@ -14,7 +14,7 @@ using Xunit;
 
 namespace NonBlockingTests
 {
-    class Program
+    public class Program
     {
         static void Main(string[] args)
         {

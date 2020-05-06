@@ -68,17 +68,17 @@ namespace NonBlockingTests
         [Fact]
         public static void TestAdd1()
         {
-            TestAdd1(1, 1, 1, 10000);
-            TestAdd1(5, 1, 1, 10000);
-            TestAdd1(1, 1, 2, 5000);
-            TestAdd1(1, 1, 5, 2000);
-            TestAdd1(4, 0, 4, 2000);
-            TestAdd1(16, 31, 4, 2000);
-            TestAdd1(64, 5, 5, 5000);
-            TestAdd1(5, 5, 5, 2500);
+            TestAddCore(1, 1, 1, 10000);
+            TestAddCore(5, 1, 1, 10000);
+            TestAddCore(1, 1, 2, 5000);
+            TestAddCore(1, 1, 5, 2000);
+            TestAddCore(4, 0, 4, 2000);
+            TestAddCore(16, 31, 4, 2000);
+            TestAddCore(64, 5, 5, 5000);
+            TestAddCore(5, 5, 5, 2500);
         }
 
-        private static void TestAdd1(int cLevel, int initSize, int threads, int addsPerThread)
+        private static void TestAddCore(int cLevel, int initSize, int threads, int addsPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dictConcurrent = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
             IDictionary<int, int> dict = dictConcurrent;
@@ -137,17 +137,17 @@ namespace NonBlockingTests
         [Fact]
         public static void TestUpdate1()
         {
-            TestUpdate1(1, 1, 10000);
-            TestUpdate1(5, 1, 10000);
-            TestUpdate1(1, 2, 5000);
-            TestUpdate1(1, 5, 2001);
-            TestUpdate1(4, 4, 2001);
-            TestUpdate1(15, 5, 2001);
-            TestUpdate1(64, 5, 5000);
-            TestUpdate1(5, 5, 25000);
+            TestUpdateCore(1, 1, 10000);
+            TestUpdateCore(5, 1, 10000);
+            TestUpdateCore(1, 2, 5000);
+            TestUpdateCore(1, 5, 2001);
+            TestUpdateCore(4, 4, 2001);
+            TestUpdateCore(15, 5, 2001);
+            TestUpdateCore(64, 5, 5000);
+            TestUpdateCore(5, 5, 25000);
         }
 
-        private static void TestUpdate1(int cLevel, int threads, int updatesPerThread)
+        private static void TestUpdateCore(int cLevel, int threads, int updatesPerThread)
         {
             IDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
 
@@ -205,17 +205,17 @@ namespace NonBlockingTests
         [Fact]
         public static void TestRead1()
         {
-            TestRead1(1, 1, 10000);
-            TestRead1(5, 1, 10000);
-            TestRead1(1, 2, 5000);
-            TestRead1(1, 5, 2001);
-            TestRead1(4, 4, 2001);
-            TestRead1(15, 5, 2001);
-            TestRead1(64, 5, 5000);
-            TestRead1(5, 5, 25000);
+            TestReadCore(1, 1, 10000);
+            TestReadCore(5, 1, 10000);
+            TestReadCore(1, 2, 5000);
+            TestReadCore(1, 5, 2001);
+            TestReadCore(4, 4, 2001);
+            TestReadCore(15, 5, 2001);
+            TestReadCore(64, 5, 5000);
+            TestReadCore(5, 5, 25000);
         }
 
-        private static void TestRead1(int cLevel, int threads, int readsPerThread)
+        private static void TestReadCore(int cLevel, int threads, int readsPerThread)
         {
             IDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
 
@@ -253,15 +253,15 @@ namespace NonBlockingTests
         [Fact]
         public static void TestRemove1()
         {
-            TestRemove1(1, 1, 10000);
-            TestRemove1(5, 1, 1000);
-            TestRemove1(1, 5, 2001);
-            TestRemove1(4, 4, 2001);
-            TestRemove1(15, 5, 2001);
-            TestRemove1(64, 5, 5000);
+            TestRemoveCore(1, 1, 10000);
+            TestRemoveCore(5, 1, 1000);
+            TestRemoveCore(1, 5, 2001);
+            TestRemoveCore(4, 4, 2001);
+            TestRemoveCore(15, 5, 2001);
+            TestRemoveCore(64, 5, 5000);
         }
 
-        private static void TestRemove1(int cLevel, int threads, int removesPerThread)
+        private static void TestRemoveCore(int cLevel, int threads, int removesPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
             string methodparameters = string.Format("* TestRemove1(cLevel={0}, threads={1}, removesPerThread={2})", cLevel, threads, removesPerThread);
@@ -325,12 +325,12 @@ namespace NonBlockingTests
         [Fact]
         public static void TestRemove2()
         {
-            TestRemove2(1);
-            TestRemove2(10);
-            TestRemove2(5000);
+            TestRemoveCore2(1);
+            TestRemoveCore2(10);
+            TestRemoveCore2(5000);
         }
 
-        private static void TestRemove2(int removesPerThread)
+        private static void TestRemoveCore2(int removesPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>();
 
@@ -368,7 +368,7 @@ namespace NonBlockingTests
                 mre.WaitOne();
             }
 
-            Assert.Equal(0, dict.Count);
+            Assert.Empty(dict);
 
             for (int i = 0; i < removesPerThread; i++)
             {
@@ -404,8 +404,10 @@ namespace NonBlockingTests
             Assert.False(col.Remove(new KeyValuePair<int, int>(99, -99)), "Should not remove the key/value pair which has been removed");
 
             // And that the dictionary is empty. We will check the count in a few different ways:
-            Assert.Equal(0, dict.Count);
+            Assert.Empty(dict);
+#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
             Assert.Equal(0, dict.ToArray().Length);
+#pragma warning restore xUnit2013 // Do not use equality check to check for collection size.
         }
 
         [Fact]
@@ -531,6 +533,7 @@ namespace NonBlockingTests
             }
         }
 
+        [Fact]
         public static void TestConstructor()
         {
             var dictionary = new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
@@ -803,13 +806,16 @@ namespace NonBlockingTests
             Assert.Equal(10, dictionary.Count);
 
             dictionary.Clear();
+#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
             Assert.Equal(0, dictionary.Count);
+#pragma warning restore xUnit2013 // Do not use equality check to check for collection size.
 
             int item;
             Assert.False(dictionary.TryRemove(1, out item), "TestClear: FAILED.  TryRemove succeeded after Clear");
             Assert.True(dictionary.IsEmpty, "TestClear: FAILED.  IsEmpty returned false after Clear");
         }
 
+        [Fact]
         public static void TestTryUpdate()
         {
             var dictionary = new NonBlocking.ConcurrentDictionary<string, int>();
