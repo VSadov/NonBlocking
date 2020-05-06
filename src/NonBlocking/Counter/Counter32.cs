@@ -97,8 +97,8 @@ namespace NonBlocking
                 // more than a millisecond passed?
                 if (curTicks != lastCntTicks)
                 {
-                    lastCnt = Value;
                     lastCntTicks = curTicks;
+                    lastCnt = Value;
                 }
 
                 return lastCnt;
