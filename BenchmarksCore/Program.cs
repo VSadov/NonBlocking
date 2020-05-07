@@ -36,8 +36,8 @@ namespace NonBlockingTests
             GetBenchNB();
             GetBenchCD();
 
-            EmptyAction();
-            InterlockedIncrement();
+            // EmptyAction();
+            // InterlockedIncrement();
 
             Counter32Perf();
             Counter64Perf();
