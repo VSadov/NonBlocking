@@ -15,7 +15,7 @@ namespace NonBlocking
         private protected const int CACHE_LINE = 64;
         private protected const int OBJ_HEADER_SIZE = 8;
 
-        private protected static readonly int MAX_CELL_COUNT = Util.AlignToPowerOfTwo(Environment.ProcessorCount) + 1;
+        private protected static readonly int s_MaxCellCount = Util.AlignToPowerOfTwo(Environment.ProcessorCount) + 1;
 
         // how many cells we have
         private protected int cellCount;
@@ -25,6 +25,8 @@ namespace NonBlocking
 
         private protected CounterBase()
         {
+            // touch static
+            _ = s_MaxCellCount;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

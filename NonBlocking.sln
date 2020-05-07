@@ -10,11 +10,8 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NonBlocking", "src\NonBlocking\NonBlocking.csproj", "{FAD4FDA1-2B65-487B-B9EA-37507C70573C}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{6D50E992-7113-4A07-BBBD-2A5D310BB0CB}"
-	ProjectSection(SolutionItems) = preProject
-		Performance5.psess = Performance5.psess
-	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BenchmarksCore", "BenchmarksCore\BenchmarksCore.csproj", "{BFBFE5C8-466C-471C-8B04-1AF4AFC74506}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BenchmarksCore", "BenchmarksCore\BenchmarksCore.csproj", "{BFBFE5C8-466C-471C-8B04-1AF4AFC74506}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

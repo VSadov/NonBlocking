@@ -53,14 +53,14 @@ namespace NonBlocking
 
         protected override bool keyEqual(TKey key, TKey entryKey)
         {
-            //NOTE: slots are claimed in two stages - claim a hash, then set a key
-            //      it is possible to observe a slot with a null key, but with hash already set
-            //      that is not a match since the key is not yet in the table
             if (key == entryKey)
             {
                 return true;
             }
            
+            //NOTE: slots are claimed in two stages - claim a hash, then set a key
+            //      it is possible to observe a slot with a null key, but with hash already set
+            //      that is not a match since the key is not yet in the table
             return entryKey != null && _keyComparer.Equals(entryKey, key);
         }
 

@@ -122,7 +122,7 @@ namespace NonBlocking
         {
             return (key == 0) ?
                 ZEROHASH :
-                key | REGULAR_HASH_BITS;
+                key | SPECIAL_HASH_BITS;
         }
 
         protected override bool keyEqual(int key, int entryKey)

@@ -10,40 +10,36 @@ NonBlocking dictionary:
 - No locks are taken during any operation including Get, Add, Remove, internal resizes etc...
 - While multiple threads accessing NonBlocking dictionary will help each other in operations such as table resizing, there is no dependency on such behavior. If any thread get unscheduled or delayed for whatever reason, other threads will be able to make progress independently.
 
-## Behavior differences compared to ConcurrentDictionary
-There is a subtle difference in when keys are unreferenced after Remove. ConcurrentDictionary drops keys eagerly on Remove, while in the case of NonBlocking dictionary only the value is removed and the corresponding key is dropped lazily.  
-
-ConcurrentDictionary performs Remove under a lock and as such it can expell both the key and the value "atomically". That is not the case for NonBlocking dictionary and thus only values are immediately removed. The corresponding dead key will remain in the dictionary and may become live again after a corresponding Add, or, if still dead, "shaken off" when there is a shortage of free slots.
-
-In code that uses Remove and is sensitive to when keys become GC-unreachable, like if keys have finalizers or can reference large object graphs, the laziness of Remove could be a problem.
-
-More deterministic release of keys will be available in the next version.
-
 ## Implementation notes
 Core algorithms are based on NonBlockingHashMap, written and released to the public domain by Dr. Cliff Click.
 A good overview is here https://www.youtube.com/watch?v=HJ-719EGIts
 
-Most differences of this implementation are motivated by the differences in provided and expected APIs on .Net platform. In particular:
+Most differences of this implementation are motivated by the differences in public APIs on .Net platform:
 - .Net has structs and reified generics.
 - platform APIs such as Interlocked.CompareExchange have differences.
 - ConcurrentDictionary API differs from a typical java dictionary.
 
-Memory model is assumed to be weak and honoring indirection data-dependency (should work on ARM, but not yet tested).
+## Tested on platforms:
+* x86
+* x64
+* arm
+* arm64
 
 ## Performance
 
-On most operations NonBlocking dictionary is faster than ConcurrentDictionary.  
-It is particularly faster in write-heavy scenarios.  
-NonBlocking dictionary scales linearly with number of active threads if hardware permits.  
+On most operations NonBlocking dictionary is faster than ConcurrentDictionary. It is particularly faster in write-heavy scenarios.  
+Read/Write oprations scale linearly with the number of active threads if hardware/OS permits.  
 
 ## Benchmarks
 
 The test machine is  
-	Intel(R) Xeon(R) CPU E5-2698B v3 @ 2.00GHz	Sockets:	2	Virtual processors:	32.
+	AMD EPYC (Rome) 64-Core Processor @ 2.44GHz	
+	
+	Configured as: 
+       4 NUMA nodes  
+       256 Logical processors.
 
-The benchmarks perform various operations on {int --> string} dictionaries and run as 64bit process.  
-Y - number of operations in 1000000 ops per second.  
-X - number of threads  
+The following sample benchmarks perform various operations on {int --> string} dictionaries and run as 64bit process.  
 
 ![Get](/../pictures//Graphs/Read.png?raw=true "Random Get")
 
@@ -51,13 +47,6 @@ X - number of threads
 
 ![Add](/../pictures//Graphs/Add.png?raw=true "Random Add")
 
-One interesting observation - An average Add operation on a clean dictionary results in a cache miss and access to RAM. Another access is accrued on average due to double-up resizes. As a result, at some point Add can unavoidably be limited by the throughput of memory accesses. 
-
-The limits of the hardware are more pronounced on the next chart where reads are done off a fresh table, not yet in a local CPU cache.
-The scenario is dominated by uncached reads and is bounded by about 32 MOps/second.  
-Since Add, on average, requires two uncached accesses, it seems to operate close to the hardware limits.
-
-![Get uncached](/../pictures//Graphs/ReadNocached.png?raw=true "Random Get fm Fresh table")
 
 
 
