@@ -42,10 +42,14 @@ The test machine is
 The following sample benchmarks perform various operations on {int --> string} dictionaries and run as 64bit process.  
 
 ![Get](/../pictures//Graphs/Read.png?raw=true "Random Get")
+The machine is configured as 4-node NUMA and Windows scheduler would use cores from one node, then their HT siblings, and only then use another node. Thus we see "steps".
 
 ![Write](/../pictures//Graphs/Write.png?raw=true "Random Write")
+Not taking locks makes writes cheaper.
 
 ![Add](/../pictures//Graphs/Add.png?raw=true "Random Add")
+When a table grows to 1000000 element we start over with a new table.  
+Add/Resize scale well when no locks need to be taken, as long as the rest of the system (like GC) can keep up.
 
 
 
