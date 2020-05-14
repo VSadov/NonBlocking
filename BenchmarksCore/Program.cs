@@ -55,6 +55,15 @@ namespace NonBlockingTests
 
             WriteBenchRndNB();
             WriteBenchRndCD();
+
+            ///////////////////////
+            // degenerate cases
+
+            //SingleThreadedSequentialAddWithGapsNB();
+            //SingleThreadedSequentialAddWithGapsCD();
+
+            //ChurnConcurrent();
+
         }
 
         private static void EmptyAction()
@@ -113,7 +122,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[keys[i]] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[keys[i]]; });
 
-            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Get NonBlocking object->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[keys[i % 100000]]; };
 
@@ -130,7 +139,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[keys[i]] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[keys[i]]; });
 
-            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Get Concurrent object->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[keys[i % 100000]]; };
 
@@ -144,7 +153,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Get NonBlocking int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
@@ -158,7 +167,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Get Concurrent int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
@@ -172,7 +181,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = i);
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Get NonBlocking int->int 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
@@ -186,7 +195,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = i);
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Get Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Get Concurrent int->int 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) => { var dummy = dict[i % 100000]; };
 
@@ -200,7 +209,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = "qq");
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Random Get NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Random Get NonBlocking int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -219,7 +228,7 @@ namespace NonBlockingTests
             Parallel.For(0, 100000, (i) => dict[i] = "qq");
             Parallel.For(0, 100000, (i) => { var dummy = dict[i]; });
 
-            var benchmarkName = "======== Random Get Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Random Get Concurrent 1M int->string Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -247,7 +256,7 @@ namespace NonBlockingTests
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
             var cnt = new Counter32();
 
-            var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Random Add NonBlocking int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -275,7 +284,7 @@ namespace NonBlockingTests
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
             var cnt = new Counter32();
 
-            var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Random Add Concurrent int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -303,7 +312,7 @@ namespace NonBlockingTests
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
             var cnt = new Counter32();
 
-            var benchmarkName = "======== Random GetOrAdd Func NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Random GetOrAdd Func NonBlocking int->string 1M Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -331,7 +340,7 @@ namespace NonBlockingTests
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
             var cnt = new Counter32();
 
-            var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M int->string Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -358,7 +367,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
 
-            var benchmarkName = "======== Random Write NonBlocking 1M Ops/sec:";
+            var benchmarkName = "======== Random Write NonBlocking 1M int->string Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -375,7 +384,7 @@ namespace NonBlockingTests
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
-            var benchmarkName = "======== Random Write Concurrent 1M Ops/sec:";
+            var benchmarkName = "======== Random Write Concurrent 1M int->string Ops/sec:";
 
             Action<int, int> act = (i, threadBias) =>
             {
@@ -494,7 +503,7 @@ namespace NonBlockingTests
         private static void ChurnConcurrent()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            //var dict = new ConcurrentDictionary<int, string>();
+            //var dict = new Concurrent.ConcurrentDictionary<int, string>();
 
             var threadCnt = 200;
             List<Task> tasks = new List<Task>(threadCnt);
@@ -522,6 +531,57 @@ namespace NonBlockingTests
             Task.WaitAll(tasks.ToArray());
 
             System.Console.WriteLine(sw.ElapsedMilliseconds);
+        }
+
+        private static int GetSequentionalIndex(int i, int threadBias, uint limit)
+        {
+            return (int)((i + threadBias) % limit);
+        }
+
+        private static void SingleThreadedSequentialAddWithGapsNB()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, int>();
+
+            for (var i = 0; i < 8; ++i)
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                var key = (i + 1) * 50_000_000;
+
+                for (var j = 0; j < 10_000_000; ++j)
+                {
+                    dict.TryAdd(key + j, j);
+                }
+
+                sw.Stop();
+                System.Console.Write(sw.ElapsedMilliseconds + " ");
+
+                GC.Collect();
+            }
+
+            System.Console.WriteLine();
+        }
+
+        private static void SingleThreadedSequentialAddWithGapsCD()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, int>();
+
+            for (var i = 0; i < 8; ++i)
+            {
+                Stopwatch sw = Stopwatch.StartNew();
+                var key = (i + 1) * 50_000_000;
+
+                for (var j = 0; j < 10_000_000; ++j)
+                {
+                    dict.TryAdd(key + j, j);
+                }
+
+                sw.Stop();
+                System.Console.Write(sw.ElapsedMilliseconds + " ");
+
+                GC.Collect();
+            }
+
+            System.Console.WriteLine();
         }
     }
 

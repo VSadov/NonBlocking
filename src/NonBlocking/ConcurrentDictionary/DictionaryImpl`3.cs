@@ -54,6 +54,7 @@ namespace NonBlocking
         // table to the new.
         private int _copyDone = 0;
 
+        [DebuggerDisplay("key = {key}; hash = {hash}; value = {value};")]
         [StructLayout(LayoutKind.Sequential)]
         public struct Entry
         {

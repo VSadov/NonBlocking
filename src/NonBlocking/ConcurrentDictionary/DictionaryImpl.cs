@@ -69,12 +69,17 @@ namespace NonBlocking
         {
             var h = (uint)fullHash;
 
-            // smudge bits down, in case they differ only in higher bits
-            h ^= h >> 15;
-            h ^= h >> 7;
+            // hashcodes often exhibit clustering behavior (i.e. ...,42,43,44,45,46,47...)
+            // unchanged that would cause clustering in the table
+            // some clustering is good, since it improves locality of sequential accesses
+            // excessive clustering may result in long reprobes in case of collisions.
 
-            // spread hashcodes a little in case they differ by 1
-            h = h << 1;
+            // we will use lower LBITS bits as-is and mix up other bits to break clusters.
+            const int LBITS = 6;
+
+            uint upper = (h >> LBITS) * 2654435769u;
+            upper &= ~((1u << LBITS) - 1u);
+            h += upper;
 
             return (int)h & lenMask;
         }
