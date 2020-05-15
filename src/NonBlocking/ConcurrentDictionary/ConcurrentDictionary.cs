@@ -328,11 +328,8 @@ namespace NonBlocking
         /// (Nothing in Visual Basic).</exception>
         public bool Remove(TKey key)
         {
-            object oldValObj = null;
-            var found = _table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
-            Debug.Assert(!(oldValObj is Prime));
-
-            return found;
+            TValue oldVal = default;
+            return _table.RemoveIfMatch(key, ref oldVal, ValueMatch.NotNullOrDead);
         }
 
         /// <summary>
@@ -349,22 +346,8 @@ namespace NonBlocking
         /// (Nothing in Visual Basic).</exception>
         public bool TryRemove(TKey key, out TValue value)
         {
-            object oldValObj = null;
-            var found = _table.PutIfMatch(key, TOMBSTONE, ref oldValObj, ValueMatch.NotNullOrDead);
-
-            Debug.Assert(!(oldValObj is Prime));
-            Debug.Assert(found ^ oldValObj == null);
-
-            if (!found)
-            {
-                value = default(TValue);
-            }
-            else
-            {
-                value = FromObjectValue(oldValObj);
-            }
-
-            return found;
+            value = default;
+            return _table.RemoveIfMatch(key, ref value, ValueMatch.NotNullOrDead);
         }
 
         /// <summary>
@@ -588,8 +571,8 @@ namespace NonBlocking
         /// name="keyValuePair"/> is a null reference (Nothing in Visual Basic).</exception>
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            object oldValObj = ToObjectValue(keyValuePair.Value);
-            return _table.PutIfMatch(keyValuePair.Key, TOMBSTONE, ref oldValObj, ValueMatch.OldValue);
+            TValue oldVal = keyValuePair.Value;
+            return _table.RemoveIfMatch(keyValuePair.Key, ref oldVal, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
