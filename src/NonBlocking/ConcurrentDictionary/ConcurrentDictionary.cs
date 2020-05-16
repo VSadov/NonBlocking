@@ -309,9 +309,8 @@ namespace NonBlocking
         /// contains too many elements.</exception>
         public bool TryAdd(TKey key, TValue value)
         {
-            object oldValObj = null;
-            object newValObj = ToObjectValue(value);
-            return _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead);
+            TValue oldVal = default;
+            return _table.PutIfMatch(key, value, ref oldVal, ValueMatch.NullOrDead);
         }
 
         /// <summary>
@@ -436,9 +435,8 @@ namespace NonBlocking
             }
             set
             {
-                object oldValObj = null;
-                object newValObj = ToObjectValue(value);
-                _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.Any);
+                TValue oldVal = default;
+                _table.PutIfMatch(key, value, ref oldVal, ValueMatch.Any);
             }
         }
 
@@ -509,9 +507,8 @@ namespace NonBlocking
         /// reference.</exception>
         public bool TryUpdate(TKey key, TValue newValue, TValue comparisonValue)
         {
-            object oldValObj = ToObjectValue(comparisonValue);
-            object newValObj = ToObjectValue(newValue);
-            return _table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.OldValue);
+            TValue oldVal = comparisonValue;
+            return _table.PutIfMatch(key, newValue, ref oldVal, ValueMatch.OldValue);
         }
 
         /// <summary>
@@ -528,14 +525,13 @@ namespace NonBlocking
         /// key is already in the dictionary, or the new value if the key was not in the dictionary.</returns>
         public TValue GetOrAdd(TKey key, TValue value)
         {
-            object oldValObj = null;
-            object newValObj = ToObjectValue(value);
-            if (_table.PutIfMatch(key, newValObj, ref oldValObj, ValueMatch.NullOrDead))
+            TValue oldVal = default;
+            if (_table.PutIfMatch(key, value, ref oldVal, ValueMatch.NullOrDead))
             {
                 return value;
             }
 
-            return FromObjectValue(oldValObj);
+            return FromObjectValue(oldVal);
         }
 
         /// <summary>

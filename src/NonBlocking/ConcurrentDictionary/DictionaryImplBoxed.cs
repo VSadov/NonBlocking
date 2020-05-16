@@ -80,7 +80,8 @@ namespace NonBlocking
 #pragma warning disable CS0659 // Type overrides Object.Equals(object o) but does not override Object.GetHashCode()
     internal class Boxed<T>
     {
-        public readonly T Value;
+        public int writeStatus;
+        public T Value;
 
         public Boxed(T key)
         {
@@ -90,6 +91,44 @@ namespace NonBlocking
         public override bool Equals(object obj)
         {
             return EqualityComparer<T>.Default.Equals(this.Value, Unsafe.As<Boxed<T>>(obj).Value);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryVolatileWrite(T value)
+        {
+            if (Interlocked.CompareExchange(ref writeStatus, 1, 0) == 0)
+            {
+                Value = value;
+                Volatile.Write(ref writeStatus, 0);
+                return true;
+            }
+            return false;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TryCompareExchange(T oldValue, T newValue, out bool changed)
+        {
+            changed = false;
+            if (Interlocked.CompareExchange(ref writeStatus, 1, 0) != 0)
+            {
+                return false;
+            }
+
+            if (EqualityComparer<T>.Default.Equals(Value, oldValue))
+            {
+                Value = newValue;
+                changed = true;
+            }
+
+            Volatile.Write(ref writeStatus, 0);
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void Freeze()
+        {
+            // Wait for writers (1) to leave. Already 2 is ok, or set 0 -> 2.
+            while (Interlocked.CompareExchange(ref writeStatus, 2, 0) == 1);
         }
     }
 #pragma warning restore CS0659 // Type overrides Object.Equals(object o) but does not override Object.GetHashCode()

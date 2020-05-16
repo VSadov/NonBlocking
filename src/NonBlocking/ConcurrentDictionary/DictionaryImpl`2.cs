@@ -35,7 +35,7 @@ namespace NonBlocking
         internal abstract int Count { get; }
 
         internal abstract object TryGetValue(TKey key);
-        internal abstract bool PutIfMatch(TKey key, object newVal, ref object oldValue, ValueMatch match);
+        internal abstract bool PutIfMatch(TKey key, TValue newVal, ref TValue oldValue, ValueMatch match);
         internal abstract bool RemoveIfMatch(TKey key, ref TValue oldValue, ValueMatch match);
         internal abstract TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory);
 
