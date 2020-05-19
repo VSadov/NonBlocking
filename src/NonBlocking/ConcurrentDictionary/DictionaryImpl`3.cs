@@ -30,7 +30,7 @@ namespace NonBlocking
         protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
 
-        internal static readonly bool valueIsAtomic = typeof(TValue) == typeof(int);
+        internal static readonly bool valueIsAtomic = IsValueAtomicPrimitive();
         internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
 
         // Sometimes many threads race to create a new very large table.  Only 1
@@ -115,6 +115,47 @@ namespace NonBlocking
             this._keyComparer = other._keyComparer;
         }
 
+        /// <summary>
+        /// Determines whether type TValue can be written atomically
+        /// </summary>
+        private static bool IsValueAtomicPrimitive()
+        {
+            // only intereste in primitive value types here.
+            if (default(TValue) == null)
+            {
+                return false;
+            }
+
+            //
+            // Section 12.6.6 of ECMA CLI explains which types can be read and written atomically without
+            // the risk of tearing.
+            //
+            // See http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-335.pdf
+            //
+            if (typeof(TValue) == typeof(Boolean) ||
+                typeof(TValue) == typeof(Byte) ||
+                typeof(TValue) == typeof(Char) ||
+                typeof(TValue) == typeof(Int16) ||
+                typeof(TValue) == typeof(Int32) ||
+                typeof(TValue) == typeof(SByte) ||
+                typeof(TValue) == typeof(Single) ||
+                typeof(TValue) == typeof(UInt16) ||
+                typeof(TValue) == typeof(UInt32) ||
+                typeof(TValue) == typeof(IntPtr) ||
+                typeof(TValue) == typeof(UIntPtr))
+            {
+                return true;
+            }
+
+            if (typeof(TValue) == typeof(Int64) ||
+                typeof(TValue) == typeof(Double) ||
+                typeof(TValue) == typeof(UInt64))
+            {
+                return IntPtr.Size == 8;
+            }
+
+            return false;
+        }
 
         private static uint CurrentTickMillis()
         {
