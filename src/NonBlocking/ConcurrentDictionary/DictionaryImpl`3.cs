@@ -236,7 +236,10 @@ namespace NonBlocking
         /// </summary>
         internal sealed override bool RemoveIfMatch(TKey key, ref TValue oldVal, ValueMatch match)
         {
-            Debug.Assert(match == ValueMatch.NotNullOrDead || match == ValueMatch.OldValue);
+            Debug.Assert(
+                match == ValueMatch.NotNullOrDead ||
+                match == ValueMatch.OldValue ||
+                match == ValueMatch.Any);   // same as NotNullOrDead, but not reporting the old value
 
             var curTable = this;
             int fullHash = curTable.hash(key);
@@ -326,9 +329,11 @@ namespace NonBlocking
                     goto FAILED;
                 }
 
-                if (ValueIsAtomicPrimitive())
+                if (ValueIsAtomicPrimitive() && match != ValueMatch.Any)
                 {
-                    // must freeze before removing and before checking for value match
+                    // must freeze before removing or before checking for value match
+                    // unless it is "Any" case where we have no witnesses of the old value
+                    // and can assume all writes in the current box "happened before" the remove.
                     Unsafe.As<Boxed<TValue>>(entryValue).Freeze();
                 }
 
@@ -347,7 +352,11 @@ namespace NonBlocking
                 if (prev == entryValue)
                 {
                     // CAS succeeded - we removed!
-                    oldVal = FromObjectValue(prev);
+                    if (match == ValueMatch.NotNullOrDead)
+                    {
+                        oldVal = FromObjectValue(prev);
+                    }
+
                     // Adjust the size
                     curTable._size.Decrement();
                     SweepCheck();

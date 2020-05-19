@@ -328,7 +328,7 @@ namespace NonBlocking
         public bool Remove(TKey key)
         {
             TValue oldVal = default;
-            return _table.RemoveIfMatch(key, ref oldVal, ValueMatch.NotNullOrDead);
+            return _table.RemoveIfMatch(key, ref oldVal, ValueMatch.Any);
         }
 
         /// <summary>
