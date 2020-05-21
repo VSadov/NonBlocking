@@ -69,6 +69,15 @@ namespace NonBlockingTests
                 System.Console.WriteLine("Relativity004");
                 Relativity004();
 
+                System.Console.WriteLine("Finality001");
+                Finality001();
+
+                System.Console.WriteLine("Finality002");
+                Finality002();
+
+                System.Console.WriteLine("Uniqueness001");
+                Uniqueness001();
+
                 System.Console.WriteLine("BadHashAdd");
                 BadHashAdd();
 
@@ -780,6 +789,131 @@ namespace NonBlockingTests
                         int val;
                         if (i % 2 == 0 && dict.TryGetValue(i, out val)) throw new Exception();
                     });
+        }
+
+        [Fact()]
+        private static void Finality001()
+        {
+            var dict1 = new NonBlocking.ConcurrentDictionary<int, int>();
+            var updatedBeforeRemove = new NonBlocking.ConcurrentDictionary<int, bool>();
+            var removedValue = new NonBlocking.ConcurrentDictionary<int, int>();
+
+            Parallel.For(0, 10000,
+                new ParallelOptions(),
+                    (i) =>
+                    {
+                        dict1[i] = 42;
+                    });
+
+            Parallel.For(0, 20000,
+                    (i) =>
+                    {
+                        if (i < 10000)
+                        {
+                            dict1[i] = 43;
+                            updatedBeforeRemove[i] = true;
+                        }
+                        else
+                        {
+                            i %= 10000;
+                            int removed;
+                            dict1.TryRemove(i, out removed);
+                            removedValue[i] = removed;
+                        }
+                    });
+
+            for (int i = 0; i < 10000; i++)
+            {
+                if (updatedBeforeRemove[i] && !dict1.ContainsKey(i))
+                {
+                    Assert.Equal(43, removedValue[i]);
+                }
+            }
+        }
+
+        [Fact()]
+        private static void Finality002()
+        {
+            var dict1 = new NonBlocking.ConcurrentDictionary<int, int>();
+            var updatedBeforeRemove = new NonBlocking.ConcurrentDictionary<int, bool>();
+            var removedValue = new NonBlocking.ConcurrentDictionary<int, int>();
+
+            Parallel.For(0, 10000,
+                new ParallelOptions(),
+                    (i) =>
+                    {
+                        dict1[i] = 42;
+                    });
+
+            Parallel.For(0, 20000,
+                    (i) =>
+                    {
+                        if (i < 10000)
+                        {
+                            updatedBeforeRemove[i] = dict1.TryUpdate(i, 43, 42);
+                        }
+                        else
+                        {
+                            i %= 10000;
+                            int removed;
+                            dict1.TryRemove(i, out removed);
+                            removedValue[i] = removed;
+                        }
+                    });
+
+            for (int i = 0; i < 10000; i++)
+            {
+                if (updatedBeforeRemove[i] && !dict1.ContainsKey(i))
+                {
+                    Assert.Equal(43, removedValue[i]);
+                }
+            }
+        }
+
+
+        [Fact()]
+        private static void Uniqueness001()
+        {
+            var dict1 = new NonBlocking.ConcurrentDictionary<int, int>();
+            var updated1 = new NonBlocking.ConcurrentDictionary<int, bool>();
+            var updated2 = new NonBlocking.ConcurrentDictionary<int, bool>();
+
+            Parallel.For(0, 10000,
+                    (i) =>
+                    {
+                        dict1[i] = 42;
+                    });
+
+
+            Parallel.For(0, 40000,
+                    (i) =>
+                    {   
+                        switch (i % 8)
+                        {
+                            case 0:
+                                i /= 8;
+                                updated1[i] = dict1.TryUpdate(i, 43, 42);
+                                break;
+                            case 1:
+                                i /= 8;
+                                updated2[i] = dict1.TryUpdate(i, 43, 42);
+                                break;
+                            case 2:
+                            case 3:
+                            case 4:
+                            case 5:
+                            case 6:
+                            case 7:
+                                i /= 8;
+                                // TODO: VS any way to force new entry without writing?
+                                break;
+                        }
+                    });
+
+            for (int i = 0; i < 5000; i++)
+            {
+                Assert.False(updated1[i] & updated2[i]);
+            }
         }
 
         [Fact()]

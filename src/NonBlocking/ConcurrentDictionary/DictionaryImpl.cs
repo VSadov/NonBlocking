@@ -13,7 +13,7 @@ namespace NonBlocking
 
         internal enum ValueMatch
         {
-            Any,            // sets new value unconditionally, used by index set
+            Any,            // sets new value unconditionally, used by index set and TryRemove(key)
             NullOrDead,     // set value if original value is null or dead, used by Add/TryAdd
             NotNullOrDead,  // set value if original value is alive, used by Remove
             OldValue,       // sets new value if old value matches

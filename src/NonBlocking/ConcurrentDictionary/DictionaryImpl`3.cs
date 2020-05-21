@@ -30,6 +30,9 @@ namespace NonBlocking
         protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
 
+        internal static readonly bool valueIsAtomic = IsValueAtomicPrimitive();
+        internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
+
         // Sometimes many threads race to create a new very large table.  Only 1
         // wins the race, but the losers all allocate a junk large table with
         // hefty allocation costs.  Attempt to control the overkill here by
@@ -99,6 +102,8 @@ namespace NonBlocking
             {
                 topDict._sweeperInstance = new Sweeper();
             }
+
+            _ = valueIsAtomic;
         }
 
         protected DictionaryImpl(int capacity, DictionaryImpl<TKey, TKeyStore, TValue> other)
@@ -110,6 +115,47 @@ namespace NonBlocking
             this._keyComparer = other._keyComparer;
         }
 
+        /// <summary>
+        /// Determines whether type TValue can be written atomically
+        /// </summary>
+        private static bool IsValueAtomicPrimitive()
+        {
+            // only intereste in primitive value types here.
+            if (default(TValue) == null)
+            {
+                return false;
+            }
+
+            //
+            // Section 12.6.6 of ECMA CLI explains which types can be read and written atomically without
+            // the risk of tearing.
+            //
+            // See http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-335.pdf
+            //
+            if (typeof(TValue) == typeof(Boolean) ||
+                typeof(TValue) == typeof(Byte) ||
+                typeof(TValue) == typeof(Char) ||
+                typeof(TValue) == typeof(Int16) ||
+                typeof(TValue) == typeof(Int32) ||
+                typeof(TValue) == typeof(SByte) ||
+                typeof(TValue) == typeof(Single) ||
+                typeof(TValue) == typeof(UInt16) ||
+                typeof(TValue) == typeof(UInt32) ||
+                typeof(TValue) == typeof(IntPtr) ||
+                typeof(TValue) == typeof(UIntPtr))
+            {
+                return true;
+            }
+
+            if (typeof(TValue) == typeof(Int64) ||
+                typeof(TValue) == typeof(Double) ||
+                typeof(TValue) == typeof(UInt64))
+            {
+                return IntPtr.Size == 8;
+            }
+
+            return false;
+        }
 
         private static uint CurrentTickMillis()
         {
@@ -165,7 +211,7 @@ namespace NonBlocking
                 ref var entry = ref curTable._entries[idx];
 
                 // an entry is never reused for a different key 
-                // key/value/hash all read and order of reads is unimportant
+                // key/value/hash all read atomically and order of reads is unimportant
 
                 // is this our slot?
                 if (fullHash == entry.hash && curTable.keyEqual(key, entry.key))
@@ -199,7 +245,7 @@ namespace NonBlocking
                     break;
                 }
 
-                // get and put must have the same key lookup logic.
+                // get, put and remove must have the same key lookup logic.
                 // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
@@ -225,54 +271,181 @@ namespace NonBlocking
             return null;
         }
 
-        // check once in a while if a table might benefit from resizing.
-        // one reason for this is that crowdedness check uses estimated counts 
-        // so we do not always catch this on key inserts.
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void ResizeOnReprobeCheck(int reprobeCnt)
+        /// <summary>
+        /// returns true if value was removed from the table.
+        /// oldVal contains original value or default(TValue), if it was not present in the table
+        /// </summary>
+        internal sealed override bool RemoveIfMatch(TKey key, ref TValue oldVal, ValueMatch match)
         {
-            // must be ^2 - 1
-            const int reprobeCheckPeriod = 16 - 1;
+            Debug.Assert(
+                match == ValueMatch.NotNullOrDead ||
+                match == ValueMatch.OldValue ||
+                match == ValueMatch.Any);   // same as NotNullOrDead, but not reporting the old value
 
-            // once per reprobeCheckPeriod, check if the table is crowded
-            // and initiale a resize
-            if ((reprobeCnt & reprobeCheckPeriod) == 0)
-            {
-                ReprobeResizeCheckSlow();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        private void ReprobeResizeCheckSlow()
-        {
-            if (this.TableIsCrowded())
-           {
-                this.Resize();
-                this.HelpCopy();
-           }
-        }
-
-        // 1) finds or creates a slot for the key
-        // 2) sets the slot value to the putval if original value meets expVal condition
-        // 3) returns true if the value was actually changed 
-        // Note that pre-existence of the slot is irrelevant 
-        // since slot without a value is as good as no slot at all
-        internal sealed override bool PutIfMatch(TKey key, object newVal, ref object oldVal, ValueMatch match)
-        {
             var curTable = this;
             int fullHash = curTable.hash(key);
 
         tryWithNewTable:
 
-            Debug.Assert(newVal != null);
-            Debug.Assert(!(newVal is Prime));
+            var lenMask = curTable._entries.Length - 1;
+            int idx = ReduceHashToIndex(fullHash, lenMask);
+            ref Entry entry = ref curTable._entries[idx];
 
-            var curEntries = curTable._entries;
-            int idx = ReduceHashToIndex(fullHash, curEntries.Length - 1);
-            ref Entry entry = ref curEntries[idx];
+            // Main spin/reprobe loop
+            int reprobeCount = 0;
+            while (true)
+            {
+                // an entry is never reused for a different key 
+                // key/value/hash all read atomically and order of reads is unimportant
+                var entryHash = entry.hash;
+
+                // is this our slot?
+                if (fullHash == entryHash && curTable.keyEqual(key, entry.key))
+                {
+                    break;
+                }
+
+                if (entryHash == 0)
+                {
+                    // Found an unassigned slot - which means this 
+                    // key has never been in this table.
+                    oldVal = default;
+                    goto FAILED;
+                }
+
+                // get, put and remove must have the same key lookup logic.
+                // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // but there could be more in the new table
+                if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
+                {
+                    if (curTable._newTable != null)
+                    {
+                        curTable.HelpCopy();
+                        curTable = curTable._newTable;
+                        goto tryWithNewTable;
+                    }
+
+                    // no new table, so this is a miss
+                    break;
+                }
+
+                // quadratic reprobing
+                reprobeCount++;
+                curTable.ResizeOnReprobeCheck(reprobeCount);
+                idx = (idx + reprobeCount) & lenMask;
+                entry = ref curTable._entries[idx];
+            }
+
+            // Found the proper Key slot, now update the Value.  
+            // We never put a null, so Value slots monotonically move from null to
+            // not-null (deleted Values use Tombstone).
+
+            // volatile read to make sure we read the element before we read the _newTable
+            // that would guarantee that as long as _newTable == null, entryValue cannot be forwarded.
+            var entryValue = Volatile.Read(ref entry.value);
+            var newTable = curTable._newTable;
+
+            // See if we are moving to a new table.
+            // If so, copy our slot and retry in the new table.
+            // Seeing TOMBPRIME entry while no newTable means the slot is in a process of being deleted
+            // Let CopySlotAndGetNewTable handle that case too.
+            if (newTable != null || entryValue == TOMBPRIME)
+            {
+                var newTable1 = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
+                Debug.Assert(newTable == newTable1 || (newTable == null && newTable1 == this));
+                curTable = newTable1;
+                goto tryWithNewTable;
+            }
+
+            // We are finally prepared to update the existing table
+            while (true)
+            {
+                Debug.Assert(!(entryValue is Prime));
+
+                // can't remove if nothing is there
+                if (EntryValueNullOrDead(entryValue))
+                {
+                    oldVal = default;
+                    goto FAILED;
+                }
+
+                if (ValueIsAtomicPrimitive() && match != ValueMatch.Any)
+                {
+                    // must freeze before removing or before checking for value match
+                    // unless it is "Any" case where we have no witnesses of the old value
+                    // and can assume all writes in the current box "happened before" the remove.
+                    Unsafe.As<Boxed<TValue>>(entryValue).Freeze();
+                }
+
+                if (match == ValueMatch.OldValue)
+                {
+                    TValue unboxedEntryValue = FromObjectValue(entryValue);
+                    if (!EqualityComparer<TValue>.Default.Equals(oldVal, unboxedEntryValue))
+                    {
+                        oldVal = unboxedEntryValue;
+                        goto FAILED;
+                    }
+                }
+
+                // Actually change the Value 
+                var prev = Interlocked.CompareExchange(ref entry.value, TOMBSTONE, entryValue);
+                if (prev == entryValue)
+                {
+                    // CAS succeeded - we removed!
+                    if (match == ValueMatch.NotNullOrDead)
+                    {
+                        oldVal = FromObjectValue(prev);
+                    }
+
+                    // Adjust the size
+                    curTable._size.Decrement();
+                    SweepCheck();
+
+                    return true;
+                }
+
+                // If a Prime'd value got installed, we need to re-run on the new table. 
+                Debug.Assert(prev != null);
+                if (prev.GetType() == typeof(Prime))
+                {
+                    curTable = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
+                    goto tryWithNewTable;
+                }
+
+                // Otherwise we lost the CAS to another racing put/remove.
+                // Simply retry from the start.
+                entryValue = prev;
+            }
+
+        FAILED:
+            return false;
+        }
+
+        // 1) finds or creates a slot for the key
+        // 2) sets the slot value to the newVal if original value meets oldVal and match condition
+        // 3) returns true if the value was actually changed 
+        // Note that pre-existence of the slot is irrelevant 
+        // since slot without a value is as good as no slot at all
+        internal sealed override bool PutIfMatch(TKey key, TValue newVal, ref TValue oldVal, ValueMatch match)
+        {
+            Debug.Assert(
+                match == ValueMatch.NullOrDead || 
+                match == ValueMatch.OldValue ||
+                match == ValueMatch.Any);
+
+
+            var curTable = this;
+            int fullHash = curTable.hash(key);
+
+        tryWithNewTable:
+
+            var lenMask = curTable._entries.Length - 1;
+            int idx = ReduceHashToIndex(fullHash, lenMask);
+            ref Entry entry = ref curTable._entries[idx];
 
             // Spin till we get a slot for the key or force a resizing.
-            int reprobeCnt = 0;
+            int reprobeCount = 0;
             while (true)
             {
                 // an entry is never reused for a different key 
@@ -280,28 +453,18 @@ namespace NonBlocking
                 var entryHash = entry.hash;
                 if (entryHash == 0)
                 {
-                    // Found an unassigned slot - which means this 
-                    // key has never been in this table.
-                    if (newVal == TOMBSTONE)
+                    // Found an unassigned slot - which means this key has never been in this table.
+                    // claim the hash first
+                    Debug.Assert(fullHash != 0);
+                    entryHash = Interlocked.CompareExchange(ref entry.hash, fullHash, 0);
+                    if (entryHash == 0)
                     {
-                        Debug.Assert(match == ValueMatch.NotNullOrDead || match == ValueMatch.OldValue);
-                        oldVal = null;
-                        goto FAILED;
-                    }
-                    else
-                    {
-                        // Slot is completely clean, claim the hash first
-                        Debug.Assert(fullHash != 0);
-                        entryHash = Interlocked.CompareExchange(ref entry.hash, fullHash, 0);
-                        if (entryHash == 0)
+                        entryHash = fullHash;
+                        if (entryHash == ZEROHASH)
                         {
-                            entryHash = fullHash;
-                            if (entryHash == ZEROHASH)
-                            {
-                                // "added" entry for zero key
-                                curTable.allocatedSlotCount.Increment();
-                                break;
-                            }
+                            // "added" entry for zero key
+                            curTable.allocatedSlotCount.Increment();
+                            break;
                         }
                     }
                 }
@@ -316,12 +479,10 @@ namespace NonBlocking
                     }
                 }
 
-                // here we know that this slot does not map to our key
-                // and must reprobe or resize
+                // here we know that this slot does not map to our key and must reprobe or resize
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
-                int lenMask = curEntries.Length - 1;
-                if (entryHash == TOMBPRIMEHASH || reprobeCnt >= ReprobeLimit(lenMask))
+                if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
                     var newTable1 = curTable.Resize();
@@ -332,10 +493,10 @@ namespace NonBlocking
                 }
 
                 // quadratic reprobing
-                reprobeCnt++;
-                curTable.ResizeOnReprobeCheck(reprobeCnt);
-                idx = (idx + reprobeCnt) & lenMask;
-                entry = ref curEntries[idx];
+                reprobeCount++;
+                curTable.ResizeOnReprobeCheck(reprobeCount);
+                idx = (idx + reprobeCount) & lenMask;
+                entry = ref curTable._entries[idx];
             }
 
             // Found the proper Key slot, now update the Value.  
@@ -352,7 +513,7 @@ namespace NonBlocking
             var newTable = curTable._newTable;
 
             // newTable == entryValue only when both are nulls
-            if ((object)newTable == (object)entryValue &&
+                if ((object)newTable == (object)entryValue &&
                 curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
@@ -381,60 +542,61 @@ namespace NonBlocking
                 switch (match)
                 {
                     case ValueMatch.Any:
-                        if (newVal == entryValue)
+                        if (ValueIsAtomicPrimitive() &&
+                            !entryValueNullOrDead &&
+                            Unsafe.As<Boxed<TValue>>(entryValue).TryVolatileWrite(newVal))
                         {
-                            // Do not update!
-                            goto FAILED;
+                            return true;
                         }
                         break;
 
-                    case ValueMatch.NullOrDead:
-                        if (entryValueNullOrDead)
-                        {
-                            break;
-                        }
-
-                        oldVal = entryValue;
-                        goto FAILED;
-
-                    case ValueMatch.NotNullOrDead:
-                        if (entryValueNullOrDead)
-                        {
-                            goto FAILED;
-                        }
-                        break;
                     case ValueMatch.OldValue:
-                        Debug.Assert(oldVal != null);
-                        if (!oldVal.Equals(entryValue))
+                        if (entryValueNullOrDead)
                         {
-                            oldVal = entryValue;
+                            goto FAILED;
+                        }
+
+                        if (ValueIsAtomicPrimitive() &&
+                            Unsafe.As<Boxed<TValue>>(entryValue).TryCompareExchange(oldVal, newVal, out var changed))
+                        {
+                            return changed;
+                        }
+
+                        if (ValueIsAtomicPrimitive())
+                        {
+                            // we could not change the value in place (this is rare), fallback to replacing the whole box.
+                            Unsafe.As<Boxed<TValue>>(entryValue).Freeze();
+                        }
+
+                        TValue unboxedEntryValue = FromObjectValue(entryValue);
+                        if (!EqualityComparer<TValue>.Default.Equals(oldVal, unboxedEntryValue))
+                        {
+                            goto FAILED;
+                        }
+                        break;
+
+                    default:
+                        Debug.Assert(match == ValueMatch.NullOrDead);
+                        if (!entryValueNullOrDead)
+                        {
+                            // this is the only case where caller expects to see oldVal
+                            // NB: No need to freeze here. This is keyed on mere presence of the value. 
+                            oldVal = FromObjectValue(entryValue);
                             goto FAILED;
                         }
                         break;
                 }
 
-                // Actually change the Value 
-                var prev = Interlocked.CompareExchange(ref entry.value, newVal, entryValue);
+                // Actually change the Value
+                object newValObj = ToObjectValue(newVal);
+                var prev = Interlocked.CompareExchange(ref entry.value, newValObj, entryValue);
                 if (prev == entryValue)
                 {
                     // CAS succeeded - we did the update!
                     // Adjust sizes
                     if (entryValueNullOrDead)
                     {
-                        oldVal = null;
-                        if (newVal != TOMBSTONE)
-                        {
-                            curTable._size.Increment();
-                        }
-                    }
-                    else
-                    {
-                        oldVal = prev;
-                        if (newVal == TOMBSTONE)
-                        {
-                            curTable._size.Decrement();
-                            SweepCheck();
-                        }
+                        curTable._size.Increment();
                     }
 
                     return true;
@@ -458,6 +620,12 @@ namespace NonBlocking
             return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ValueIsAtomicPrimitive()
+        {
+            return default(TValue) != null && valueIsAtomic;
+        }
+
         internal sealed override TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
             if (valueFactory == null)
@@ -473,13 +641,12 @@ namespace NonBlocking
 
         TRY_WITH_NEW_TABLE:
 
-            var curEntries = curTable._entries;
-            int lenMask = curEntries.Length - 1;
+            var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curEntries[idx];
+            ref Entry entry = ref curTable._entries[idx];
 
             // Spin till we get a slot for the key or force a resizing.
-            int reprobeCnt = 0;
+            int reprobeCount = 0;
             while (true)
             {
                 // hash and key are CAS-ed down and follow a specific sequence of states.
@@ -518,8 +685,7 @@ namespace NonBlocking
                 // and must reprobe or resize
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
                 // but there could be more in the new table
-                if (entryHash == TOMBPRIMEHASH |
-                    reprobeCnt >= ReprobeLimit(lenMask))
+                if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
                     var newTable1 = curTable.Resize();
@@ -530,10 +696,10 @@ namespace NonBlocking
                 }
 
                 // quadratic reprobing
-                reprobeCnt++;
-                curTable.ResizeOnReprobeCheck(reprobeCnt);
-                idx = (idx + reprobeCnt) & lenMask;
-                entry = ref curEntries[idx];
+                reprobeCount++;
+                curTable.ResizeOnReprobeCheck(reprobeCount);
+                idx = (idx + reprobeCount) & lenMask;
+                entry = ref curTable._entries[idx];
             }
 
             // Found the proper Key slot, now update the Value.  
@@ -575,7 +741,7 @@ namespace NonBlocking
                 goto GOT_PREV_VALUE;
             }
 
-            // prev value is not null, dead or prime.
+            // prev value is null or dead.
             // let's try install new value
             newValObj = newValObj ?? ToObjectValue(result = valueFactory(key));
             while (true)
@@ -593,7 +759,7 @@ namespace NonBlocking
                 }
                 // Else CAS failed
 
-                // If a Prime'd value got installed, we need to re-run the put on the new table.
+                // If a Prime'd value got installed, we need to re-run on the new table.
                 Debug.Assert(prev != null);
                 if (prev.GetType() == typeof(Prime))
                 {
@@ -610,7 +776,7 @@ namespace NonBlocking
             }
 
         GOT_PREV_VALUE:
-            result = _topDict.FromObjectValue(entryValue);
+            result = FromObjectValue(entryValue);
 
         DONE:
             return result;
@@ -627,13 +793,12 @@ namespace NonBlocking
 
         TRY_WITH_NEW_TABLE:
 
-            var curEntries = curTable._entries;
-            int lenMask = curEntries.Length - 1;
+            var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curEntries[idx];
+            ref Entry entry = ref curTable._entries[idx];
 
             // Spin till we get a slot for the key or force a resizing.
-            int reprobeCnt = 0;
+            int reprobeCount = 0;
             while (true)
             {
                 var entryHash = entry.hash;
@@ -670,8 +835,7 @@ namespace NonBlocking
                 // hitting reprobe limit or finding TOMBPRIMEHASH here means that 
                 // we will not find an appropriate slot in this table
                 // but there could be more in the new one
-                if (entryHash == TOMBPRIMEHASH |
-                    reprobeCnt >= ReprobeLimit(lenMask))
+                if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     var resized = curTable.Resize();
                     curTable = resized;
@@ -679,10 +843,12 @@ namespace NonBlocking
                 }
 
                 // quadratic reprobing
-                reprobeCnt++;
-                idx = (idx + reprobeCnt) & lenMask; // Reprobe!    
-                entry = ref curEntries[idx];
-            } // End of spinning till we get a Key slot
+                reprobeCount++;
+                // no resize check on reprobe needed. 
+                // we always insert a new value (or somebody else inserts)
+                idx = (idx + reprobeCount) & lenMask;
+                entry = ref curTable._entries[idx];
+            }
 
             // Found the proper Key slot, now update the Value. 
 
@@ -718,11 +884,63 @@ namespace NonBlocking
 
             // We are finally prepared to update the existing table
             // if entry value is null and our CAS succeeds - we did the update!
-            // otherwise someone else copied the value
+            // otherwise someone else copied the value.
             // table-copy does not (effectively) increase the number of live k/v pairs
             // so no need to update size
             return entry.value == null &&
                    Interlocked.CompareExchange(ref entry.value, value, null) == null;
+        }
+
+        // check once in a while if a table might benefit from resizing.
+        // one reason for this is that crowdedness check uses estimated counts 
+        // so we do not always catch this on key inserts.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ResizeOnReprobeCheck(int reprobeCount)
+        {
+            // must be ^2 - 1
+            const int reprobeCheckPeriod = 16 - 1;
+
+            // once per reprobeCheckPeriod, check if the table is crowded
+            // and initiale a resize
+            if ((reprobeCount & reprobeCheckPeriod) == 0)
+            {
+                ReprobeResizeCheckSlow();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void ReprobeResizeCheckSlow()
+        {
+            if (this.TableIsCrowded())
+            {
+                this.Resize();
+                this.HelpCopy();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal TValue FromObjectValue(object obj)
+        {
+            // regular value type
+            if (default(TValue) != null)
+            {
+                return Unsafe.As<Boxed<TValue>>(obj).Value;
+            }
+
+            // null
+            if (obj == NULLVALUE)
+            {
+                return default(TValue);
+            }
+
+            // ref type
+            if (!valueIsValueType)
+            {
+                return Unsafe.As<object, TValue>(ref obj);
+            }
+
+            // nullable
+            return (TValue)obj;
         }
 
         ///////////////////////////////////////////////////////////

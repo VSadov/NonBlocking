@@ -56,11 +56,14 @@ namespace NonBlockingTests
             WriteBenchRndNB();
             WriteBenchRndCD();
 
+            WriteBenchRndNBint();
+            WriteBenchRndCDint();
+
             ///////////////////////
             // degenerate cases
 
-            //SingleThreadedSequentialAddWithGapsNB();
             //SingleThreadedSequentialAddWithGapsCD();
+            //SingleThreadedSequentialAddWithGapsNB();
 
             //ChurnConcurrent();
 
@@ -396,6 +399,41 @@ namespace NonBlockingTests
 
             RunBench(benchmarkName, act);
         }
+
+        private static void WriteBenchRndNBint()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<int, int>();
+
+            var benchmarkName = "======== Random Write NonBlocking 1M int->int Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict[randomIndex] = 42;
+                dict[randomIndex] = 24;
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
+        private static void WriteBenchRndCDint()
+        {
+            var dict = new Concurrent.ConcurrentDictionary<int, int>();
+
+            var benchmarkName = "======== Random Write Concurrent 1M int->int Ops/sec:";
+
+            Action<int, int> act = (i, threadBias) =>
+            {
+                // get some random index in [0, 1000000]
+                int randomIndex = GetRandomIndex(i, threadBias, 1000000);
+                dict[randomIndex] = 42;
+                dict[randomIndex] = 24;
+            };
+
+            RunBench(benchmarkName, act);
+        }
+
 
         private static long RunBenchmark(Action<int, int> action, int threads, int time)
         {
