@@ -33,11 +33,14 @@ Read/Write oprations scale linearly with the number of active threads if hardwar
 ## Benchmarks
 
 The test machine is  
-	AMD EPYC (Rome) 64-Core Processor @ 2.44GHz	
+	AMD EPYC 64-Core Processor 
+
+	Base speed:	2.44 GHz
+	Sockets:	4
+	Cores:	128
+	Logical processors:	256
 	
-	Configured as: 
-       4 NUMA nodes  
-       256 Logical processors.
+	Configured as: 4 NUMA nodes  
 
 The following sample benchmarks perform various operations on {int --> string} dictionaries and run as 64bit process.  
 
