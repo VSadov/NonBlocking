@@ -3,9 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28531.58
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NonBlockingTests", "test\NonBlockingTests\NonBlockingTests.csproj", "{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Benchmarks", "Benchmarks\Benchmarks.csproj", "{3FBF94CB-5AE5-4235-87AB-E5E9732A4BDE}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NonBlockingTests", "test\NonBlockingTests\NonBlockingTests.csproj", "{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NonBlocking", "src\NonBlocking\NonBlocking.csproj", "{FAD4FDA1-2B65-487B-B9EA-37507C70573C}"
 EndProject
@@ -23,10 +21,6 @@ Global
 		{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4F3B1AAA-90FA-4DFD-9ACB-E1FF4B287018}.Release|Any CPU.Build.0 = Release|Any CPU
-		{3FBF94CB-5AE5-4235-87AB-E5E9732A4BDE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3FBF94CB-5AE5-4235-87AB-E5E9732A4BDE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3FBF94CB-5AE5-4235-87AB-E5E9732A4BDE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3FBF94CB-5AE5-4235-87AB-E5E9732A4BDE}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FAD4FDA1-2B65-487B-B9EA-37507C70573C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FAD4FDA1-2B65-487B-B9EA-37507C70573C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FAD4FDA1-2B65-487B-B9EA-37507C70573C}.Release|Any CPU.ActiveCfg = Release|Any CPU
