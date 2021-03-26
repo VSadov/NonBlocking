@@ -67,8 +67,8 @@ namespace NonBlockingTests
         private static void InterlockedIncrement()
         {
             var benchmarkName = "======== InterlockedIncrement 1M Ops/sec:";
-            int cnt = 0;
-            Action<int, int> act = (_, __) => { Interlocked.Increment(ref cnt); };
+            int count = 0;
+            Action<int, int> act = (_, __) => { Interlocked.Increment(ref count); };
 
             RunBench(benchmarkName, act);
         }
@@ -77,8 +77,8 @@ namespace NonBlockingTests
         {
             var benchmarkName = "======== Counter32 1M Ops/sec:";
 
-            Counter32 cnt = new Counter32();
-            Action<int, int> act = (_, __) => { cnt.Increment(); };
+            Counter32 count = new Counter32();
+            Action<int, int> act = (_, __) => { count.Increment(); };
 
             RunBench(benchmarkName, act);
         }
@@ -87,8 +87,8 @@ namespace NonBlockingTests
         {
             var benchmarkName = "======== Counter32 Estimated Get 1M Ops/sec:";
 
-            Counter32 cnt = new Counter32();
-            Action<int, int> act = (_, __) => { cnt.Increment(); var dummy = cnt.EstimatedValue; };
+            Counter32 count = new Counter32();
+            Action<int, int> act = (_, __) => { count.Increment(); var dummy = count.EstimatedValue; };
 
             RunBench(benchmarkName, act);
         }
@@ -97,8 +97,8 @@ namespace NonBlockingTests
         {
             var benchmarkName = "======== Counter64 1M Ops/sec:";
 
-            Counter64 cnt = new Counter64();
-            Action<int, int> act = (_, __) => { cnt.Increment(); };
+            Counter64 count = new Counter64();
+            Action<int, int> act = (_, __) => { count.Increment(); };
 
             RunBench(benchmarkName, act);
         }
@@ -245,7 +245,7 @@ namespace NonBlockingTests
         private static void AddBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
+            var count = new Counter32();
 
             var benchmarkName = "======== Random Add NonBlocking 1M Ops/sec:";
 
@@ -256,11 +256,11 @@ namespace NonBlockingTests
                 dict.TryAdd(randomIndex, "qq");
 
                 // after making about 1000000 adds, start with a new table
-                var c = cnt;
+                var c = count;
                 c.Increment();
                 if (Every8K(i) && c.Value > 1000000)
                 {
-                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    if (Interlocked.CompareExchange(ref count, new Counter32(), c) == c)
                     {
                         dict = new NonBlocking.ConcurrentDictionary<int, string>();
                     }
@@ -273,7 +273,7 @@ namespace NonBlockingTests
         private static void AddBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
+            var count = new Counter32();
 
             var benchmarkName = "======== Random Add Concurrent 1M Ops/sec:";
 
@@ -284,11 +284,11 @@ namespace NonBlockingTests
                 dict.TryAdd(randomIndex, "qq");
 
                 // after making about 1000000 adds, start with a new table
-                var c = cnt;
+                var c = count;
                 c.Increment();
                 if (Every8K(i) && c.Value > 1000000)
                 {
-                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    if (Interlocked.CompareExchange(ref count, new Counter32(), c) == c)
                     {
                         dict = new Concurrent.ConcurrentDictionary<int, string>();
                     }
@@ -301,7 +301,7 @@ namespace NonBlockingTests
         private static void GetOrAddFuncBenchRndNB()
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
+            var count = new Counter32();
 
             var benchmarkName = "======== Random GetOrAdd Func NonBlocking 1M Ops/sec:";
 
@@ -312,11 +312,11 @@ namespace NonBlockingTests
                 dict.GetOrAdd(randomIndex, (_) => "qq");
 
                 // after making about 1000000 adds, start with a new table
-                var c = cnt;
+                var c = count;
                 c.Increment();
                 if (Every8K(i) && c.Value > 1000000)
                 {
-                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    if (Interlocked.CompareExchange(ref count, new Counter32(), c) == c)
                     {
                         dict = new NonBlocking.ConcurrentDictionary<int, string>();
                     }
@@ -329,7 +329,7 @@ namespace NonBlockingTests
         private static void GetOrAddFuncBenchRndCD()
         {
             var dict = new Concurrent.ConcurrentDictionary<int, string>();
-            var cnt = new Counter32();
+            var count = new Counter32();
 
             var benchmarkName = "======== Random GetOrAdd Func Concurrent 1M Ops/sec:";
 
@@ -340,11 +340,11 @@ namespace NonBlockingTests
                 dict.GetOrAdd(randomIndex, (_) => "qq");
 
                 // after making about 1000000 adds, start with a new table
-                var c = cnt;
+                var c = count;
                 c.Increment();
                 if (Every8K(i) && c.Value > 1000000)
                 {
-                    if (Interlocked.CompareExchange(ref cnt, new Counter32(), c) == c)
+                    if (Interlocked.CompareExchange(ref count, new Counter32(), c) == c)
                     {
                         dict = new Concurrent.ConcurrentDictionary<int, string>();
                     }
@@ -390,7 +390,7 @@ namespace NonBlockingTests
 
         private static long RunBenchmark(Action<int, int> action, int threads, int time)
         {
-            Counter64 cnt = new Counter64();
+            Counter64 count = new Counter64();
             Task[] workers = new Task[threads];
             Stopwatch sw = Stopwatch.StartNew();
             ManualResetEventSlim e = new ManualResetEventSlim();
@@ -408,7 +408,7 @@ namespace NonBlockingTests
                     {
                         action(iteration++, threadBias);
                     }
-                    cnt.Add(batch);
+                    count.Add(batch);
                 }
             };
 
@@ -421,7 +421,7 @@ namespace NonBlockingTests
             e.Set();
 
             Task.WaitAll(workers);
-            return cnt.Value;
+            return count.Value;
         }
 
         private static void RunBench(string benchmarkName, Action<int, int> action)

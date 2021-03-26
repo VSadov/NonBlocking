@@ -890,7 +890,7 @@ namespace NonBlockingTests
                        String.Format("TestTryUpdate:  FAILED.  The updated value doesn't match the thread index, expected {0} actual {1}", value.ThreadIndex, dictionary[value.Keys[i]]));
             }
 
-            //test TryUpdate with non atomic values (intPtr > 8)
+            //test TryUpdate with non atomic values (nint > 8)
             var dict = new NonBlocking.ConcurrentDictionary<int, Struct16>();
             dict.TryAdd(1, new Struct16(1, -1));
             Assert.True(dict.TryUpdate(1, new Struct16(2, -2), new Struct16(1, -1)), "TestTryUpdate:  FAILED.  TryUpdate failed for non atomic values ( > 8 bytes)");

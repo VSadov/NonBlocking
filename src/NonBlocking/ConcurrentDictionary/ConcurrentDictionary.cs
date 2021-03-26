@@ -197,71 +197,43 @@ namespace NonBlocking
             }
             else
             {
-                if (typeof(TKey) == typeof(int))
+                if (typeof(TKey) == typeof(uint) || typeof(TKey) == typeof(int))
                 {
                     if (comparer == null)
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntNoComparer<TValue>(capacity, (ConcurrentDictionary<int, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplIntNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<int, TValue>>(this)));
                     }
                     else
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplInt<TValue>(capacity, (ConcurrentDictionary<int, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplInt<TValue>(capacity, Unsafe.As<ConcurrentDictionary<int, TValue>>(this)));
                         _table._keyComparer = comparer;
                     }
                     return;
                 }
 
-                if (typeof(TKey) == typeof(long))
+                if (typeof(TKey) == typeof(ulong) || typeof(TKey) == typeof(long))
                 {
                     if (comparer == null)
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLongNoComparer<TValue>(capacity, (ConcurrentDictionary<long, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplLongNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<long, TValue>>(this)));
                     }
                     else
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplLong<TValue>(capacity, (ConcurrentDictionary<long, TValue>)(object)this);
-                        _table._keyComparer = comparer;
-                    }
-                    return ;
-                }
-
-                if (typeof(TKey) == typeof(uint))
-                {
-                    if (comparer == null)
-                    {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplUIntNoComparer<TValue>(capacity, (ConcurrentDictionary<uint, TValue>)(object)this);
-                    }
-                    else
-                    {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplUInt<TValue>(capacity, (ConcurrentDictionary<uint, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplLong<TValue>(capacity, Unsafe.As<ConcurrentDictionary<long, TValue>>(this)));
                         _table._keyComparer = comparer;
                     }
                     return;
                 }
 
-                if (typeof(TKey) == typeof(ulong))
+                if (typeof(TKey) == typeof(nint) || typeof(TKey) == typeof(nuint))
                 {
                     if (comparer == null)
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplULongNoComparer<TValue>(capacity, (ConcurrentDictionary<ulong, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNintNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nint, TValue>>(this)));
                     }
                     else
                     {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplULong<TValue>(capacity, (ConcurrentDictionary<ulong, TValue>)(object)this);
-                        _table._keyComparer = comparer;
-                    }
-                    return;
-                }
-
-                if (typeof(TKey) == typeof(IntPtr))
-                {
-                    if (comparer == null)
-                    {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntPtrNoComparer<TValue>(capacity, (ConcurrentDictionary<IntPtr, TValue>)(object)this);
-                    }
-                    else
-                    {
-                        _table = (DictionaryImpl<TKey, TValue>)(object)new DictionaryImplIntPtr<TValue>(capacity, (ConcurrentDictionary<IntPtr, TValue>)(object)this);
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNint<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nint, TValue>>(this)));
                         _table._keyComparer = comparer;
                     }
                     return;

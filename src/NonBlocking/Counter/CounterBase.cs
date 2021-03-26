@@ -21,7 +21,7 @@ namespace NonBlocking
         private protected int cellCount;
 
         // delayed count time
-        private protected uint lastCntTicks;
+        private protected uint lastCountTicks;
 
         private protected CounterBase()
         {

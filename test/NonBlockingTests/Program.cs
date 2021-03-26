@@ -454,34 +454,34 @@ namespace NonBlockingTests
         {
             if (IntPtr.Size == 8)
             {
-                var dict = new NonBlocking.ConcurrentDictionary<IntPtr, long>();
+                var dict = new NonBlocking.ConcurrentDictionary<nint, long>();
 
-                Parallel.For(0, 10, (i) => dict.Add((IntPtr)i, i));
-                Parallel.For(0, 10, (i) => dict[(IntPtr)i] = i);
-                Parallel.For(0, 10, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For(0, 10, (i) => { long ii; if (!dict.TryRemove((IntPtr)i, out ii)) throw new Exception(); });
+                Parallel.For(0, 10, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 10, (i) => dict[(nint)i] = i);
+                Parallel.For(0, 10, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For(0, 10, (i) => { long ii; if (!dict.TryRemove((nint)i, out ii)) throw new Exception(); });
 
-                Parallel.For(0, 100, (i) => dict[(IntPtr)i] = i);
-                Parallel.For(0, 100, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For(0, 100, (i) => { if (!dict.Remove((IntPtr)i)) throw new Exception(); });
+                Parallel.For(0, 100, (i) => dict[(nint)i] = i);
+                Parallel.For(0, 100, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For(0, 100, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
 
-                Parallel.For(0, 1000, (i) => dict.Add((IntPtr)i, i));
-                Parallel.For(0, 1000, (i) => dict[(IntPtr)i] = i);
-                Parallel.For(0, 1000, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For(0, 1000, (i) => { if (!dict.Remove((IntPtr)i)) throw new Exception(); });
-                Parallel.For(0, 1000, (i) => { if (dict.Remove((IntPtr)i)) throw new Exception(); });
+                Parallel.For(0, 1000, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 1000, (i) => dict[(nint)i] = i);
+                Parallel.For(0, 1000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For(0, 1000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For(0, 1000, (i) => { if (dict.Remove((nint)i)) throw new Exception(); });
 
-                Parallel.For(0, 10000, (i) => dict.Add((IntPtr)i, i));
-                Parallel.For(0, 10000, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For(0, 10000, (i) => { if (!dict.Remove((IntPtr)i)) throw new Exception(); });
+                Parallel.For(0, 10000, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 10000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For(0, 10000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
 
-                Parallel.For(0, 100000, (i) => dict[(IntPtr)i] = i);
-                Parallel.For(0, 100000, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For(0, 100000, (i) => { if (!dict.Remove((IntPtr)i)) throw new Exception(); });
+                Parallel.For(0, 100000, (i) => dict[(nint)i] = i);
+                Parallel.For(0, 100000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For(0, 100000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
 
-                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => dict[(IntPtr)i] = i);
-                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (dict[(IntPtr)i] != i) throw new Exception(); });
-                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.Remove((IntPtr)i)) throw new Exception(); });
+                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => dict[(nint)i] = i);
+                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
+                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
             }
         }
 
