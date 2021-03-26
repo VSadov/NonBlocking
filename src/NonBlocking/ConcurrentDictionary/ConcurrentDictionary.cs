@@ -35,9 +35,6 @@ namespace NonBlocking
     {
         internal DictionaryImpl<TKey, TValue> _table;
         internal uint _lastResizeTickMillis;
-
-        internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
-
         internal object _sweeperInstance;
         internal int _sweepRequests;
 
@@ -368,7 +365,7 @@ namespace NonBlocking
             }
 
             // ref type
-            if (!valueIsValueType)
+            if (!typeof(TValue).IsValueType)
             {
                 return Unsafe.As<object, TValue>(ref obj);
             }

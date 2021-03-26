@@ -194,7 +194,8 @@ namespace NonBlocking
         /// returns null if value is not present in the table
         /// otherwise returns the actual value or NULLVALUE if null is the actual value 
         /// </summary>
-        internal sealed override object TryGetValue(TKey key)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override object TryGetValue(TKey key)
         {
             int fullHash = this.hash(key);
             var curTable = this;
@@ -214,7 +215,7 @@ namespace NonBlocking
                 // key/value/hash all read atomically and order of reads is unimportant
 
                 // is this our slot?
-                if (fullHash == entry.hash && curTable.keyEqual(key, entry.key))
+                if (fullHash == entry.hash && keyEqual(key, entry.key))
                 {
                     // read the value before the _newTable.
                     // if the new table is null later, then the value cannot be forwarded

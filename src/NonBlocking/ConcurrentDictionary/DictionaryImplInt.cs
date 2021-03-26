@@ -118,6 +118,11 @@ namespace NonBlocking
             return key == entryKeyValue;
         }
 
+        internal override object TryGetValue(int key)
+        {
+            return base.TryGetValue(key);
+        }
+
         protected override int hash(int key)
         {
             return (key == 0) ?
