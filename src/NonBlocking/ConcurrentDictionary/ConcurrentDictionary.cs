@@ -12,6 +12,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using static NonBlocking.DictionaryImpl;
@@ -88,10 +89,6 @@ namespace NonBlocking
         ///   <paramref name="comparer" /> is a null reference (Nothing in Visual Basic).</exception>
         public ConcurrentDictionary(IEqualityComparer<TKey> comparer) : this(31, comparer)
         {
-            if (comparer == null)
-            {
-                throw new ArgumentNullException("comparer");
-            }
         }
 
         // System.Collections.Concurrent.ConcurrentDictionary<TKey, TValue>
@@ -105,10 +102,6 @@ namespace NonBlocking
             if (collection == null)
             {
                 throw new ArgumentNullException("collection");
-            }
-            if (comparer == null)
-            {
-                throw new ArgumentNullException("comparer");
             }
             this.InitializeFromCollection(collection);
         }
@@ -134,10 +127,7 @@ namespace NonBlocking
             {
                 throw new ArgumentNullException("collection");
             }
-            if (comparer == null)
-            {
-                throw new ArgumentNullException("comparer");
-            }
+
             this.InitializeFromCollection(collection);
         }
 
@@ -167,10 +157,6 @@ namespace NonBlocking
             {
                 throw new ArgumentOutOfRangeException("concurrencyLevel");
             }
-            if (comparer == null)
-            {
-                throw new ArgumentNullException("comparer");
-            }
         }
 
         private ConcurrentDictionary(
@@ -182,15 +168,11 @@ namespace NonBlocking
                 throw new ArgumentOutOfRangeException(nameof(capacity));
             }
 
-            if (default(TKey) == null)
+            if (!typeof(TKey).IsValueType)
             {
-                if (typeof(TKey) == typeof(ValueType) ||
-                    !(default(TKey) is ValueType))
-                {
-                    _table = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(this, capacity);
-                    _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
-                    return;
-                }
+                _table = DictionaryImpl<TKey, TValue>.CreateRefUnsafe(this, capacity);
+                _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
+                return;
             }
             else
             {
@@ -263,19 +245,16 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Attempts to add the specified key and value to the <see cref="ConcurrentDictionary{TKey,
-        /// TValue}"/>.
+        /// Attempts to add the specified key and value to the <see cref="ConcurrentDictionary{TKey, TValue}"/>.
         /// </summary>
         /// <param name="key">The key of the element to add.</param>
         /// <param name="value">The value of the element to add. The value can be a null reference (Nothing
         /// in Visual Basic) for reference types.</param>
-        /// <returns>true if the key/value pair was added to the <see cref="ConcurrentDictionary{TKey,
-        /// TValue}"/>
-        /// successfully; otherwise, false.</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is null reference
-        /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.OverflowException">The <see cref="ConcurrentDictionary{TKey, TValue}"/>
-        /// contains too many elements.</exception>
+        /// <returns>
+        /// true if the key/value pair was added to the <see cref="ConcurrentDictionary{TKey, TValue}"/> successfully; otherwise, false.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is null reference (Nothing in Visual Basic).</exception>
+        /// <exception cref="OverflowException">The <see cref="ConcurrentDictionary{TKey, TValue}"/> contains too many elements.</exception>
         public bool TryAdd(TKey key, TValue value)
         {
             TValue oldVal = default;
@@ -301,37 +280,34 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Attempts to remove and return the value with the specified key from the
-        /// <see cref="ConcurrentDictionary{TKey, TValue}"/>.
+        /// Attempts to remove and return the value with the specified key from the <see cref="ConcurrentDictionary{TKey, TValue}"/>.
         /// </summary>
         /// <param name="key">The key of the element to remove and return.</param>
-        /// <param name="value">When this method returns, <paramref name="value"/> contains the object removed from the
+        /// <param name="value">
+        /// When this method returns, <paramref name="value"/> contains the object removed from the
         /// <see cref="ConcurrentDictionary{TKey,TValue}"/> or the default value of <typeparamref
-        /// name="TValue"/>
-        /// if the operation failed.</param>
+        /// name="TValue"/> if the operation failed.
+        /// </param>
         /// <returns>true if an object was removed successfully; otherwise, false.</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
-        /// (Nothing in Visual Basic).</exception>
-        public bool TryRemove(TKey key, out TValue value)
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference (Nothing in Visual Basic).</exception>
+        public bool TryRemove(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             value = default;
             return _table.RemoveIfMatch(key, ref value, ValueMatch.NotNullOrDead);
         }
 
         /// <summary>
-        /// Attempts to get the value associated with the specified key from the <see
-        /// cref="ConcurrentDictionary{TKey,TValue}"/>.
+        /// Attempts to get the value associated with the specified key from the <see cref="ConcurrentDictionary{TKey,TValue}"/>.
         /// </summary>
         /// <param name="key">The key of the value to get.</param>
-        /// <param name="value">When this method returns, <paramref name="value"/> contains the object from
-        /// the
-        /// <see cref="ConcurrentDictionary{TKey,TValue}"/> with the specified key or the default value of
-        /// <typeparamref name="TValue"/>, if the operation failed.</param>
-        /// <returns>true if the key was found in the <see cref="ConcurrentDictionary{TKey,TValue}"/>;
-        /// otherwise, false.</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
-        /// (Nothing in Visual Basic).</exception>
-        public bool TryGetValue(TKey key, out TValue value)
+        /// <param name="value">
+        /// When this method returns, <paramref name="value"/> contains the object from
+        /// the <see cref="ConcurrentDictionary{TKey,TValue}"/> with the specified key or the default value of
+        /// <typeparamref name="TValue"/>, if the operation failed.
+        /// </param>
+        /// <returns>true if the key was found in the <see cref="ConcurrentDictionary{TKey,TValue}"/>; otherwise, false.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference (Nothing in Visual Basic).</exception>
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             object oldValObj = _table.TryGetValue(key);
 
@@ -355,7 +331,7 @@ namespace NonBlocking
             // regular value type
             if (default(TValue) != null)
             {
-                return Unsafe.As<Boxed<TValue>>(obj).Value;               
+                return Unsafe.As<Boxed<TValue>>(obj).Value;
             }
 
             // null
@@ -374,19 +350,18 @@ namespace NonBlocking
             return (TValue)obj;
         }
 
-        /// <summary>
-        /// Gets or sets the value associated with the specified key.
-        /// </summary>
+        /// <summary>Gets or sets the value associated with the specified key.</summary>
         /// <param name="key">The key of the value to get or set.</param>
-        /// <value>The value associated with the specified key. If the specified key is not found, a get
-        /// operation throws a
-        /// <see cref="T:System.Collections.Generic.KeyNotFoundException"/>, and a set operation creates a new
-        /// element with the specified key.</value>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
-        /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.Collections.Generic.KeyNotFoundException">The property is retrieved and
-        /// <paramref name="key"/>
-        /// does not exist in the collection.</exception>
+        /// <value>
+        /// The value associated with the specified key. If the specified key is not found, a get operation throws a
+        /// <see cref="KeyNotFoundException"/>, and a set operation creates a new element with the specified key.
+        /// </value>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="key"/> is a null reference (Nothing in Visual Basic).
+        /// </exception>
+        /// <exception cref="KeyNotFoundException">
+        /// The property is retrieved and <paramref name="key"/> does not exist in the collection.
+        /// </exception>
         public TValue this[TKey key]
         {
             get
@@ -410,15 +385,28 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Determines whether the <see cref="ConcurrentDictionary{TKey, TValue}"/> contains the specified
-        /// key.
+        /// Gets the <see cref="IEqualityComparer{TKey}" />
+        /// that is used to determine equality of keys for the dictionary.
         /// </summary>
-        /// <param name="key">The key to locate in the <see cref="ConcurrentDictionary{TKey,
-        /// TValue}"/>.</param>
-        /// <returns>true if the <see cref="ConcurrentDictionary{TKey, TValue}"/> contains an element with
-        /// the specified key; otherwise, false.</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
-        /// (Nothing in Visual Basic).</exception>
+        /// <value>
+        /// The <see cref="IEqualityComparer{TKey}" /> generic interface implementation
+        /// that is used to determine equality of keys for the current
+        /// <see cref="ConcurrentDictionary{TKey, TValue}" /> and to provide hash values for the keys.
+        /// </value>
+        /// <remarks>
+        /// <see cref="ConcurrentDictionary{TKey, TValue}" /> requires an equality implementation to determine
+        /// whether keys are equal. You can specify an implementation of the <see cref="IEqualityComparer{TKey}" />
+        /// generic interface by using a constructor that accepts a comparer parameter;
+        /// if you do not specify one, the default generic equality comparer <see cref="EqualityComparer{TKey}.Default" /> is used.
+        /// </remarks>
+        public IEqualityComparer<TKey> Comparer => _table._keyComparer ?? EqualityComparer<TKey>.Default;
+
+        /// <summary>
+        /// Determines whether the <see cref="ConcurrentDictionary{TKey, TValue}"/> contains the specified key.
+        /// </summary>
+        /// <param name="key">The key to locate in the <see cref="ConcurrentDictionary{TKey, TValue}"/>.</param>
+        /// <returns>true if the <see cref="ConcurrentDictionary{TKey, TValue}"/> contains an element with the specified key; otherwise, false.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference (Nothing in Visual Basic).</exception>
         public bool ContainsKey(TKey key)
         {
             TValue value;
@@ -455,13 +443,13 @@ namespace NonBlocking
         bool ICollection<KeyValuePair<TKey, TValue>>.Contains(KeyValuePair<TKey, TValue> keyValuePair)
         {
             TValue value;
-            return TryGetValue(keyValuePair.Key, out value) && 
+            return TryGetValue(keyValuePair.Key, out value) &&
                 EqualityComparer<TValue>.Default.Equals(value, keyValuePair.Value);
         }
 
         /// <summary>
-        /// Compares the existing value for the specified key with a specified value, and if they're equal,
-        /// updates the key with a third value.
+        /// Updates the value associated with <paramref name="key"/> to <paramref name="newValue"/> if the existing value is equal
+        /// to <paramref name="comparisonValue"/>.
         /// </summary>
         /// <param name="key">The key whose value is compared with <paramref name="comparisonValue"/> and
         /// possibly replaced.</param>
@@ -469,11 +457,11 @@ namespace NonBlocking
         /// name="key"/> if the comparison results in equality.</param>
         /// <param name="comparisonValue">The value that is compared to the value of the element with
         /// <paramref name="key"/>.</param>
-        /// <returns>true if the value with <paramref name="key"/> was equal to <paramref
-        /// name="comparisonValue"/> and replaced with <paramref name="newValue"/>; otherwise,
-        /// false.</returns>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null
-        /// reference.</exception>
+        /// <returns>
+        /// true if the value with <paramref name="key"/> was equal to <paramref name="comparisonValue"/> and
+        /// replaced with <paramref name="newValue"/>; otherwise, false.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference.</exception>
         public bool TryUpdate(TKey key, TValue newValue, TValue comparisonValue)
         {
             TValue oldVal = comparisonValue;
@@ -481,16 +469,16 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> 
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/>
         /// if the key does not already exist.
         /// </summary>
         /// <param name="key">The key of the element to add.</param>
         /// <param name="value">the value to be added, if the key does not already exist</param>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.OverflowException">The dictionary contains too many
+        /// <exception cref="OverflowException">The dictionary contains too many
         /// elements.</exception>
-        /// <returns>The value for the key.  This will be either the existing value for the key if the 
+        /// <returns>The value for the key.  This will be either the existing value for the key if the
         /// key is already in the dictionary, or the new value if the key was not in the dictionary.</returns>
         public TValue GetOrAdd(TKey key, TValue value)
         {
@@ -504,16 +492,16 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> 
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/>
         /// if the key does not already exist.
         /// </summary>
         /// <param name="key">The key of the element to add.</param>
         /// <param name="valueFactory">The function used to generate a value for the key</param>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="valueFactory"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="valueFactory"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.OverflowException">The dictionary contains too many
+        /// <exception cref="OverflowException">The dictionary contains too many
         /// elements.</exception>
         /// <returns>The value for the key.  This will be either the existing value for the key if the
         /// key is already in the dictionary, or the new value for the key as returned by valueFactory
@@ -521,6 +509,51 @@ namespace NonBlocking
         public TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
             return _table.GetOrAdd(key, valueFactory);
+        }
+
+        /// <summary>
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/>
+        /// if the key does not already exist.
+        /// </summary>
+        /// <param name="key">The key of the element to add.</param>
+        /// <param name="valueFactory">The function used to generate a value for the key</param>
+        /// <param name="factoryArgument">An argument value to pass into <paramref name="valueFactory"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="valueFactory"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="OverflowException">The dictionary contains too many
+        /// elements.</exception>
+        /// <returns>The value for the key.  This will be either the existing value for the key if the
+        /// key is already in the dictionary, or the new value for the key as returned by valueFactory
+        /// if the key was not in the dictionary.</returns>
+        public TValue GetOrAdd<TArg>(TKey key, Func<TKey, TArg, TValue> valueFactory, TArg factoryArgument)
+        {
+            if (valueFactory is null)
+            {
+                throw new ArgumentNullException("valueFactory");
+            }
+
+            object oldValObj = _table.TryGetValue(key);
+            Debug.Assert(!(oldValObj is Prime));
+
+            if (oldValObj != null)
+            {
+                return FromObjectValue(oldValObj);
+            }
+            else
+            {
+                TValue newValue = valueFactory(key, factoryArgument);
+                TValue oldVal = default;
+                if (_table.PutIfMatch(key, newValue, ref oldVal, ValueMatch.NullOrDead))
+                {
+                    return newValue;
+                }
+                else
+                {
+                    return oldVal;
+                }
+            }
         }
 
         /// <summary>
@@ -536,8 +569,28 @@ namespace NonBlocking
         /// name="keyValuePair"/> is a null reference (Nothing in Visual Basic).</exception>
         bool ICollection<KeyValuePair<TKey, TValue>>.Remove(KeyValuePair<TKey, TValue> keyValuePair)
         {
-            TValue oldVal = keyValuePair.Value;
-            return _table.RemoveIfMatch(keyValuePair.Key, ref oldVal, ValueMatch.OldValue);
+            return TryRemove(keyValuePair);
+        }
+
+        /// <summary>Removes a key and value from the dictionary.</summary>
+        /// <param name="item">The <see cref="KeyValuePair{TKey,TValue}"/> representing the key and value to remove.</param>
+        /// <returns>
+        /// true if the key and value represented by <paramref name="item"/> are successfully
+        /// found and removed; otherwise, false.
+        /// </returns>
+        /// <remarks>
+        /// Both the specifed key and value must match the entry in the dictionary for it to be removed.
+        /// The key is compared using the dictionary's comparer (or the default comparer for <typeparamref name="TKey"/>
+        /// if no comparer was provided to the dictionary when it was constructed).  The value is compared using the
+        /// default comparer for <typeparamref name="TValue"/>.
+        /// </remarks>
+        /// <exception cref="ArgumentNullException">
+        /// The <see cref="KeyValuePair{TKey, TValue}.Key"/> property of <paramref name="item"/> is a null reference.
+        /// </exception>
+        public bool TryRemove(KeyValuePair<TKey, TValue> item)
+        {
+            TValue oldVal = item.Value;
+            return _table.RemoveIfMatch(item.Key, ref oldVal, ValueMatch.OldValue);
         }
 
         bool IDictionary.IsReadOnly => false;
@@ -567,7 +620,7 @@ namespace NonBlocking
         /// Gets the number of key/value pairs contained in the <see
         /// cref="ConcurrentDictionary{TKey,TValue}"/>.
         /// </summary>
-        /// <exception cref="T:System.OverflowException">The dictionary contains too many
+        /// <exception cref="OverflowException">The dictionary contains too many
         /// elements.</exception>
         /// <value>The number of key/value pairs contained in the <see
         /// cref="ConcurrentDictionary{TKey,TValue}"/>.</value>
@@ -636,16 +689,10 @@ namespace NonBlocking
             {
                 throw new ArgumentException();
             }
-            TValue value2;
-            try
-            {
-                value2 = (TValue)((object)value);
-            }
-            catch (InvalidCastException)
-            {
-                throw new ArgumentException();
-            }
-            ((IDictionary<TKey, TValue>)this).Add((TKey)((object)key), value2);
+
+            ThrowIfInvalidObjectValue(value);
+
+            ((IDictionary<TKey, TValue>)this).Add((TKey)key, (TValue)value);
         }
 
         void IDictionary.Remove(object key)
@@ -743,32 +790,45 @@ namespace NonBlocking
                 {
                     throw new ArgumentException();
                 }
+                ThrowIfInvalidObjectValue(value);
+                this[(TKey)key] = (TValue)value;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void ThrowIfInvalidObjectValue(object? value)
+        {
+            if (value != null)
+            {
                 if (!(value is TValue))
                 {
                     throw new ArgumentException();
                 }
-                this[(TKey)((object)key)] = (TValue)((object)value);
+            }
+            else if (default(TValue) != null)
+            {
+                throw new ArgumentException();
             }
         }
 
         /// <summary>
-        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key does not already 
-        /// exist, or updates a key/value pair in the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key 
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key does not already
+        /// exist, or updates a key/value pair in the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key
         /// already exists.
         /// </summary>
         /// <param name="key">The key to be added or whose value should be updated</param>
         /// <param name="addValueFactory">The function used to generate a value for an absent key</param>
         /// <param name="updateValueFactory">The function used to generate a new value for an existing key
         /// based on the key's existing value</param>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="addValueFactory"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="addValueFactory"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="updateValueFactory"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="updateValueFactory"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.OverflowException">The dictionary contains too many
+        /// <exception cref="OverflowException">The dictionary contains too many
         /// elements.</exception>
-        /// <returns>The new value for the key.  This will be either the result of addValueFactory (if the key was 
+        /// <returns>The new value for the key.  This will be either the result of addValueFactory (if the key was
         /// absent) or the result of updateValueFactory (if the key was present).</returns>
         public TValue AddOrUpdate(TKey key, Func<TKey, TValue> addValueFactory, Func<TKey, TValue, TValue> updateValueFactory)
         {
@@ -805,21 +865,21 @@ namespace NonBlocking
         }
 
         /// <summary>
-        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key does not already 
-        /// exist, or updates a key/value pair in the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key 
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key does not already
+        /// exist, or updates a key/value pair in the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key
         /// already exists.
         /// </summary>
         /// <param name="key">The key to be added or whose value should be updated</param>
         /// <param name="addValue">The value to be added for an absent key</param>
-        /// <param name="updateValueFactory">The function used to generate a new value for an existing key based on 
+        /// <param name="updateValueFactory">The function used to generate a new value for an existing key based on
         /// the key's existing value</param>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="key"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.ArgumentNullException"><paramref name="updateValueFactory"/> is a null reference
+        /// <exception cref="ArgumentNullException"><paramref name="updateValueFactory"/> is a null reference
         /// (Nothing in Visual Basic).</exception>
-        /// <exception cref="T:System.OverflowException">The dictionary contains too many
+        /// <exception cref="OverflowException">The dictionary contains too many
         /// elements.</exception>
-        /// <returns>The new value for the key.  This will be either the value of addValue (if the key was 
+        /// <returns>The new value for the key.  This will be either the value of addValue (if the key was
         /// absent) or the result of updateValueFactory (if the key was present).</returns>
         public TValue AddOrUpdate(TKey key, TValue addValue, Func<TKey, TValue, TValue> updateValueFactory)
         {
@@ -843,7 +903,63 @@ namespace NonBlocking
                 {
                     return addValue;
                 }
-            }            
+            }
+        }
+
+        /// <summary>
+        /// Adds a key/value pair to the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key does not already
+        /// exist, or updates a key/value pair in the <see cref="ConcurrentDictionary{TKey,TValue}"/> if the key
+        /// already exists.
+        /// </summary>
+        /// <param name="key">The key to be added or whose value should be updated</param>
+        /// <param name="addValueFactory">The function used to generate a value for an absent key</param>
+        /// <param name="updateValueFactory">The function used to generate a new value for an existing key
+        /// based on the key's existing value</param>
+        /// <param name="factoryArgument">An argument to pass into <paramref name="addValueFactory"/> and <paramref name="updateValueFactory"/>.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="addValueFactory"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="updateValueFactory"/> is a null reference
+        /// (Nothing in Visual Basic).</exception>
+        /// <exception cref="OverflowException">The dictionary contains too many
+        /// elements.</exception>
+        /// <returns>The new value for the key.  This will be either be the result of addValueFactory (if the key was
+        /// absent) or the result of updateValueFactory (if the key was present).</returns>
+        public TValue AddOrUpdate<TArg>(
+            TKey key, Func<TKey, TArg, TValue> addValueFactory, Func<TKey, TValue, TArg, TValue> updateValueFactory, TArg factoryArgument)
+        {
+            if (addValueFactory is null)
+            {
+                throw new ArgumentNullException("addValueFactory");
+            }
+
+            if (updateValueFactory == null)
+            {
+                throw new ArgumentNullException("updateValueFactory");
+            }
+
+            TValue tValue2;
+            while (true)
+            {
+                TValue tValue;
+                if (this.TryGetValue(key, out tValue))
+                {
+                    tValue2 = updateValueFactory(key, tValue, factoryArgument);
+                    if (this.TryUpdate(key, tValue2, tValue))
+                    {
+                        return tValue2;
+                    }
+                }
+                else
+                {
+                    tValue2 = addValueFactory(key, factoryArgument);
+                    if (this.TryAdd(key, tValue2))
+                    {
+                        return tValue2;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -940,6 +1056,17 @@ namespace NonBlocking
             }
         }
 
+        /// <summary>
+        /// Copies the key and value pairs stored in the <see cref="ConcurrentDictionary{TKey,TValue}"/> to a
+        /// new array.
+        /// </summary>
+        /// <returns>A new array containing a snapshot of key and value pairs copied from the <see cref="ConcurrentDictionary{TKey,TValue}"/>.
+        /// </returns>
+        public KeyValuePair<TKey, TValue>[] ToArray()
+        {
+            return _table.ToArray();
+        }
+
         /// <summary>Returns an enumerator that iterates through the <see
         /// cref="ConcurrentDictionary{TKey,TValue}"/>.</summary>
         /// <returns>An enumerator for the <see cref="ConcurrentDictionary{TKey,TValue}"/>.</returns>
@@ -984,6 +1111,32 @@ namespace NonBlocking
             }
 
             return new ReadOnlyCollection<TValue>(values);
+        }
+    }
+
+    internal sealed class IDictionaryDebugView<TKey, TValue> where TKey : notnull
+    {
+        private readonly IDictionary<TKey, TValue> _dictionary;
+
+        public IDictionaryDebugView(IDictionary<TKey, TValue> dictionary)
+        {
+            if (dictionary is null)
+            {
+                throw new ArgumentNullException(nameof(dictionary));
+            }
+
+            _dictionary = dictionary;
+        }
+
+        [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
+        public KeyValuePair<TKey, TValue>[] Items
+        {
+            get
+            {
+                var items = new KeyValuePair<TKey, TValue>[_dictionary.Count];
+                _dictionary.CopyTo(items, 0);
+                return items;
+            }
         }
     }
 }

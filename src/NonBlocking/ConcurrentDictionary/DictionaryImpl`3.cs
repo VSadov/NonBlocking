@@ -902,7 +902,7 @@ namespace NonBlocking
             const int reprobeCheckPeriod = 16 - 1;
 
             // once per reprobeCheckPeriod, check if the table is crowded
-            // and initiale a resize
+            // and initiate a resize
             if ((reprobeCount & reprobeCheckPeriod) == 0)
             {
                 ReprobeResizeCheckSlow();

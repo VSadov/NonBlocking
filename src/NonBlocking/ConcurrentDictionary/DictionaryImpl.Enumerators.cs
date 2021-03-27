@@ -26,12 +26,28 @@ namespace NonBlocking
             return new SnapshotIDict(this);
         }
 
+        internal override KeyValuePair<TKey, TValue>[] ToArray()
+        {
+            var snapshot = new SnapshotKV(this);
+            KeyValuePair<TKey, TValue>[] array = new KeyValuePair<TKey, TValue>[snapshot.Count];
+
+            int idx = 0;
+            while(snapshot.MoveNext())
+            {
+                array[idx++] = snapshot.Current;
+            }
+
+            return array;
+        }
+
         private class Snapshot : IDisposable
         {
             private readonly DictionaryImpl<TKey, TKeyStore, TValue> _table;
             private int _idx;
             protected TKey _curKey, _nextK;
             protected object _curValue, _nextV;
+
+            public int Count => _table.Count;
 
             public Snapshot(DictionaryImpl<TKey, TKeyStore, TValue> dict)
             {

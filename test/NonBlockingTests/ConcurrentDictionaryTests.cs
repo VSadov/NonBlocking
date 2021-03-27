@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 //
-// Includes all the tests for System.Collection.Concurrent.ConcurrentDictionary in 
+// Includes all the tests for System.Collection.Concurrent.NonBlocking.ConcurrentDictionary in 
 // https://github.com/dotnet/corefx to ensure compatibility.
 //
 
@@ -66,19 +66,82 @@ namespace NonBlockingTests
         }
 
         [Fact]
-        public static void TestAdd1()
+        public static void TestAddNullValue_ConcurrentDictionaryOfString_null()
         {
-            TestAddCore(1, 1, 1, 10000);
-            TestAddCore(5, 1, 1, 10000);
-            TestAddCore(1, 1, 2, 5000);
-            TestAddCore(1, 1, 5, 2000);
-            TestAddCore(4, 0, 4, 2000);
-            TestAddCore(16, 31, 4, 2000);
-            TestAddCore(64, 5, 5, 5000);
-            TestAddCore(5, 5, 5, 2500);
+            // using NonBlocking.ConcurrentDictionary<TKey, TValue> class
+            NonBlocking.ConcurrentDictionary<string, string> dict1 = new NonBlocking.ConcurrentDictionary<string, string>();
+            dict1["key"] = null;
         }
 
-        private static void TestAddCore(int cLevel, int initSize, int threads, int addsPerThread)
+        [Fact]
+        public static void TestAddNullValue_IDictionaryOfString_null()
+        {
+            // using IDictionary<TKey, TValue> interface
+            IDictionary<string, string> dict2 = new NonBlocking.ConcurrentDictionary<string, string>();
+            dict2["key"] = null;
+            dict2.Add("key2", null);
+        }
+
+        [Fact]
+        public static void TestAddNullValue_IDictionary_ReferenceType_null()
+        {
+            // using IDictionary interface
+            IDictionary dict3 = new NonBlocking.ConcurrentDictionary<string, string>();
+            dict3["key"] = null;
+            dict3.Add("key2", null);
+        }
+
+        [Fact]
+        public static void TestAddNullValue_IDictionary_ValueType_null_indexer()
+        {
+            // using IDictionary interface and value type values
+            Action action = () =>
+            {
+                IDictionary dict4 = new NonBlocking.ConcurrentDictionary<string, int>();
+                dict4["key"] = null;
+            };
+            Assert.Throws<ArgumentException>(action);
+        }
+
+        [Fact]
+        public static void TestAddNullValue_IDictionary_ValueType_null_add()
+        {
+            Action action = () =>
+            {
+                IDictionary dict5 = new NonBlocking.ConcurrentDictionary<string, int>();
+                dict5.Add("key", null);
+            };
+            Assert.Throws<ArgumentException>(action);
+        }
+
+        [Fact]
+        public static void TestAddValueOfDifferentType()
+        {
+            Action action = () =>
+            {
+                IDictionary dict = new NonBlocking.ConcurrentDictionary<string, string>();
+                dict["key"] = 1;
+            };
+            Assert.Throws<ArgumentException>(action);
+
+            action = () =>
+            {
+                IDictionary dict = new NonBlocking.ConcurrentDictionary<string, string>();
+                dict.Add("key", 1);
+            };
+            Assert.Throws<ArgumentException>(action);
+        }
+
+        [Theory]
+        [InlineData(1, 1, 1, 10000)]
+        [InlineData(5, 1, 1, 10000)]
+        [InlineData(1, 1, 2, 5000)]
+        [InlineData(1, 1, 5, 2000)]
+        [InlineData(4, 0, 4, 2000)]
+        [InlineData(16, 31, 4, 2000)]
+        [InlineData(64, 5, 5, 5000)]
+        [InlineData(5, 5, 5, 2500)]
+        public static void TestAdd(int cLevel, int initSize, int threads, int addsPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dictConcurrent = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
             IDictionary<int, int> dict = dictConcurrent;
@@ -123,7 +186,7 @@ namespace NonBlockingTests
             for (int i = 0; i < expectKeys.Count; i++)
             {
                 Assert.True(expectKeys[i].Equals(gotKeys[i]),
-                    String.Format("The set of keys in the dictionary is are not the same as the expected" + Environment.NewLine +
+                    string.Format("The set of keys in the dictionary is are not the same as the expected" + Environment.NewLine +
                             "TestAdd1(cLevel={0}, initSize={1}, threads={2}, addsPerThread={3})", cLevel, initSize, threads, addsPerThread)
                    );
             }
@@ -134,20 +197,16 @@ namespace NonBlockingTests
             Assert.Equal(expectedCount, dictConcurrent.ToArray().Length);
         }
 
-        [Fact]
-        public static void TestUpdate1()
-        {
-            TestUpdateCore(1, 1, 10000);
-            TestUpdateCore(5, 1, 10000);
-            TestUpdateCore(1, 2, 5000);
-            TestUpdateCore(1, 5, 2001);
-            TestUpdateCore(4, 4, 2001);
-            TestUpdateCore(15, 5, 2001);
-            TestUpdateCore(64, 5, 5000);
-            TestUpdateCore(5, 5, 25000);
-        }
-
-        private static void TestUpdateCore(int cLevel, int threads, int updatesPerThread)
+        [Theory]
+        [InlineData(1, 1, 10000)]
+        [InlineData(5, 1, 10000)]
+        [InlineData(1, 2, 5000)]
+        [InlineData(1, 5, 2001)]
+        [InlineData(4, 4, 2001)]
+        [InlineData(15, 5, 2001)]
+        [InlineData(64, 5, 5000)]
+        [InlineData(5, 5, 25000)]
+        public static void TestUpdate(int cLevel, int threads, int updatesPerThread)
         {
             IDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
 
@@ -179,7 +238,7 @@ namespace NonBlockingTests
 
                 Assert.Equal(0, rem);
                 Assert.True(div > 1 && div <= threads + 1,
-                    String.Format("* Invalid value={3}! TestUpdate1(cLevel={0}, threads={1}, updatesPerThread={2})", cLevel, threads, updatesPerThread, div));
+                    string.Format("* Invalid value={3}! TestUpdate1(cLevel={0}, threads={1}, updatesPerThread={2})", cLevel, threads, updatesPerThread, div));
             }
 
             List<int> gotKeys = new List<int>();
@@ -196,26 +255,22 @@ namespace NonBlockingTests
             for (int i = 0; i < expectKeys.Count; i++)
             {
                 Assert.True(expectKeys[i].Equals(gotKeys[i]),
-                   String.Format("The set of keys in the dictionary is are not the same as the expected." + Environment.NewLine +
+                   string.Format("The set of keys in the dictionary is are not the same as the expected." + Environment.NewLine +
                            "TestUpdate1(cLevel={0}, threads={1}, updatesPerThread={2})", cLevel, threads, updatesPerThread)
                   );
             }
         }
 
-        [Fact]
-        public static void TestRead1()
-        {
-            TestReadCore(1, 1, 10000);
-            TestReadCore(5, 1, 10000);
-            TestReadCore(1, 2, 5000);
-            TestReadCore(1, 5, 2001);
-            TestReadCore(4, 4, 2001);
-            TestReadCore(15, 5, 2001);
-            TestReadCore(64, 5, 5000);
-            TestReadCore(5, 5, 25000);
-        }
-
-        private static void TestReadCore(int cLevel, int threads, int readsPerThread)
+        [Theory]
+        [InlineData(1, 1, 10000)]
+        [InlineData(5, 1, 10000)]
+        [InlineData(1, 2, 5000)]
+        [InlineData(1, 5, 2001)]
+        [InlineData(4, 4, 2001)]
+        [InlineData(15, 5, 2001)]
+        [InlineData(64, 5, 5000)]
+        [InlineData(5, 5, 25000)]
+        public static void TestRead1(int cLevel, int threads, int readsPerThread)
         {
             IDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
 
@@ -250,18 +305,14 @@ namespace NonBlockingTests
             }
         }
 
-        [Fact]
-        public static void TestRemove1()
-        {
-            TestRemoveCore(1, 1, 10000);
-            TestRemoveCore(5, 1, 1000);
-            TestRemoveCore(1, 5, 2001);
-            TestRemoveCore(4, 4, 2001);
-            TestRemoveCore(15, 5, 2001);
-            TestRemoveCore(64, 5, 5000);
-        }
-
-        private static void TestRemoveCore(int cLevel, int threads, int removesPerThread)
+        [Theory]
+        [InlineData(1, 1, 10000)]
+        [InlineData(5, 1, 1000)]
+        [InlineData(1, 5, 2001)]
+        [InlineData(4, 4, 2001)]
+        [InlineData(15, 5, 2001)]
+        [InlineData(64, 5, 5000)]
+        public static void TestRemove1(int cLevel, int threads, int removesPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>(cLevel, 1);
             string methodparameters = string.Format("* TestRemove1(cLevel={0}, threads={1}, removesPerThread={2})", cLevel, threads, removesPerThread);
@@ -322,15 +373,11 @@ namespace NonBlockingTests
             Assert.Equal(expectKeys.Count, dict.ToArray().Length);
         }
 
-        [Fact]
-        public static void TestRemove2()
-        {
-            TestRemoveCore2(1);
-            TestRemoveCore2(10);
-            TestRemoveCore2(5000);
-        }
-
-        private static void TestRemoveCore2(int removesPerThread)
+        [Theory]
+        [InlineData(1)]
+        [InlineData(10)]
+        [InlineData(5000)]
+        public static void TestRemove2(int removesPerThread)
         {
             NonBlocking.ConcurrentDictionary<int, int> dict = new NonBlocking.ConcurrentDictionary<int, int>();
 
@@ -368,12 +415,12 @@ namespace NonBlockingTests
                 mre.WaitOne();
             }
 
-            Assert.Empty(dict);
+            Assert.Equal(0, dict.Count);
 
             for (int i = 0; i < removesPerThread; i++)
             {
                 Assert.False(seen[0][i] == seen[1][i],
-                    String.Format("> FAILED. Two threads appear to have removed the same element. TestRemove2(removesPerThread={0})", removesPerThread)
+                    string.Format("> FAILED. Two threads appear to have removed the same element. TestRemove2(removesPerThread={0})", removesPerThread)
                     );
             }
         }
@@ -404,10 +451,44 @@ namespace NonBlockingTests
             Assert.False(col.Remove(new KeyValuePair<int, int>(99, -99)), "Should not remove the key/value pair which has been removed");
 
             // And that the dictionary is empty. We will check the count in a few different ways:
-            Assert.Empty(dict);
-#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
+            Assert.Equal(0, dict.Count);
             Assert.Equal(0, dict.ToArray().Length);
-#pragma warning restore xUnit2013 // Do not use equality check to check for collection size.
+        }
+
+        [Fact]
+        public static void TryRemove_KeyValuePair_ArgumentValidation()
+        {
+            Assert.Throws<ArgumentNullException>(() => new NonBlocking.ConcurrentDictionary<string, int>().TryRemove(new KeyValuePair<string, int>(null, 42)));
+            new NonBlocking.ConcurrentDictionary<int, int>().TryRemove(new KeyValuePair<int, int>(0, 0)); // no error when using default value type
+            new NonBlocking.ConcurrentDictionary<int?, int>().TryRemove(new KeyValuePair<int?, int>(0, 0)); // or nullable
+        }
+
+        [Fact]
+        public static void TryRemove_KeyValuePair_RemovesSuccessfullyAsAppropriate()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<string, int>();
+
+            for (int i = 0; i < 2; i++)
+            {
+                Assert.False(dict.TryRemove(KeyValuePair.Create("key", 42)));
+                Assert.Equal(0, dict.Count);
+                Assert.True(dict.TryAdd("key", 42));
+                Assert.Equal(1, dict.Count);
+                Assert.True(dict.TryRemove(KeyValuePair.Create("key", 42)));
+                Assert.Equal(0, dict.Count);
+            }
+
+            Assert.True(dict.TryAdd("key", 42));
+            Assert.False(dict.TryRemove(KeyValuePair.Create("key", 43))); // value doesn't match
+        }
+
+        [Fact]
+        public static void TryRemove_KeyValuePair_MatchesKeyWithDefaultComparer()
+        {
+            var dict = new NonBlocking.ConcurrentDictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            dict.TryAdd("key", "value");
+            Assert.False(dict.TryRemove(KeyValuePair.Create("key", "VALUE")));
+            Assert.True(dict.TryRemove(KeyValuePair.Create("KEY", "value")));
         }
 
         [Fact]
@@ -453,25 +534,33 @@ namespace NonBlockingTests
                             {
                                 if (isAdd)
                                 {
-                                    //call either of the two overloads of GetOrAdd
-                                    if (j + ii % 2 == 0)
+                                    //call one of the overloads of GetOrAdd
+                                    switch (j % 3)
                                     {
-                                        dict.GetOrAdd(j, -j);
-                                    }
-                                    else
-                                    {
-                                        dict.GetOrAdd(j, x => -x);
+                                        case 0:
+                                            dict.GetOrAdd(j, -j);
+                                            break;
+                                        case 1:
+                                            dict.GetOrAdd(j, x => -x);
+                                            break;
+                                        case 2:
+                                            dict.GetOrAdd(j, (x, m) => x * m, -1);
+                                            break;
                                     }
                                 }
                                 else
                                 {
-                                    if (j + ii % 2 == 0)
+                                    switch (j % 3)
                                     {
-                                        dict.AddOrUpdate(j, -j, (k, v) => -j);
-                                    }
-                                    else
-                                    {
-                                        dict.AddOrUpdate(j, (k) => -k, (k, v) => -k);
+                                        case 0:
+                                            dict.AddOrUpdate(j, -j, (k, v) => -j);
+                                            break;
+                                        case 1:
+                                            dict.AddOrUpdate(j, (k) => -k, (k, v) => -k);
+                                            break;
+                                        case 2:
+                                            dict.AddOrUpdate(j, (k, m) => k * m, (k, v, m) => k * m, -1);
+                                            break;
                                     }
                                 }
                             }
@@ -500,7 +589,7 @@ namespace NonBlockingTests
             for (int i = 0; i < expectKeys.Count; i++)
             {
                 Assert.True(expectKeys[i].Equals(gotKeys[i]),
-                    String.Format("* Test '{4}': Level={0}, initSize={1}, threads={2}, addsPerThread={3})" + Environment.NewLine +
+                    string.Format("* Test '{4}': Level={0}, initSize={1}, threads={2}, addsPerThread={3})" + Environment.NewLine +
                     "> FAILED.  The set of keys in the dictionary is are not the same as the expected.",
                     cLevel, initSize, threads, addsPerThread, isAdd ? "GetOrAdd" : "GetOrUpdate"));
             }
@@ -536,7 +625,7 @@ namespace NonBlockingTests
         [Fact]
         public static void TestConstructor()
         {
-            var dictionary = new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
+            var dictionary = new NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) });
             Assert.False(dictionary.IsEmpty);
             Assert.Equal(1, dictionary.Keys.Count);
             Assert.Equal(1, dictionary.Values.Count);
@@ -546,54 +635,123 @@ namespace NonBlockingTests
         //public static void TestDebuggerAttributes()
         //{
         //    DebuggerAttributes.ValidateDebuggerDisplayReferences(new NonBlocking.ConcurrentDictionary<string, int>());
-        //    DebuggerAttributes.ValidateDebuggerTypeProxyProperties(new NonBlocking.ConcurrentDictionary<string, int>());
+        //    NonBlocking.ConcurrentDictionary<string, int> dict = new NonBlocking.ConcurrentDictionary<string, int>();
+        //    dict.TryAdd("One", 1);
+        //    dict.TryAdd("Two", 2);
+        //    DebuggerAttributeInfo info = DebuggerAttributes.ValidateDebuggerTypeProxyProperties(dict);
+        //    PropertyInfo itemProperty = info.Properties.Single(pr => pr.GetCustomAttribute<DebuggerBrowsableAttribute>().State == DebuggerBrowsableState.RootHidden);
+        //    KeyValuePair<string, int>[] items = itemProperty.GetValue(info.Instance) as KeyValuePair<string, int>[];
+        //    Assert.Equal(dict, items);
         //}
+
+        //[Fact]
+        //public static void TestDebuggerAttributes_Null()
+        //{
+        //    Type proxyType = DebuggerAttributes.GetProxyType(new NonBlocking.ConcurrentDictionary<string, int>());
+        //    TargetInvocationException tie = Assert.Throws<TargetInvocationException>(() => Activator.CreateInstance(proxyType, (object)null));
+        //    Assert.IsType<ArgumentNullException>(tie.InnerException);
+        //}
+
+        [Fact]
+        public static void TestNullComparer()
+        {
+            AssertDefaultComparerBehavior(new NonBlocking.ConcurrentDictionary<EqualityApiSpy, int>((IEqualityComparer<EqualityApiSpy>)null));
+
+            AssertDefaultComparerBehavior(new NonBlocking.ConcurrentDictionary<EqualityApiSpy, int>(new[] { new KeyValuePair<EqualityApiSpy, int>(new EqualityApiSpy(), 1) }, null));
+
+            AssertDefaultComparerBehavior(new NonBlocking.ConcurrentDictionary<EqualityApiSpy, int>(1, new[] { new KeyValuePair<EqualityApiSpy, int>(new EqualityApiSpy(), 1) }, null));
+
+            AssertDefaultComparerBehavior(new NonBlocking.ConcurrentDictionary<EqualityApiSpy, int>(1, 1, null));
+
+            void AssertDefaultComparerBehavior(NonBlocking.ConcurrentDictionary<EqualityApiSpy, int> dictionary)
+            {
+                object identity = new object();
+                var spyKey1 = new EqualityApiSpy(identity);
+                var spyKey2 = new EqualityApiSpy(identity);
+
+                Assert.True(dictionary.TryAdd(spyKey1, 1));
+                Assert.False(dictionary.TryAdd(spyKey2, 1));
+
+                Assert.False(spyKey1.ObjectApiUsed || spyKey2.ObjectApiUsed);
+                Assert.True(spyKey1.IEquatableApiUsed || spyKey2.IEquatableApiUsed);
+            }
+        }
+
+        [Fact]
+        public static void TestComparerGetter()
+        {
+            AssertComparerBehavior<string>(null);
+            AssertComparerBehavior<string>(EqualityComparer<string>.Default);
+            AssertComparerBehavior<string>(StringComparer.InvariantCulture);
+            AssertComparerBehavior<string>(StringComparer.OrdinalIgnoreCase);
+            AssertComparerBehavior<int>(EqualityComparer<int>.Default);
+            AssertComparerBehavior<bool>(EqualityComparer<bool>.Default);
+
+            void AssertComparerBehavior<T>(IEqualityComparer<T> comparer)
+            {
+                var dc = new NonBlocking.ConcurrentDictionary<T, object>(comparer);
+                object expected = comparer ?? EqualityComparer<T>.Default;
+                Assert.Same(expected, dc.Comparer);
+            }
+        }
+
+        private sealed class EqualityApiSpy : IEquatable<EqualityApiSpy>
+        {
+            public bool ObjectApiUsed { get; private set; }
+            public bool IEquatableApiUsed { get; private set; }
+
+            private object _identity;
+
+            public EqualityApiSpy(object identity)
+            {
+                _identity = identity;
+            }
+
+            public EqualityApiSpy() : this(new object()) { }
+
+            public override bool Equals(object obj)
+            {
+                ObjectApiUsed = true;
+                return ReferenceEquals(this._identity, ((EqualityApiSpy)obj)._identity);
+            }
+
+            public override int GetHashCode() => _identity.GetHashCode();
+
+            public bool Equals(EqualityApiSpy other)
+            {
+                IEquatableApiUsed = true;
+                return ReferenceEquals(this._identity, other._identity);
+            }
+        }
 
         [Fact]
         public static void TestConstructor_Negative()
         {
-
             Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null));
+               () => new NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null));
             // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
             Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>((IEqualityComparer<int>)null));
-            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null IEqualityComparer is passed");
-
-            Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
+               () => new NonBlocking.ConcurrentDictionary<int, int>((ICollection<KeyValuePair<int, int>>)null, EqualityComparer<int>.Default));
             // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection and non null IEqualityComparer passed");
-
-            Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1) }, null));
-            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when non null collection and null IEqualityComparer passed");
 
             Assert.Throws<ArgumentNullException>(
                () => new NonBlocking.ConcurrentDictionary<string, int>(new[] { new KeyValuePair<string, int>(null, 1) }));
             // "TestConstructor:  FAILED.  Constructor didn't throw ANE when collection has null key passed");
-            Assert.Throws<ArgumentException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
-            // "TestConstructor:  FAILED.  Constructor didn't throw AE when collection has duplicate keys passed");
+
+            // Duplicate keys.
+            Assert.Throws<ArgumentException>(null, () => new NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
 
             Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, null, EqualityComparer<int>.Default));
+               () => new NonBlocking.ConcurrentDictionary<int, int>(1, null, EqualityComparer<int>.Default));
             // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null collection is passed");
 
-            Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, new[] { new KeyValuePair<int, int>(1, 1) }, null));
-            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
-
-            Assert.Throws<ArgumentNullException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(1, 1, null));
-            // "TestConstructor:  FAILED.  Constructor didn't throw ANE when null comparer is passed");
-
             Assert.Throws<ArgumentOutOfRangeException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(0, 10));
+               () => new NonBlocking.ConcurrentDictionary<int, int>(0, 10));
             // "TestConstructor:  FAILED.  Constructor didn't throw AORE when <1 concurrencyLevel passed");
 
             Assert.Throws<ArgumentOutOfRangeException>(
-               () => new  NonBlocking.ConcurrentDictionary<int, int>(-1, 0));
+               () => new NonBlocking.ConcurrentDictionary<int, int>(-1, 0));
             // "TestConstructor:  FAILED.  Constructor didn't throw AORE when < 0 capacity passed");
         }
 
@@ -601,7 +759,6 @@ namespace NonBlockingTests
         public static void TestExceptions()
         {
             var dictionary = new NonBlocking.ConcurrentDictionary<string, int>();
-
             Assert.Throws<ArgumentNullException>(
                () => dictionary.TryAdd(null, 0));
             //  "TestExceptions:  FAILED.  TryAdd didn't throw ANE when null key is passed");
@@ -630,6 +787,12 @@ namespace NonBlockingTests
             // "TestExceptions:  FAILED.  this[] didn't throw ANE when null key is passed");
 
             Assert.Throws<ArgumentNullException>(
+               () => dictionary.GetOrAdd(null, (k, m) => 0, 0));
+            // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.GetOrAdd("1", null, 0));
+            // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null valueFactory is passed");
+            Assert.Throws<ArgumentNullException>(
                () => dictionary.GetOrAdd(null, (k) => 0));
             // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
             Assert.Throws<ArgumentNullException>(
@@ -640,6 +803,15 @@ namespace NonBlockingTests
             // "TestExceptions:  FAILED.  GetOrAdd didn't throw ANE when null key is passed");
 
             Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate(null, (k, m) => 0, (k, v, m) => 0, 42));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null key is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate("1", (k, m) => 0, null, 42));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null updateFactory is passed");
+            Assert.Throws<ArgumentNullException>(
+               () => dictionary.AddOrUpdate("1", null, (k, v, m) => 0, 42));
+            // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null addFactory is passed");
+            Assert.Throws<ArgumentNullException>(
                () => dictionary.AddOrUpdate(null, (k) => 0, (k, v) => 0));
             // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null key is passed");
             Assert.Throws<ArgumentNullException>(
@@ -649,10 +821,9 @@ namespace NonBlockingTests
                () => dictionary.AddOrUpdate(null, (k) => 0, null));
             // "TestExceptions:  FAILED.  AddOrUpdate didn't throw ANE when null addFactory is passed");
 
+            // Duplicate key.
             dictionary.TryAdd("1", 1);
-            Assert.Throws<ArgumentException>(
-               () => ((IDictionary<string, int>)dictionary).Add("1", 2));
-            // "TestExceptions:  FAILED.  IDictionary didn't throw AE when duplicate key is passed");
+            Assert.Throws<ArgumentException>(null, () => ((IDictionary<string, int>)dictionary).Add("1", 2));
         }
 
         [Fact]
@@ -671,9 +842,9 @@ namespace NonBlockingTests
             Assert.Equal(SIZE, dictionary.Count);
 
             //test contains
-            Assert.False(dictionary.Contains(1), "TestIDictionary:  FAILED.  Contain retuned true for incorrect key type");
-            Assert.False(dictionary.Contains("100"), "TestIDictionary:  FAILED.  Contain retuned true for incorrect key");
-            Assert.True(dictionary.Contains("1"), "TestIDictionary:  FAILED.  Contain retuned false for correct key");
+            Assert.False(dictionary.Contains(1), "TestIDictionary:  FAILED.  Contain returned true for incorrect key type");
+            Assert.False(dictionary.Contains("100"), "TestIDictionary:  FAILED.  Contain returned true for incorrect key");
+            Assert.True(dictionary.Contains("1"), "TestIDictionary:  FAILED.  Contain returned false for correct key");
 
             //test GetEnumerator
             int count = 0;
@@ -684,7 +855,7 @@ namespace NonBlockingTests
                 int value = (int)entry.Value;
                 int expectedValue = int.Parse(key);
                 Assert.True(value == expectedValue,
-                    String.Format("TestIDictionary:  FAILED.  Unexpected value returned from GetEnumerator, expected {0}, actual {1}", value, expectedValue));
+                    string.Format("TestIDictionary:  FAILED.  Unexpected value returned from GetEnumerator, expected {0}, actual {1}", value, expectedValue));
                 count++;
             }
 
@@ -703,7 +874,7 @@ namespace NonBlockingTests
             dictionary["1"] = 100; // try a valid setter
             Assert.Equal(100, (int)dictionary["1"]);
 
-            //nonsexist key
+            //non-existing key
             Assert.Null(dictionary["NotAKey"]);
         }
 
@@ -715,13 +886,11 @@ namespace NonBlockingTests
                () => dictionary.Add(null, 1));
             // "TestIDictionary:  FAILED.  Add didn't throw ANE when null key is passed");
 
-            Assert.Throws<ArgumentException>(
-               () => dictionary.Add(1, 1));
-            // "TestIDictionary:  FAILED.  Add didn't throw AE when incorrect key type is passed");
+            // Invalid key type.
+            Assert.Throws<ArgumentException>(null, () => dictionary.Add(1, 1));
 
-            Assert.Throws<ArgumentException>(
-               () => dictionary.Add("1", "1"));
-            // "TestIDictionary:  FAILED.  Add didn't throw AE when incorrect value type is passed");
+            // Invalid value type.
+            Assert.Throws<ArgumentException>(null, () => dictionary.Add("1", "1"));
 
             Assert.Throws<ArgumentNullException>(
                () => dictionary.Contains(null));
@@ -740,13 +909,18 @@ namespace NonBlockingTests
                () => dictionary[null] = 0);
             // "TestIDictionary:  FAILED.  this[] setter didn't throw ANE when null key is passed");
 
-            Assert.Throws<ArgumentException>(
-               () => dictionary[1] = 0);
-            // "TestIDictionary:  FAILED.  this[] setter didn't throw AE when invalid key type is passed");
+            // Invalid key type.
+            Assert.Throws<ArgumentException>(null, () => dictionary[1] = 0);
 
-            Assert.Throws<ArgumentException>(
-               () => dictionary["1"] = "0");
-            // "TestIDictionary:  FAILED.  this[] setter didn't throw AE when invalid value type is passed");
+            // Invalid value type.
+            Assert.Throws<ArgumentException>(null, () => dictionary["1"] = "0");
+        }
+
+        [Fact]
+        public static void IDictionary_Remove_NullKeyInKeyValuePair_ThrowsArgumentNullException()
+        {
+            IDictionary<string, int> dictionary = new NonBlocking.ConcurrentDictionary<string, int>();
+            Assert.Throws<ArgumentNullException>(() => dictionary.Remove(new KeyValuePair<string, int>(null, 0)));
         }
 
         [Fact]
@@ -760,7 +934,7 @@ namespace NonBlockingTests
             //add one item to the dictionary
             ((NonBlocking.ConcurrentDictionary<int, int>)dictionary).TryAdd(key, value);
 
-            var objectArray = new Object[1];
+            var objectArray = new object[1];
             dictionary.CopyTo(objectArray, 0);
 
             Assert.Equal(key, ((KeyValuePair<int, int>)objectArray[0]).Key);
@@ -792,7 +966,7 @@ namespace NonBlockingTests
 
             //add one item to the dictionary
             ((NonBlocking.ConcurrentDictionary<int, int>)dictionary).TryAdd(1, 1);
-            Assert.Throws<ArgumentException>(() => dictionary.CopyTo(new object[] { }, 0));
+            Assert.Throws<ArgumentException>(null, () => dictionary.CopyTo(new object[] { }, 0));
             // "TestICollection:  FAILED.  CopyTo didn't throw AE when the Array size is smaller than the dictionary count");
         }
 
@@ -806,9 +980,7 @@ namespace NonBlockingTests
             Assert.Equal(10, dictionary.Count);
 
             dictionary.Clear();
-#pragma warning disable xUnit2013 // Do not use equality check to check for collection size.
             Assert.Equal(0, dictionary.Count);
-#pragma warning restore xUnit2013 // Do not use equality check to check for collection size.
 
             int item;
             Assert.False(dictionary.TryRemove(1, out item), "TestClear: FAILED.  TryRemove succeeded after Clear");
@@ -882,18 +1054,49 @@ namespace NonBlockingTests
 
             Assert.True(numberSucceeded == tasks.Length, "One or more threads failed!");
             Assert.True(totalKeysUpdated == dictionary.Count,
-               String.Format("TestTryUpdate:  FAILED.  The updated keys count doesn't match the dictionary count, expected {0}, actual {1}", dictionary.Count, totalKeysUpdated));
+               string.Format("TestTryUpdate:  FAILED.  The updated keys count doesn't match the dictionary count, expected {0}, actual {1}", dictionary.Count, totalKeysUpdated));
             foreach (var value in updatedKeys.Values)
             {
                 for (int i = 0; i < value.Keys.Count; i++)
                     Assert.True(dictionary[value.Keys[i]] == value.ThreadIndex,
-                       String.Format("TestTryUpdate:  FAILED.  The updated value doesn't match the thread index, expected {0} actual {1}", value.ThreadIndex, dictionary[value.Keys[i]]));
+                       string.Format("TestTryUpdate:  FAILED.  The updated value doesn't match the thread index, expected {0} actual {1}", value.ThreadIndex, dictionary[value.Keys[i]]));
             }
 
-            //test TryUpdate with non atomic values (nint > 8)
+            //test TryUpdate with non atomic values (intPtr > 8)
             var dict = new NonBlocking.ConcurrentDictionary<int, Struct16>();
             dict.TryAdd(1, new Struct16(1, -1));
             Assert.True(dict.TryUpdate(1, new Struct16(2, -2), new Struct16(1, -1)), "TestTryUpdate:  FAILED.  TryUpdate failed for non atomic values ( > 8 bytes)");
+        }
+
+        [Fact]
+        public static void ConcurrentWriteRead_NoTornValues()
+        {
+            var cd = new NonBlocking.ConcurrentDictionary<int, KeyValuePair<long, long>>();
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            Task.WaitAll(
+                Task.Run(() =>
+                {
+                    for (long i = 0; !cts.IsCancellationRequested; i++)
+                    {
+                        cd[0] = new KeyValuePair<long, long>(i, i);
+                    }
+                }),
+                Task.Run(() =>
+                {
+                    while (!cts.IsCancellationRequested)
+                    {
+                        cd.TryGetValue(0, out KeyValuePair<long, long> item);
+                        try
+                        {
+                            Assert.Equal(item.Key, item.Value);
+                        }
+                        catch
+                        {
+                            cts.Cancel();
+                            throw;
+                        }
+                    }
+                }));
         }
 
         #region Helper Classes and Methods
