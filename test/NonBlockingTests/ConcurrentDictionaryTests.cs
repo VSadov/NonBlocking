@@ -415,7 +415,7 @@ namespace NonBlockingTests
                 mre.WaitOne();
             }
 
-            Assert.Equal(0, dict.Count);
+            Assert.Empty(dict);
 
             for (int i = 0; i < removesPerThread; i++)
             {
@@ -451,8 +451,8 @@ namespace NonBlockingTests
             Assert.False(col.Remove(new KeyValuePair<int, int>(99, -99)), "Should not remove the key/value pair which has been removed");
 
             // And that the dictionary is empty. We will check the count in a few different ways:
-            Assert.Equal(0, dict.Count);
-            Assert.Equal(0, dict.ToArray().Length);
+            Assert.Empty(dict);
+            Assert.Empty(dict.ToArray());
         }
 
         [Fact]
@@ -471,11 +471,11 @@ namespace NonBlockingTests
             for (int i = 0; i < 2; i++)
             {
                 Assert.False(dict.TryRemove(KeyValuePair.Create("key", 42)));
-                Assert.Equal(0, dict.Count);
+                Assert.Empty(dict);
                 Assert.True(dict.TryAdd("key", 42));
-                Assert.Equal(1, dict.Count);
+                Assert.Single(dict);
                 Assert.True(dict.TryRemove(KeyValuePair.Create("key", 42)));
-                Assert.Equal(0, dict.Count);
+                Assert.Empty(dict);
             }
 
             Assert.True(dict.TryAdd("key", 42));
@@ -980,7 +980,7 @@ namespace NonBlockingTests
             Assert.Equal(10, dictionary.Count);
 
             dictionary.Clear();
-            Assert.Equal(0, dictionary.Count);
+            Assert.Empty(dictionary);
 
             int item;
             Assert.False(dictionary.TryRemove(1, out item), "TestClear: FAILED.  TryRemove succeeded after Clear");

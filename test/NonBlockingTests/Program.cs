@@ -121,13 +121,13 @@ namespace NonBlockingTests
             string s;
             Assert.False(dict.TryGetValue(0, out s));
 
-            dict.Add(0, null);
+            dict.TryAdd(0, null);
             Assert.True(dict.TryGetValue(0, out s));
             Assert.Null(s);
-            Assert.True(dict.Remove(0));
+            Assert.True(dict.TryRemove(0, out var _));
             Assert.False(dict.TryGetValue(0, out s));
 
-            dict.Add(0, null);
+            dict.TryAdd(0, null);
             Assert.True(dict.TryRemove(0, out s));
             Assert.Null(s);
             Assert.False(dict.TryRemove(0, out s));
@@ -156,13 +156,13 @@ namespace NonBlockingTests
                 throw new Exception();
             }
 
-            dict.Add(0, null);
+            dict.TryAdd(0, null);
             if (!dict.TryGetValue(0, out s) || s != null)
             {
                 throw new Exception();
             }
 
-            if (!dict.Remove(0))
+            if (!dict.TryRemove(0, out var _))
             {
                 throw new Exception();
             }
@@ -180,7 +180,7 @@ namespace NonBlockingTests
 
             for (int i = 0; i < 10; i++)
             {
-                dict.Add(i, i.ToString());
+                dict.TryAdd(i, i.ToString());
             }
 
             for (int i = 0; i < 10; i++)
@@ -190,13 +190,13 @@ namespace NonBlockingTests
 
             for (int i = 0; i < 10; i++)
             {
-                if (!dict.Remove(i)) throw new Exception();
+                if (!dict.TryRemove(i, out var _)) throw new Exception();
             }
 
 
             for (int i = 0; i < 100; i++)
             {
-                dict.Add(i, i.ToString());
+                dict.TryAdd(i, i.ToString());
             }
 
             for (int i = 0; i < 100; i++)
@@ -206,13 +206,13 @@ namespace NonBlockingTests
 
             for (int i = 0; i < 100; i++)
             {
-                if (!dict.Remove(i)) throw new Exception();
+                if (!dict.TryRemove(i, out var _)) throw new Exception();
             }
 
 
             for (int i = 0; i < 1000; i++)
             {
-                dict.Add(i, i.ToString());
+                dict.TryAdd(i, i.ToString());
             }
 
             for (int i = 0; i < 1000; i++)
@@ -222,7 +222,7 @@ namespace NonBlockingTests
 
             for (int i = 0; i < 1000; i++)
             {
-                if (!dict.Remove(i)) throw new Exception();
+                if (!dict.TryRemove(i, out var _)) throw new Exception();
             }
 
         }
@@ -232,28 +232,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<object, string>();
 
-            Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
             Parallel.For(0, 10, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 1000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 1000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 1000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
         }
 
         class NullIntolerantComparer : IEqualityComparer<object>
@@ -280,28 +280,28 @@ namespace NonBlockingTests
             var keys = new object[100000];
             for (int i = 0; i < keys.Length; i++) keys[i] = i;
 
-            Parallel.For(0, 10, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 10, (i) => dict.TryAdd(keys[i], i));
             Parallel.For(0, 10, (i) => dict[keys[i]] = i);
             Parallel.For(0, 10, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
-            Parallel.For(0, 10, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { if (!dict.TryRemove(keys[i], out var _)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[keys[i]] = i);
             Parallel.For(0, 100, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove(keys[i], out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 1000, (i) => dict.TryAdd(keys[i], i));
             Parallel.For(0, 1000, (i) => dict[keys[i]] = i);
             Parallel.For(0, 1000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove(keys[i], out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove(keys[i], out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add(keys[i], i));
+            Parallel.For(0, 10000, (i) => dict.TryAdd(keys[i], i));
             Parallel.For(0, 10000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove(keys[i], out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[keys[i]] = i);
             Parallel.For(0, 100000, (i) => { if (dict[keys[i]] != i) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove(keys[i])) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove(keys[i], out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -309,28 +309,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, string>();
 
-            Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
             Parallel.For(0, 10, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 1000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 1000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 1000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -338,28 +338,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, int>();
 
-            Parallel.For(0, 10, (i) => dict.Add(i, i));
+            Parallel.For(0, 10, (i) => dict.TryAdd(i, i));
             Parallel.For(0, 10, (i) => dict[i] = i);
             Parallel.For(0, 10, (i) => { if (dict[i] != i) throw new Exception(); });
             Parallel.For(0, 10, (i) => { int ii;  if (!dict.TryRemove(i, out ii)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[i] = i);
             Parallel.For(0, 100, (i) => { if (dict[i] != i) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add(i, i));
+            Parallel.For(0, 1000, (i) => dict.TryAdd(i, i));
             Parallel.For(0, 1000, (i) => dict[i] = i);
             Parallel.For(0, 1000, (i) => { if (dict[i] != i) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add(i, i));
+            Parallel.For(0, 10000, (i) => dict.TryAdd(i, i));
             Parallel.For(0, 10000, (i) => { if (dict[i] != i) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[i] = i);
             Parallel.For(0, 100000, (i) => { if (dict[i] != i) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -367,28 +367,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<uint, int>();
 
-            Parallel.For(0, 10, (i) => dict.Add((uint)i, i));
+            Parallel.For(0, 10, (i) => dict.TryAdd((uint)i, i));
             Parallel.For(0, 10, (i) => dict[(uint)i] = i);
             Parallel.For(0, 10, (i) => { if (dict[(uint)i] != i) throw new Exception(); });
             Parallel.For(0, 10, (i) => { int ii; if (!dict.TryRemove((uint)i, out ii)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[(uint)i] = i);
             Parallel.For(0, 100, (i) => { if (dict[(uint)i] != i) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove((uint)i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove((uint)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add((uint)i, i));
+            Parallel.For(0, 1000, (i) => dict.TryAdd((uint)i, i));
             Parallel.For(0, 1000, (i) => dict[(uint)i] = i);
             Parallel.For(0, 1000, (i) => { if (dict[(uint)i] != i) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove((uint)i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove((uint)i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove((uint)i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove((uint)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add((uint)i, i));
+            Parallel.For(0, 10000, (i) => dict.TryAdd((uint)i, i));
             Parallel.For(0, 10000, (i) => { if (dict[(uint)i] != i) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove((uint)i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove((uint)i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[(uint)i] = i);
             Parallel.For(0, 100000, (i) => { if (dict[(uint)i] != i) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove((uint)i)) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove((uint)i, out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -396,28 +396,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<long, long>();
 
-            Parallel.For(0, 10, (i) => dict.Add((long)i, i));
+            Parallel.For(0, 10, (i) => dict.TryAdd((long)i, i));
             Parallel.For(0, 10, (i) => dict[(long)i] = i);
             Parallel.For(0, 10, (i) => { if (dict[(long)i] != i) throw new Exception(); });
             Parallel.For(0, 10, (i) => { long ii; if (!dict.TryRemove((long)i, out ii)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[(long)i] = i);
             Parallel.For(0, 100, (i) => { if (dict[(long)i] != i) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove((long)i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove((long)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add((long)i, i));
+            Parallel.For(0, 1000, (i) => dict.TryAdd((long)i, i));
             Parallel.For(0, 1000, (i) => dict[(long)i] = i);
             Parallel.For(0, 1000, (i) => { if (dict[(long)i] != i) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove((long)i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove((long)i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove((long)i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove((long)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add((long)i, i));
+            Parallel.For(0, 10000, (i) => dict.TryAdd((long)i, i));
             Parallel.For(0, 10000, (i) => { if (dict[(long)i] != i) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove((long)i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove((long)i, out var _)) throw new Exception(); });
 
             Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => dict[(long)i] = i);
             Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (dict[(long)i] != i) throw new Exception(); });
-            Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.Remove((long)i)) throw new Exception(); });
+            Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.TryRemove((long)i, out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -425,28 +425,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<ulong, long>();
 
-            Parallel.For(0, 10, (i) => dict.Add((ulong)i, i));
+            Parallel.For(0, 10, (i) => dict.TryAdd((ulong)i, i));
             Parallel.For(0, 10, (i) => dict[(ulong)i] = i);
             Parallel.For(0, 10, (i) => { if (dict[(ulong)i] != i) throw new Exception(); });
             Parallel.For(0, 10, (i) => { long ii; if (!dict.TryRemove((ulong)i, out ii)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[(ulong)i] = i);
             Parallel.For(0, 100, (i) => { if (dict[(ulong)i] != i) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove((ulong)i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove((ulong)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add((ulong)i, i));
+            Parallel.For(0, 1000, (i) => dict.TryAdd((ulong)i, i));
             Parallel.For(0, 1000, (i) => dict[(ulong)i] = i);
             Parallel.For(0, 1000, (i) => { if (dict[(ulong)i] != i) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove((ulong)i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove((ulong)i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove((ulong)i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove((ulong)i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add((ulong)i, i));
+            Parallel.For(0, 10000, (i) => dict.TryAdd((ulong)i, i));
             Parallel.For(0, 10000, (i) => { if (dict[(ulong)i] != i) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove((ulong)i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove((ulong)i, out var _)) throw new Exception(); });
 
             Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => dict[(ulong)i] = i);
             Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (dict[(ulong)i] != i) throw new Exception(); });
-            Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.Remove((ulong)i)) throw new Exception(); });
+            Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.TryRemove((ulong)i, out var _)) throw new Exception(); });
         }
 
         [Fact()]
@@ -456,32 +456,32 @@ namespace NonBlockingTests
             {
                 var dict = new NonBlocking.ConcurrentDictionary<nint, long>();
 
-                Parallel.For(0, 10, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 10, (i) => dict.TryAdd((nint)i, i));
                 Parallel.For(0, 10, (i) => dict[(nint)i] = i);
                 Parallel.For(0, 10, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
                 Parallel.For(0, 10, (i) => { long ii; if (!dict.TryRemove((nint)i, out ii)) throw new Exception(); });
 
                 Parallel.For(0, 100, (i) => dict[(nint)i] = i);
                 Parallel.For(0, 100, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
-                Parallel.For(0, 100, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For(0, 100, (i) => { if (!dict.TryRemove((nint)i, out var _)) throw new Exception(); });
 
-                Parallel.For(0, 1000, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 1000, (i) => dict.TryAdd((nint)i, i));
                 Parallel.For(0, 1000, (i) => dict[(nint)i] = i);
                 Parallel.For(0, 1000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
-                Parallel.For(0, 1000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
-                Parallel.For(0, 1000, (i) => { if (dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For(0, 1000, (i) => { if (!dict.TryRemove((nint)i, out var _)) throw new Exception(); });
+                Parallel.For(0, 1000, (i) => { if (dict.TryRemove((nint)i, out var _)) throw new Exception(); });
 
-                Parallel.For(0, 10000, (i) => dict.Add((nint)i, i));
+                Parallel.For(0, 10000, (i) => dict.TryAdd((nint)i, i));
                 Parallel.For(0, 10000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
-                Parallel.For(0, 10000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For(0, 10000, (i) => { if (!dict.TryRemove((nint)i, out var _)) throw new Exception(); });
 
                 Parallel.For(0, 100000, (i) => dict[(nint)i] = i);
                 Parallel.For(0, 100000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
-                Parallel.For(0, 100000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For(0, 100000, (i) => { if (!dict.TryRemove((nint)i, out var _)) throw new Exception(); });
 
                 Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => dict[(nint)i] = i);
                 Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (dict[(nint)i] != i) throw new Exception(); });
-                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.Remove((nint)i)) throw new Exception(); });
+                Parallel.For((long)int.MaxValue + 1L, (long)int.MaxValue + 100000, (i) => { if (!dict.TryRemove((nint)i, out var _)) throw new Exception(); });
             }
         }
 
@@ -518,28 +518,28 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<S1, string>(new S1.Comparer());
 
-            Parallel.For(0, 10, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10, (i) => dict[i] = i.ToString());
             Parallel.For(0, 10, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 1000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 1000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 1000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 1000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
-            Parallel.For(0, 1000, (i) => { if (dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
+            Parallel.For(0, 1000, (i) => { if (dict.TryRemove(i, out var _)) throw new Exception(); });
 
-            Parallel.For(0, 10000, (i) => dict.Add(i, i.ToString()));
+            Parallel.For(0, 10000, (i) => dict.TryAdd(i, i.ToString()));
             Parallel.For(0, 10000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 10000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 10000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
 
             Parallel.For(0, 100000, (i) => dict[i] = i.ToString());
             Parallel.For(0, 100000, (i) => { if (dict[i] != i.ToString()) throw new Exception(); });
-            Parallel.For(0, 100000, (i) => { if (!dict.Remove(i)) throw new Exception(); });
+            Parallel.For(0, 100000, (i) => { if (!dict.TryRemove(i, out var _)) throw new Exception(); });
         }
 
         [Fact()]

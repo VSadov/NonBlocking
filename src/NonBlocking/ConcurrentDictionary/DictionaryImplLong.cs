@@ -2,10 +2,6 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace NonBlocking
@@ -118,6 +114,7 @@ namespace NonBlocking
             return key == entryKeyValue;
         }
 
+        // inline the base implementation to devirtualize calls to hash and keyEqual
         internal override object TryGetValue(long key)
         {
             return base.TryGetValue(key);

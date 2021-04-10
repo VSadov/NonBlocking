@@ -2,10 +2,8 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
+#nullable disable
+
 using System.Threading;
 
 namespace NonBlocking
@@ -51,17 +49,33 @@ namespace NonBlocking
             return key == entryKeyValue || _keyComparer.Equals(key, entryKeyValue);
         }
 
+        // inline the base implementation to devirtualize calls to hash and keyEqual
+        internal override object TryGetValue(TKey key)
+        {
+            return base.TryGetValue(key);
+        }
+
+        protected override int hash(TKey key)
+        {
+            return base.hash(key);
+        }
+
         protected override bool keyEqual(TKey key, TKey entryKey)
         {
             if (key == entryKey)
             {
                 return true;
             }
-           
+
             //NOTE: slots are claimed in two stages - claim a hash, then set a key
             //      it is possible to observe a slot with a null key, but with hash already set
             //      that is not a match since the key is not yet in the table
-            return entryKey != null && _keyComparer.Equals(entryKey, key);
+            if (entryKey == null)
+            {
+                return false;
+            }
+
+            return _keyComparer.Equals(entryKey, key);
         }
 
         protected override DictionaryImpl<TKey, TKey, TValue> CreateNew(int capacity)

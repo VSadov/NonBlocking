@@ -2,7 +2,8 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
-using System.Collections.Generic;
+#nullable disable
+
 using System.Runtime.CompilerServices;
 
 namespace NonBlocking
