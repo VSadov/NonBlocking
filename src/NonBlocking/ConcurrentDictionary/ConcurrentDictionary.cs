@@ -183,8 +183,8 @@ namespace NonBlocking
                 throw new ArgumentOutOfRangeException(nameof(capacity));
             }
 
-            // add some extra so that filled to capacity would be at nice 75% density
-            capacity = Math.Max(capacity, capacity + capacity / 2);
+            // add some extra so that filled to capacity would be at 50% density
+            capacity = Math.Max(capacity, capacity * 2);
 
             if (!typeof(TKey).IsValueType)
             {
@@ -276,10 +276,7 @@ namespace NonBlocking
                 ThrowHelper.ThrowKeyNullException();
             }
 
-            object oldValObj = _table.TryGetValue(key);
-            Debug.Assert(!(oldValObj is Prime));
-
-            return oldValObj != null;
+            return _table.TryGetValue(key, out _);
         }
 
         /// <summary>
@@ -348,20 +345,7 @@ namespace NonBlocking
                 ThrowHelper.ThrowKeyNullException();
             }
 
-            object oldValObj = _table.TryGetValue(key);
-
-            Debug.Assert(!(oldValObj is Prime));
-
-            if (oldValObj != null)
-            {
-                value = FromObjectValue(oldValObj);
-                return true;
-            }
-            else
-            {
-                value = default(TValue);
-                return false;
-            }
+            return _table.TryGetValue(key, out value);
         }
 
         /// <summary>
@@ -578,11 +562,9 @@ namespace NonBlocking
                     ThrowHelper.ThrowKeyNullException();
                 }
 
-                object oldValObj = _table.TryGetValue(key);
-                Debug.Assert(!(oldValObj is Prime));
-                if (oldValObj != null)
+                if (_table.TryGetValue(key, out var value))
                 {
-                    return FromObjectValue(oldValObj);
+                    return value;
                 }
 
                 ThrowKeyNotFoundException(key);
@@ -606,34 +588,6 @@ namespace NonBlocking
         [DoesNotReturn]
         private static void ThrowKeyNotFoundException(TKey key) =>
             throw new KeyNotFoundException();
-
-        /// <summary>
-        /// Fetches the actual value from an object form used by the table.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal TValue FromObjectValue(object obj)
-        {
-            // regular value type
-            if (default(TValue) != null)
-            {
-                return Unsafe.As<Boxed<TValue>>(obj).Value;
-            }
-
-            // null
-            if (obj == NULLVALUE)
-            {
-                return default(TValue);
-            }
-
-            // ref type
-            if (!typeof(TValue).IsValueType)
-            {
-                return Unsafe.As<object, TValue>(ref obj);
-            }
-
-            // nullable
-            return (TValue)obj;
-        }
 
         /// <summary>
         /// Gets the <see cref="IEqualityComparer{TKey}" />
@@ -723,12 +677,9 @@ namespace NonBlocking
                 ThrowHelper.ThrowArgumentNullException(nameof(valueFactory));
             }
 
-            object oldValObj = _table.TryGetValue(key);
-            Debug.Assert(!(oldValObj is Prime));
-
-            if (oldValObj != null)
+            if (_table.TryGetValue(key, out var value))
             {
-                return FromObjectValue(oldValObj);
+                return value;
             }
             else
             {
@@ -770,7 +721,7 @@ namespace NonBlocking
                 return value;
             }
 
-            return FromObjectValue(oldVal);
+            return oldVal;
         }
 
 
