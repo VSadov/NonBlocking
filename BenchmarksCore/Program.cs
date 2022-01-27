@@ -524,15 +524,15 @@ namespace NonBlockingTests
 
             for (int i = 0; i < 1000000; i++)
             {
-                dict.Add(i, "dummy");
-                dict.Remove(i);
+                dict.TryAdd(i, "dummy");
+                dict.TryRemove(i, out _);
                 //Thread.Sleep(10);
             }
 
             for (int i = 0; i < 100000; i++)
             {
-                dict.Add(i, "dummy");
-                dict.Remove(i);
+                dict.TryAdd(i, "dummy");
+                dict.TryRemove(i, out _);
                 Thread.Sleep(5);
             }
 

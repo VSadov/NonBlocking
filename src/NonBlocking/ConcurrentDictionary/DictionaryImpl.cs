@@ -72,7 +72,7 @@ namespace NonBlocking
             var h = (uint)fullHash;
 
             // xor-shift some upper bits down, in case if variations are mostly in high bits
-            // and scatter the bits a little to break up clusters if hahses are periodic (like 42, 43, 44, ...)
+            // and scatter the bits a little to break up clusters if hashes are periodic (like 42, 43, 44, ...)
             // long clusters can cause long reprobes. small clusters are ok though.
             h ^= h >> 15;
             h ^= h >> 8;
