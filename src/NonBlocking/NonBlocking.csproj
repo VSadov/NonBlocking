@@ -32,7 +32,7 @@
         API refinement to match .net 5.0 ConcurrentDictionary
     </PackageReleaseNotes>
     <Summary>Implementation of a lock-free dictionary on .Net</Summary>
-    <Copyright>Copyright 2021 (c) Vladimir Sadov. All rights reserved.</Copyright>
+    <Copyright>Copyright 2022 (c) Vladimir Sadov. All rights reserved.</Copyright>
     <PackageTags>lock-free wait-free dictionary high-performance</PackageTags>
     <PackageProjectUrl>https://github.com/VSadov/NonBlocking</PackageProjectUrl>
   </PropertyGroup>
