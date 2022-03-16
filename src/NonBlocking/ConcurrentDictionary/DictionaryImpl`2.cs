@@ -31,8 +31,8 @@ namespace NonBlocking
         internal abstract class Snapshot
         {
             protected int _idx;
-            protected TKey _curKey, _nextK;
-            protected object _curValue, _nextV;
+            protected TKey _curKey;
+            protected TValue _curValue;
 
             public abstract int Count { get; }
             public abstract bool MoveNext();
@@ -42,19 +42,7 @@ namespace NonBlocking
             {
                 get
                 {
-                    var curValue = this._curValue;
-                    if (curValue == NULLVALUE)
-                    {
-                        // undefined behavior or throw?
-                        // current implementation returns things
-                        return default;
-                    }
-
-                    var curValueUnboxed = default(TValue) != null ?
-                        Unsafe.As<Boxed<TValue>>(curValue).Value :
-                        (TValue)curValue;
-
-                    return new DictionaryEntry(this._curKey, curValueUnboxed);
+                    return new DictionaryEntry(_curKey, _curValue);
                 }
             }
 
@@ -62,20 +50,34 @@ namespace NonBlocking
             {
                 get
                 {
-                    var curValue = this._curValue;
-                    if (curValue == NULLVALUE)
-                    {
-                        // undefined behavior
-                        return default;
-                    }
-
-                    var curValueUnboxed = default(TValue) != null ?
-                                            Unsafe.As<Boxed<TValue>>(curValue).Value :
-                                            (TValue)curValue;
-
-                    return new KeyValuePair<TKey, TValue>(this._curKey, curValueUnboxed);
+                    return new KeyValuePair<TKey, TValue>(this._curKey, _curValue);
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal TValue FromObjectValue(object obj)
+        {
+            // regular value type
+            if (default(TValue) != null)
+            {
+                return Unsafe.As<Boxed<TValue>>(obj).Value;
+            }
+
+            // null
+            if (obj == NULLVALUE)
+            {
+                return default(TValue);
+            }
+
+            // ref type
+            if (!typeof(TValue).IsValueType)
+            {
+                return Unsafe.As<object, TValue>(ref obj);
+            }
+
+            // nullable
+            return (TValue)obj;
         }
     }
 }

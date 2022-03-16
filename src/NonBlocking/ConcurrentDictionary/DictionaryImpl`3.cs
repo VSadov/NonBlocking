@@ -486,7 +486,7 @@ namespace NonBlocking
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
-                    var newTable1 = curTable.Resize();
+                    var newTable1 = curTable.Resize(isForReprobe: true);
                     // help along an existing copy
                     curTable.HelpCopy();
                     curTable = newTable1;
@@ -514,11 +514,11 @@ namespace NonBlocking
             var newTable = curTable._newTable;
 
             // newTable == entryValue only when both are nulls
-                if ((object)newTable == (object)entryValue &&
-                curTable.TableIsCrowded())
+            if ((object)newTable == (object)entryValue &&
+            curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && newTable == curTable._newTable);
             }
 
@@ -684,7 +684,7 @@ namespace NonBlocking
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
-                    var newTable1 = curTable.Resize();
+                    var newTable1 = curTable.Resize(isForReprobe: true);
                     // help along an existing copy
                     curTable.HelpCopy();
                     curTable = newTable1;
@@ -716,7 +716,7 @@ namespace NonBlocking
                 curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && curTable._newTable == newTable);
             }
 
@@ -833,7 +833,7 @@ namespace NonBlocking
                 // but there could be more in the new one
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
-                    var resized = curTable.Resize();
+                    var resized = curTable.Resize(isForReprobe: true);
                     curTable = resized;
                     goto TRY_WITH_NEW_TABLE;
                 }
@@ -862,7 +862,7 @@ namespace NonBlocking
                 curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && curTable._newTable == newTable);
             }
 
@@ -909,34 +909,9 @@ namespace NonBlocking
         {
             if (this.TableIsCrowded())
             {
-                this.Resize();
+                this.Resize(isForReprobe: false);
                 this.HelpCopy();
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal TValue FromObjectValue(object obj)
-        {
-            // regular value type
-            if (default(TValue) != null)
-            {
-                return Unsafe.As<Boxed<TValue>>(obj).Value;
-            }
-
-            // null
-            if (obj == NULLVALUE)
-            {
-                return default(TValue);
-            }
-
-            // ref type
-            if (!typeof(TValue).IsValueType)
-            {
-                return Unsafe.As<object, TValue>(ref obj);
-            }
-
-            // nullable
-            return (TValue)obj;
         }
 
         ///////////////////////////////////////////////////////////
@@ -965,8 +940,8 @@ namespace NonBlocking
 
         internal bool TableIsCrowded()
         {
-            // 80% utilization, switch to a bigger table
-            return EstimatedSlotsUsed > (_entries.Length >> 2) * 3;
+            // 75% utilization, switch to a bigger table
+            return EstimatedSlotsUsed >= (_entries.Length / 4 * 3);
         }
 
         // Help along an existing resize operation.  This is just a fast cut-out
@@ -1267,12 +1242,12 @@ namespace NonBlocking
         }
 
         // kick off resizing, if not started already, and return the new table.
-        private DictionaryImpl<TKey, TKeyStore, TValue> Resize()
+        private DictionaryImpl<TKey, TKeyStore, TValue> Resize(bool isForReprobe)
         {
             // Check for resize already in progress, probably triggered by another thread.
             // reads of this._newTable in Resize are not volatile
             // we are just opportunistically checking if a new table has arrived.
-            return this._newTable ?? ResizeImpl();
+            return this._newTable ?? ResizeImpl(isForReprobe);
         }
 
         // Resizing after too many probes.  "How Big???" heuristics are here.
@@ -1280,28 +1255,42 @@ namespace NonBlocking
         // Since this routine has a fast cutout for copy-already-started, callers
         // MUST 'help_copy' lest we have a path which forever runs through
         // 'resize' only to discover a copy-in-progress which never progresses.
-        private DictionaryImpl<TKey, TKeyStore, TValue> ResizeImpl()
+        private DictionaryImpl<TKey, TKeyStore, TValue> ResizeImpl(bool isForReprobe)
         {
-            // No copy in-progress, so start one.
+            const int MAX_SIZE = 1 << 30;
+            const int MAX_CHURN_SIZE = 1 << 20;
+
             // First up: compute new table size.
             int oldlen = this._entries.Length;
 
-            const int MAX_SIZE = 1 << 30;
-            const int MAX_CHURN_SIZE = 1 << 15;
+            // First size estimate is 4x of the current size
+            int oldsz = Size;
+            int newsz = oldsz < (MAX_SIZE / 4) ?
+                                        oldsz * 4 :
+                                        oldsz;
 
-            // First size estimate is roughly inverse of ProbeLimit
-            int sz = Size + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
-            int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ?
-                                            sz << REPROBE_LIMIT_SHIFT :
-                                            sz;
+            newsz = Math.Max(newsz, MIN_SIZE);
 
-            var resizeSpan = CurrentTickMillis() - _topDict._lastResizeTickMillis;
+            if (isForReprobe)
+            {
+                // if half slots are dead, just do regular resize
+                // otherwise we want to double the length to not come here too soon
+                if (allocatedSlotCount.Value < oldsz * 2)
+                {
+                    if (oldlen < (MAX_SIZE / 2))
+                    {
+                        newsz = Math.Max(newsz, oldlen * 2);
+                    }
+                }
+            }
 
-            // if new table would shrink or hold steady,
-            // we must be resizing because of churn.
-            // target churn based resize rate to be about 1 per RESIZE_TICKS_TARGET
             if (newsz <= oldlen)
             {
+                // if new table would shrink or hold steady,
+                // we must be resizing because of churn.
+                // target churn based resize rate to be about 1 per RESIZE_TICKS_TARGET
+                var resizeSpan = CurrentTickMillis() - _topDict._lastResizeTickMillis;
+
                 // note that CurrentTicks() will wrap around every 50 days.
                 // For our purposes that is tolerable since it just
                 // adds a possibility that in some rare cases a churning resize will not be
@@ -1316,11 +1305,6 @@ namespace NonBlocking
                     // do not allow shrink too fast
                     newsz = Math.Max(newsz, (int)((long)oldlen * RESIZE_MILLIS_TARGET / resizeSpan));
                 }
-            }
-            else if (resizeSpan < RESIZE_MILLIS_TARGET)
-            {
-                // last resize too recent, expand more.
-                newsz = Math.Min(MAX_SIZE, newsz << 1);
             }
 
             // Align up to a power of 2
@@ -1371,6 +1355,7 @@ namespace NonBlocking
             }
             else
             {
+                //System.Console.WriteLine(newsz + " :" + isForReprobe + " size:" + oldsz);
                 return newTable;
             }
         }
