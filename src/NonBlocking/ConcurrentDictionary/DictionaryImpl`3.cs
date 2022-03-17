@@ -3,13 +3,14 @@
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
 //
-// Core algorithms are based on NonBlockingHashMap, 
+// Core algorithms are based on NonBlockingHashMap,
 // written and released to the public domain by Dr.Cliff Click.
 // A good overview is here https://www.youtube.com/watch?v=HJ-719EGIts
 //
 
+#nullable disable
+
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -31,7 +32,6 @@ namespace NonBlocking
         private Counter32 _size;
 
         internal static readonly bool valueIsAtomic = IsValueAtomicPrimitive();
-        internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
 
         // Sometimes many threads race to create a new very large table.  Only 1
         // wins the race, but the losers all allocate a junk large table with
@@ -50,12 +50,12 @@ namespace NonBlocking
         // table to the new table.  Workers are not required to finish any chunk;
         // the counter simply wraps and work is copied duplicately until somebody
         // somewhere completes the count.
-        private int _claimedChunk = 0;
+        private int _claimedChunk;
 
         // Work-done reporting.  Used to efficiently signal when we can move to
         // the new table.  From 0 to length of old table refers to copying from the old
         // table to the new.
-        private int _copyDone = 0;
+        private int _copyDone;
 
         [DebuggerDisplay("key = {key}; hash = {hash}; value = {value};")]
         [StructLayout(LayoutKind.Sequential)]
@@ -70,7 +70,7 @@ namespace NonBlocking
 
         // targeted time span between resizes.
         // if resizing more often than this, try expanding.
-        const uint RESIZE_MILLIS_TARGET = (uint)1000;
+        private const uint RESIZE_MILLIS_TARGET = (uint)1000;
 
         // create an empty dictionary
         protected abstract DictionaryImpl<TKey, TKeyStore, TValue> CreateNew(int capacity);
@@ -81,11 +81,11 @@ namespace NonBlocking
         // compares key with another in its storage form
         protected abstract bool keyEqual(TKey key, TKeyStore entryKey);
 
-        // claiming (by writing atomically to the entryKey location) 
+        // claiming (by writing atomically to the entryKey location)
         // or getting existing slot suitable for storing a given key.
         protected abstract bool TryClaimSlotForPut(ref TKeyStore entryKey, TKey key);
 
-        // claiming (by writing atomically to the entryKey location) 
+        // claiming (by writing atomically to the entryKey location)
         // or getting existing slot suitable for storing a given key in its store form (could be boxed).
         protected abstract bool TryClaimSlotForCopy(ref TKeyStore entryKey, TKeyStore key);
 
@@ -98,9 +98,10 @@ namespace NonBlocking
             this._size = new Counter32();
             this._topDict = topDict;
 
-            if (!typeof(TKeyStore).GetTypeInfo().IsValueType)
+            if (!typeof(TKeyStore).IsValueType)
             {
-                topDict._sweeperInstance = new Sweeper();
+                // do not create a real sweeper just yet. Often it is not needed.
+                topDict._sweeperInstance = NULLVALUE;
             }
 
             _ = valueIsAtomic;
@@ -132,24 +133,24 @@ namespace NonBlocking
             //
             // See http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-335.pdf
             //
-            if (typeof(TValue) == typeof(Boolean) ||
-                typeof(TValue) == typeof(Byte) ||
-                typeof(TValue) == typeof(Char) ||
-                typeof(TValue) == typeof(Int16) ||
-                typeof(TValue) == typeof(Int32) ||
-                typeof(TValue) == typeof(SByte) ||
-                typeof(TValue) == typeof(Single) ||
-                typeof(TValue) == typeof(UInt16) ||
-                typeof(TValue) == typeof(UInt32) ||
+            if (typeof(TValue) == typeof(bool) ||
+                typeof(TValue) == typeof(byte) ||
+                typeof(TValue) == typeof(char) ||
+                typeof(TValue) == typeof(short) ||
+                typeof(TValue) == typeof(int) ||
+                typeof(TValue) == typeof(sbyte) ||
+                typeof(TValue) == typeof(float) ||
+                typeof(TValue) == typeof(ushort) ||
+                typeof(TValue) == typeof(uint) ||
                 typeof(TValue) == typeof(IntPtr) ||
                 typeof(TValue) == typeof(UIntPtr))
             {
                 return true;
             }
 
-            if (typeof(TValue) == typeof(Int64) ||
-                typeof(TValue) == typeof(Double) ||
-                typeof(TValue) == typeof(UInt64))
+            if (typeof(TValue) == typeof(long) ||
+                typeof(TValue) == typeof(double) ||
+                typeof(TValue) == typeof(ulong))
             {
                 return IntPtr.Size == 8;
             }
@@ -164,10 +165,7 @@ namespace NonBlocking
 
         protected virtual int hash(TKey key)
         {
-            if (key == null)
-            {
-                throw new ArgumentNullException("key");
-            }
+            Debug.Assert(!(key is null));
 
             int h = _keyComparer.GetHashCode(key);
 
@@ -192,9 +190,10 @@ namespace NonBlocking
 
         /// <summary>
         /// returns null if value is not present in the table
-        /// otherwise returns the actual value or NULLVALUE if null is the actual value 
+        /// otherwise returns the actual value or NULLVALUE if null is the actual value
         /// </summary>
-        internal sealed override object TryGetValue(TKey key)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override object TryGetValue(TKey key)
         {
             int fullHash = this.hash(key);
             var curTable = this;
@@ -210,11 +209,11 @@ namespace NonBlocking
             {
                 ref var entry = ref curTable._entries[idx];
 
-                // an entry is never reused for a different key 
+                // an entry is never reused for a different key
                 // key/value/hash all read atomically and order of reads is unimportant
 
                 // is this our slot?
-                if (fullHash == entry.hash && curTable.keyEqual(key, entry.key))
+                if (fullHash == entry.hash && keyEqual(key, entry.key))
                 {
                     // read the value before the _newTable.
                     // if the new table is null later, then the value cannot be forwarded
@@ -225,7 +224,10 @@ namespace NonBlocking
                         break;
                     }
 
-                    // if no new table, no need to check for primed value, 
+                    // "READ BARRIER", if copying has started, we must help with copying and
+                    // read from the new table.
+
+                    // if no new table, no need to check for primed value,
                     // but TOMBPRIME is possible when sweeping, check for that
                     if ((curTable._newTable == null && entryValue != TOMBPRIME) ||
                         entryValue.GetType() != typeof(Prime))
@@ -233,7 +235,7 @@ namespace NonBlocking
                         return entryValue;
                     }
 
-                    // found a prime, that means the copying or sweeping has started 
+                    // found a prime, that means the copying or sweeping has started
                     // help and retry in the new table
                     curTable = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
                     goto tryWithNewTable;
@@ -247,7 +249,7 @@ namespace NonBlocking
 
                 // get, put and remove must have the same key lookup logic.
                 // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
-                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table,
                 // but there could be more in the new table
                 if (entry.hash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
@@ -295,7 +297,7 @@ namespace NonBlocking
             int reprobeCount = 0;
             while (true)
             {
-                // an entry is never reused for a different key 
+                // an entry is never reused for a different key
                 // key/value/hash all read atomically and order of reads is unimportant
                 var entryHash = entry.hash;
 
@@ -307,7 +309,7 @@ namespace NonBlocking
 
                 if (entryHash == 0)
                 {
-                    // Found an unassigned slot - which means this 
+                    // Found an unassigned slot - which means this
                     // key has never been in this table.
                     oldVal = default;
                     goto FAILED;
@@ -315,7 +317,7 @@ namespace NonBlocking
 
                 // get, put and remove must have the same key lookup logic.
                 // But only 'put' needs to force a table-resize for a too-long key-reprobe sequence
-                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table,
                 // but there could be more in the new table
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
@@ -337,7 +339,7 @@ namespace NonBlocking
                 entry = ref curTable._entries[idx];
             }
 
-            // Found the proper Key slot, now update the Value.  
+            // Found the proper Key slot, now update the Value.
             // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
 
@@ -388,7 +390,7 @@ namespace NonBlocking
                     }
                 }
 
-                // Actually change the Value 
+                // Actually change the Value
                 var prev = Interlocked.CompareExchange(ref entry.value, TOMBSTONE, entryValue);
                 if (prev == entryValue)
                 {
@@ -405,7 +407,7 @@ namespace NonBlocking
                     return true;
                 }
 
-                // If a Prime'd value got installed, we need to re-run on the new table. 
+                // If a Prime'd value got installed, we need to re-run on the new table.
                 Debug.Assert(prev != null);
                 if (prev.GetType() == typeof(Prime))
                 {
@@ -424,16 +426,15 @@ namespace NonBlocking
 
         // 1) finds or creates a slot for the key
         // 2) sets the slot value to the newVal if original value meets oldVal and match condition
-        // 3) returns true if the value was actually changed 
-        // Note that pre-existence of the slot is irrelevant 
+        // 3) returns true if the value was actually changed
+        // Note that pre-existence of the slot is irrelevant
         // since slot without a value is as good as no slot at all
         internal sealed override bool PutIfMatch(TKey key, TValue newVal, ref TValue oldVal, ValueMatch match)
         {
             Debug.Assert(
-                match == ValueMatch.NullOrDead || 
+                match == ValueMatch.NullOrDead ||
                 match == ValueMatch.OldValue ||
                 match == ValueMatch.Any);
-
 
             var curTable = this;
             int fullHash = curTable.hash(key);
@@ -448,7 +449,7 @@ namespace NonBlocking
             int reprobeCount = 0;
             while (true)
             {
-                // an entry is never reused for a different key 
+                // an entry is never reused for a different key
                 // key/value/hash all read atomically and order of reads is unimportant
                 var entryHash = entry.hash;
                 if (entryHash == 0)
@@ -471,7 +472,7 @@ namespace NonBlocking
 
                 if (entryHash == fullHash)
                 {
-                    // hash is good, one way or another, 
+                    // hash is good, one way or another,
                     // try claiming the slot for the key
                     if (curTable.TryClaimSlotForPut(ref entry.key, key))
                     {
@@ -480,12 +481,12 @@ namespace NonBlocking
                 }
 
                 // here we know that this slot does not map to our key and must reprobe or resize
-                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table,
                 // but there could be more in the new table
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
-                    var newTable1 = curTable.Resize();
+                    var newTable1 = curTable.Resize(isForReprobe: true);
                     // help along an existing copy
                     curTable.HelpCopy();
                     curTable = newTable1;
@@ -499,7 +500,7 @@ namespace NonBlocking
                 entry = ref curTable._entries[idx];
             }
 
-            // Found the proper Key slot, now update the Value.  
+            // Found the proper Key slot, now update the Value.
             // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
 
@@ -507,17 +508,17 @@ namespace NonBlocking
             // that would guarantee that as long as _newTable == null, entryValue cannot be forwarded.
             var entryValue = Volatile.Read(ref entry.value);
 
-            // See if we want to move to a new table (to avoid high average re-probe counts).  
+            // See if we want to move to a new table (to avoid high average re-probe counts).
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
             var newTable = curTable._newTable;
 
             // newTable == entryValue only when both are nulls
-                if ((object)newTable == (object)entryValue &&
-                curTable.TableIsCrowded())
+            if ((object)newTable == (object)entryValue &&
+            curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && newTable == curTable._newTable);
             }
 
@@ -580,7 +581,7 @@ namespace NonBlocking
                         if (!entryValueNullOrDead)
                         {
                             // this is the only case where caller expects to see oldVal
-                            // NB: No need to freeze here. This is keyed on mere presence of the value. 
+                            // NB: No need to freeze here. This is keyed on mere presence of the value.
                             oldVal = FromObjectValue(entryValue);
                             goto FAILED;
                         }
@@ -603,7 +604,7 @@ namespace NonBlocking
                 }
                 // Else CAS failed
 
-                // If a Prime'd value got installed, we need to re-run the put on the new table. 
+                // If a Prime'd value got installed, we need to re-run the put on the new table.
                 Debug.Assert(prev != null);
                 if (prev.GetType() == typeof(Prime))
                 {
@@ -628,11 +629,6 @@ namespace NonBlocking
 
         internal sealed override TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
         {
-            if (valueFactory == null)
-            {
-                throw new ArgumentNullException("valueFactory");
-            }
-
             object newValObj = null;
             TValue result = default(TValue);
 
@@ -650,11 +646,11 @@ namespace NonBlocking
             while (true)
             {
                 // hash and key are CAS-ed down and follow a specific sequence of states.
-                // hence the order of their reads is irrelevant and they do not need to be volatile    
+                // hence the order of their reads is irrelevant and they do not need to be volatile
                 var entryHash = entry.hash;
                 if (entryHash == 0)
                 {
-                    // Found an unassigned slot - which means this 
+                    // Found an unassigned slot - which means this
                     // key has never been in this table.
                     // Slot is completely clean, claim the hash first
                     Debug.Assert(fullHash != 0);
@@ -673,7 +669,7 @@ namespace NonBlocking
 
                 if (entryHash == fullHash)
                 {
-                    // hash is good, one way or another, 
+                    // hash is good, one way or another,
                     // try claiming the slot for the key
                     if (curTable.TryClaimSlotForPut(ref entry.key, key))
                     {
@@ -683,12 +679,12 @@ namespace NonBlocking
 
                 // here we know that this slot does not map to our key
                 // and must reprobe or resize
-                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table, 
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that the key is not in this table,
                 // but there could be more in the new table
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
                     // start resize or get new table if resize is already in progress
-                    var newTable1 = curTable.Resize();
+                    var newTable1 = curTable.Resize(isForReprobe: true);
                     // help along an existing copy
                     curTable.HelpCopy();
                     curTable = newTable1;
@@ -702,7 +698,7 @@ namespace NonBlocking
                 entry = ref curTable._entries[idx];
             }
 
-            // Found the proper Key slot, now update the Value.  
+            // Found the proper Key slot, now update the Value.
             // We never put a null, so Value slots monotonically move from null to
             // not-null (deleted Values use Tombstone).
 
@@ -710,7 +706,7 @@ namespace NonBlocking
             // that would guarantee that as long as _newTable == null, entryValue cannot be forwarded.
             var entryValue = Volatile.Read(ref entry.value);
 
-            // See if we want to move to a new table (to avoid high average re-probe counts).  
+            // See if we want to move to a new table (to avoid high average re-probe counts).
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
             var newTable = curTable._newTable;
@@ -720,7 +716,7 @@ namespace NonBlocking
                 curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && curTable._newTable == newTable);
             }
 
@@ -748,7 +744,7 @@ namespace NonBlocking
             {
                 Debug.Assert(!(entryValue is Prime));
 
-                // Actually change the Value 
+                // Actually change the Value
                 var prev = Interlocked.CompareExchange(ref entry.value, newValObj, entryValue);
                 if (prev == entryValue)
                 {
@@ -832,31 +828,31 @@ namespace NonBlocking
 
                 // here we know that this slot does not map to our key
                 // and must reprobe or resize
-                // hitting reprobe limit or finding TOMBPRIMEHASH here means that 
+                // hitting reprobe limit or finding TOMBPRIMEHASH here means that
                 // we will not find an appropriate slot in this table
                 // but there could be more in the new one
                 if (entryHash == TOMBPRIMEHASH || reprobeCount >= ReprobeLimit(lenMask))
                 {
-                    var resized = curTable.Resize();
+                    var resized = curTable.Resize(isForReprobe: true);
                     curTable = resized;
                     goto TRY_WITH_NEW_TABLE;
                 }
 
                 // quadratic reprobing
                 reprobeCount++;
-                // no resize check on reprobe needed. 
+                // no resize check on reprobe needed.
                 // we always insert a new value (or somebody else inserts)
                 idx = (idx + reprobeCount) & lenMask;
                 entry = ref curTable._entries[idx];
             }
 
-            // Found the proper Key slot, now update the Value. 
+            // Found the proper Key slot, now update the Value.
 
             // volatile read to make sure we read the element before we read the _newTable
             // that would guarantee that as long as _newTable == null, entryValue cannot be forwarded.
             var entryValue = Volatile.Read(ref entry.value);
 
-            // See if we want to move to a new table (to avoid high average re-probe counts).  
+            // See if we want to move to a new table (to avoid high average re-probe counts).
             // We only check on the initial set of a Value from null to
             // not-null (i.e., once per key-insert).
             var newTable = curTable._newTable;
@@ -866,7 +862,7 @@ namespace NonBlocking
                 curTable.TableIsCrowded())
             {
                 // Force the new table copy to start
-                newTable = curTable.Resize();
+                newTable = curTable.Resize(isForReprobe: false);
                 Debug.Assert(curTable._newTable != null && curTable._newTable == newTable);
             }
 
@@ -892,7 +888,7 @@ namespace NonBlocking
         }
 
         // check once in a while if a table might benefit from resizing.
-        // one reason for this is that crowdedness check uses estimated counts 
+        // one reason for this is that crowdedness check uses estimated counts
         // so we do not always catch this on key inserts.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResizeOnReprobeCheck(int reprobeCount)
@@ -901,7 +897,7 @@ namespace NonBlocking
             const int reprobeCheckPeriod = 16 - 1;
 
             // once per reprobeCheckPeriod, check if the table is crowded
-            // and initiale a resize
+            // and initiate a resize
             if ((reprobeCount & reprobeCheckPeriod) == 0)
             {
                 ReprobeResizeCheckSlow();
@@ -913,34 +909,9 @@ namespace NonBlocking
         {
             if (this.TableIsCrowded())
             {
-                this.Resize();
+                this.Resize(isForReprobe: false);
                 this.HelpCopy();
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal TValue FromObjectValue(object obj)
-        {
-            // regular value type
-            if (default(TValue) != null)
-            {
-                return Unsafe.As<Boxed<TValue>>(obj).Value;
-            }
-
-            // null
-            if (obj == NULLVALUE)
-            {
-                return default(TValue);
-            }
-
-            // ref type
-            if (!valueIsValueType)
-            {
-                return Unsafe.As<object, TValue>(ref obj);
-            }
-
-            // nullable
-            return (TValue)obj;
         }
 
         ///////////////////////////////////////////////////////////
@@ -969,10 +940,9 @@ namespace NonBlocking
 
         internal bool TableIsCrowded()
         {
-            // 80% utilization, switch to a bigger table
-            return EstimatedSlotsUsed > (_entries.Length >> 2) * 3;
+            // 75% utilization, switch to a bigger table
+            return EstimatedSlotsUsed >= (_entries.Length / 4 * 3);
         }
-
 
         // Help along an existing resize operation.  This is just a fast cut-out
         // wrapper, to encourage inlining for the fast no-copy-in-progress case.
@@ -1018,11 +988,10 @@ namespace NonBlocking
                         // have finished (by bumping _copyDone).  Our choices become limited:
                         // we can wait for the work-claimers to finish (and become a blocking
                         // algorithm) or do the copy work ourselves.  Tiny tables with huge
-                        // thread counts trying to copy the table often 'panic'. 
+                        // thread counts trying to copy the table often 'panic'.
                         if (claimedChunk > (toCopy / (CHUNK_SIZE / 2)))
                         {
                             panic = true;
-                            //System.Console.WriteLine("panic");
                             break;
                         }
 
@@ -1071,7 +1040,7 @@ namespace NonBlocking
                     // See if we can promote
                     var copyDone = Interlocked.Add(ref this._copyDone, workdone);
 
-                    // Check for copy being ALL done, and promote.  
+                    // Check for copy being ALL done, and promote.
                     if (copyDone >= toCopy)
                     {
                         PromoteNewTable();
@@ -1100,7 +1069,6 @@ namespace NonBlocking
                 // Attempt to promote
                 if (Interlocked.CompareExchange(ref _topDict._table, this._newTable, this) == this)
                 {
-                    // System.Console.WriteLine("size: " + _newTable.Length);
                     _topDict._lastResizeTickMillis = CurrentTickMillis();
                 }
             }
@@ -1141,7 +1109,7 @@ namespace NonBlocking
                 // Record the slot copied
                 var copyDone = Interlocked.Increment(ref this._copyDone);
 
-                // Check for copy being ALL done, and promote.  
+                // Check for copy being ALL done, and promote.
                 if (copyDone >= this._entries.Length)
                 {
                     PromoteNewTable();
@@ -1158,9 +1126,9 @@ namespace NonBlocking
             return newTable;
         }
 
-        // Copy one K/V pair from old table to new table. 
+        // Copy one K/V pair from old table to new table.
         // Returns true if we actually did the copy.
-        // Regardless, once this returns, the copy is available in the new table and 
+        // Regardless, once this returns, the copy is available in the new table and
         // slot in the old table is no longer usable.
         private static bool CopySlot(ref Entry oldEntry, DictionaryImpl<TKey, TKeyStore, TValue> newTable)
         {
@@ -1188,8 +1156,8 @@ namespace NonBlocking
 
             // Prevent new values from appearing in the old table.
             // Put a forwarding entry, to prevent further updates.
-            // NOTE: Read of the value below must happen before reading of the key, 
-            // however this read does not need to be volatile since we will have 
+            // NOTE: Read of the value below must happen before reading of the key,
+            // however this read does not need to be volatile since we will have
             // some fences in between reads.
             object oldval = oldEntry.value;
 
@@ -1197,9 +1165,9 @@ namespace NonBlocking
             Prime box = oldval as Prime;
             if (box != null)
             {
-                // volatile read here since we need to make sure 
+                // volatile read here since we need to make sure
                 // that the key read below happens after we have read oldval above
-                // (this read is a dependednt read after oldval, and reading the key is after)
+                // (this read is a dependednt read after oldval, and reading the key happens-after)
                 Volatile.Read(ref box.originalValue);
             }
             else
@@ -1260,7 +1228,7 @@ namespace NonBlocking
             bool copiedIntoNew = newTable.PutSlotCopy(key, originalValue, hash);
 
             // Finally, now that any old value is exposed in the new table, we can
-            // forever hide the old-table value by gently inserting TOMBPRIME value.  
+            // forever hide the old-table value by gently inserting TOMBPRIME value.
             // This will stop other threads from uselessly attempting to copy this slot
             // (i.e., it's a speed optimization not a correctness issue).
             if (oldEntry.value != TOMBPRIME)
@@ -1274,12 +1242,12 @@ namespace NonBlocking
         }
 
         // kick off resizing, if not started already, and return the new table.
-        private DictionaryImpl<TKey, TKeyStore, TValue> Resize()
+        private DictionaryImpl<TKey, TKeyStore, TValue> Resize(bool isForReprobe)
         {
             // Check for resize already in progress, probably triggered by another thread.
             // reads of this._newTable in Resize are not volatile
             // we are just opportunistically checking if a new table has arrived.
-            return this._newTable ?? ResizeImpl();
+            return this._newTable ?? ResizeImpl(isForReprobe);
         }
 
         // Resizing after too many probes.  "How Big???" heuristics are here.
@@ -1287,31 +1255,45 @@ namespace NonBlocking
         // Since this routine has a fast cutout for copy-already-started, callers
         // MUST 'help_copy' lest we have a path which forever runs through
         // 'resize' only to discover a copy-in-progress which never progresses.
-        private DictionaryImpl<TKey, TKeyStore, TValue> ResizeImpl()
+        private DictionaryImpl<TKey, TKeyStore, TValue> ResizeImpl(bool isForReprobe)
         {
-            // No copy in-progress, so start one.  
+            const int MAX_SIZE = 1 << 30;
+            const int MAX_CHURN_SIZE = 1 << 20;
+
             // First up: compute new table size.
             int oldlen = this._entries.Length;
 
-            const int MAX_SIZE = 1 << 30;
-            const int MAX_CHURN_SIZE = 1 << 15;
+            // First size estimate is 4x of the current size
+            int oldsz = Size;
+            int newsz = oldsz < (MAX_SIZE / 4) ?
+                                        oldsz * 4 :
+                                        oldsz;
 
-            // First size estimate is roughly inverse of ProbeLimit
-            int sz = Size + (MIN_SIZE >> REPROBE_LIMIT_SHIFT);
-            int newsz = sz < (MAX_SIZE >> REPROBE_LIMIT_SHIFT) ?
-                                            sz << REPROBE_LIMIT_SHIFT :
-                                            sz;
+            newsz = Math.Max(newsz, MIN_SIZE);
 
-            // if new table would shrink or hold steady, 
-            // we must be resizing because of churn.
-            // target churn based resize rate to be about 1 per RESIZE_TICKS_TARGET
+            if (isForReprobe)
+            {
+                // if half slots are dead, just do regular resize
+                // otherwise we want to double the length to not come here too soon
+                if (allocatedSlotCount.Value < oldsz * 2)
+                {
+                    if (oldlen < (MAX_SIZE / 2))
+                    {
+                        newsz = Math.Max(newsz, oldlen * 2);
+                    }
+                }
+            }
+
             if (newsz <= oldlen)
             {
+                // if new table would shrink or hold steady,
+                // we must be resizing because of churn.
+                // target churn based resize rate to be about 1 per RESIZE_TICKS_TARGET
                 var resizeSpan = CurrentTickMillis() - _topDict._lastResizeTickMillis;
 
                 // note that CurrentTicks() will wrap around every 50 days.
-                // For our purposes that is tolerable since it just 
-                // adds a possibility that in some rare cases a churning resize will not be 
+                // For our purposes that is tolerable since it just
+                // adds a possibility that in some rare cases a churning resize will not be
                 // considered a churning one.
                 if (resizeSpan < RESIZE_MILLIS_TARGET)
                 {
@@ -1373,7 +1355,7 @@ namespace NonBlocking
             }
             else
             {
-                //Console.WriteLine("resized: " + newsz);
+                //System.Console.WriteLine(newsz + " :" + isForReprobe + " size:" + oldsz);
                 return newTable;
             }
         }
@@ -1395,11 +1377,12 @@ namespace NonBlocking
             public static void TryRearm(DictionaryImpl<TKey, TKeyStore, TValue> dict)
             {
                 ref var sweeperLocation = ref dict._topDict._sweeperInstance;
-                var sweeperInst = sweeperLocation as Sweeper;
-                if (sweeperInst != null && Interlocked.CompareExchange(ref sweeperLocation, null, sweeperInst) == sweeperInst)
+                var obj = sweeperLocation;
+                if (obj != null && Interlocked.CompareExchange(ref sweeperLocation, null, obj) == obj)
                 {
-                    sweeperInst._dict = dict;
-                    GC.ReRegisterForFinalize(sweeperInst);
+                    Sweeper sweeper = obj as Sweeper ?? new Sweeper();
+                    sweeper._dict = dict;
+                    GC.ReRegisterForFinalize(sweeper);
                 }
             }
 
@@ -1421,7 +1404,7 @@ namespace NonBlocking
 
                 // any key removed after we start sweeping may not be swept
                 // signal to future removers that they need another request.
-                // note that remove is a CAS, so remover will see this value 
+                // note that remove is a CAS, so remover will see this value
                 // after removing.
                 Interlocked.Exchange(ref dict._topDict._sweepRequests, 0);
 

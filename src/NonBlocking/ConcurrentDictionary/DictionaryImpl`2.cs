@@ -2,34 +2,23 @@
 //
 // This file is distributed under the MIT License. See LICENSE.md for details.
 
+#nullable disable
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 
 namespace NonBlocking
 {
     internal abstract class DictionaryImpl<TKey, TValue>
         : DictionaryImpl
     {
-        // TODO: move to leafs
+        internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
         internal IEqualityComparer<TKey> _keyComparer;
 
-        internal static Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
-            (ConcurrentDictionary <TKey, TValue> topDict, int capacity) =>
-            {
-                var mObj = new Func<ConcurrentDictionary<object, object>, int, DictionaryImpl<object, object>> (DictionaryImpl.CreateRef);
-                var method = mObj.GetMethodInfo().GetGenericMethodDefinition().MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
-                var del = (Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>)method
-                    .CreateDelegate(typeof(Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>));
-
-                var result = del(topDict, capacity);
-                CreateRefUnsafe = del;
-
-                return result;
-            };
-
-        internal DictionaryImpl() { }         
+        internal DictionaryImpl() { }
 
         internal abstract void Clear();
         internal abstract int Count { get; }
@@ -39,7 +28,58 @@ namespace NonBlocking
         internal abstract bool RemoveIfMatch(TKey key, ref TValue oldValue, ValueMatch match);
         internal abstract TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory);
 
-        internal abstract IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator();
-        internal abstract IDictionaryEnumerator GetdIDictEnumerator();
+        internal abstract Snapshot GetSnapshot();
+
+        internal abstract class Snapshot
+        {
+            protected int _idx;
+            protected TKey _curKey;
+            protected TValue _curValue;
+
+            public abstract int Count { get; }
+            public abstract bool MoveNext();
+            public abstract void Reset();
+
+            internal DictionaryEntry Entry
+            {
+                get
+                {
+                    return new DictionaryEntry(_curKey, _curValue);
+                }
+            }
+
+            internal KeyValuePair<TKey, TValue> Current
+            {
+                get
+                {
+                    return new KeyValuePair<TKey, TValue>(this._curKey, _curValue);
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected TValue FromObjectValue(object obj)
+        {
+            // regular value type
+            if (default(TValue) != null)
+            {
+                return Unsafe.As<Boxed<TValue>>(obj).Value;
+            }
+
+            // null
+            if (obj == NULLVALUE)
+            {
+                return default(TValue);
+            }
+
+            // ref type
+            if (!valueIsValueType)
+            {
+                    return Unsafe.As<object, TValue>(ref obj);
+            }
+
+            // nullable
+            return (TValue)obj;
+        }
     }
 }

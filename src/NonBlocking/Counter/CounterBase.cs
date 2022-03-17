@@ -21,7 +21,7 @@ namespace NonBlocking
         private protected int cellCount;
 
         // delayed count time
-        private protected uint lastCntTicks;
+        private protected uint lastCountTicks;
 
         private protected CounterBase()
         {
@@ -32,16 +32,8 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private protected unsafe static int GetIndex(uint cellCount)
         {
-            if (IntPtr.Size == 4)
-            {
-                uint addr = (uint)&cellCount;
-                return (int)(addr % cellCount);
-            }
-            else
-            {
-                ulong addr = (ulong)&cellCount;
-                return (int)(addr % cellCount);
-            }
+           nuint addr = (nuint)(&cellCount);
+           return (int)(addr % cellCount);
         }
     }
 }

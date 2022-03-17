@@ -22,7 +22,7 @@ namespace NonBlocking
             public struct SpacedCounter
             {
                 [FieldOffset(CACHE_LINE - OBJ_HEADER_SIZE)]
-                public long cnt;
+                public long count;
             }
 
             public SpacedCounter counter;
@@ -32,10 +32,10 @@ namespace NonBlocking
         private Cell[] cells;
 
         // default counter
-        private long cnt;
+        private long count;
 
         // delayed count
-        private long lastCnt;
+        private long lastCount;
 
         /// <summary>
         /// Initializes a new instance of the <see
@@ -55,7 +55,7 @@ namespace NonBlocking
         {
             get
             {
-                var count = this.cnt;
+                var count = this.count;
                 var cells = this.cells;
 
                 if (cells != null)
@@ -65,7 +65,7 @@ namespace NonBlocking
                         var cell = cells[i];
                         if (cell != null)
                         {
-                            count += cell.counter.cnt;
+                            count += cell.counter.count;
                         }
                         else
                         {
@@ -95,13 +95,13 @@ namespace NonBlocking
 
                 var curTicks = (uint)Environment.TickCount;
                 // more than a millisecond passed?
-                if (curTicks != lastCntTicks)
+                if (curTicks != lastCountTicks)
                 {
-                    lastCntTicks = curTicks;
-                    lastCnt = Value;
+                    lastCountTicks = curTicks;
+                    lastCount = Value;
                 }
 
-                return lastCnt;
+                return lastCount;
             }
         }
 
@@ -111,7 +111,7 @@ namespace NonBlocking
         public void Increment()
         {
             int curCellCount = this.cellCount;
-            var drift = increment(ref GetCntRef(curCellCount));
+            var drift = increment(ref GetCountRef(curCellCount));
 
             if (drift != 0)
             {
@@ -125,7 +125,7 @@ namespace NonBlocking
         public void Decrement()
         {
             int curCellCount = this.cellCount;
-            var drift = decrement(ref GetCntRef(curCellCount));
+            var drift = decrement(ref GetCountRef(curCellCount));
 
             if (drift != 0)
             {
@@ -139,7 +139,7 @@ namespace NonBlocking
         public void Add(int value)
         {
             int curCellCount = this.cellCount;
-            var drift = add(ref GetCntRef(curCellCount), value);
+            var drift = add(ref GetCountRef(curCellCount), value);
 
             if (drift != 0)
             {
@@ -148,9 +148,9 @@ namespace NonBlocking
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private ref long GetCntRef(int curCellCount)
+        private ref long GetCountRef(int curCellCount)
         {
-            ref var cntRef = ref cnt;
+            ref var countRef = ref count;
 
             Cell[] cells;
             if ((cells = this.cells) != null && curCellCount > 1)
@@ -158,11 +158,11 @@ namespace NonBlocking
                 var cell = cells[GetIndex((uint)curCellCount)];
                 if (cell != null)
                 {
-                    cntRef = ref cell.counter.cnt;
+                    countRef = ref cell.counter.count;
                 }
             }
 
-            return ref cntRef;
+            return ref countRef;
         }
 
         private static long increment(ref long val)

@@ -6,36 +6,36 @@ using System.Threading;
 
 namespace NonBlocking
 {
-    internal sealed class DictionaryImplLong<TValue>
-                : DictionaryImpl<long, long, TValue>
+    internal sealed class DictionaryImplNint<TValue>
+                : DictionaryImpl<nint, nint, TValue>
     {
-        internal DictionaryImplLong(int capacity, ConcurrentDictionary<long, TValue> topDict)
+        internal DictionaryImplNint(int capacity, ConcurrentDictionary<nint, TValue> topDict)
             : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplLong(int capacity, DictionaryImplLong<TValue> other)
+        internal DictionaryImplNint(int capacity, DictionaryImplNint<TValue> other)
             : base(capacity, other)
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key)
+        protected override bool TryClaimSlotForPut(ref nint entryKey, nint key)
         {
             return TryClaimSlot(ref entryKey, key);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key)
+        protected override bool TryClaimSlotForCopy(ref nint entryKey, nint key)
         {
             return TryClaimSlot(ref entryKey, key);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key)
+        private bool TryClaimSlot(ref nint entryKey, nint key)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
             if (entryKeyValue == 0 & key != 0)
             {
-                entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, 0);
+                entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, (nint)0);
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
@@ -47,7 +47,7 @@ namespace NonBlocking
             return key == entryKeyValue || _keyComparer.Equals(key, entryKey);
         }
 
-        protected override int hash(long key)
+        protected override int hash(nint key)
         {
             if (key == 0)
             {
@@ -57,52 +57,52 @@ namespace NonBlocking
             return base.hash(key);
         }
 
-        protected override bool keyEqual(long key, long entryKey)
+        protected override bool keyEqual(nint key, nint entryKey)
         {
             return key == entryKey || _keyComparer.Equals(key, entryKey);
         }
 
-        protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
+        protected override DictionaryImpl<nint, nint, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLong<TValue>(capacity, this);
+            return new DictionaryImplNint<TValue>(capacity, this);
         }
 
-        protected override long keyFromEntry(long entryKey)
+        protected override nint keyFromEntry(nint entryKey)
         {
             return entryKey;
         }
     }
 
-    internal sealed class DictionaryImplLongNoComparer<TValue>
-            : DictionaryImpl<long, long, TValue>
+    internal sealed class DictionaryImplNintNoComparer<TValue>
+            : DictionaryImpl<nint, nint, TValue>
     {
-        internal DictionaryImplLongNoComparer(int capacity, ConcurrentDictionary<long, TValue> topDict)
+        internal DictionaryImplNintNoComparer(int capacity, ConcurrentDictionary<nint, TValue> topDict)
             : base(capacity, topDict)
         {
         }
 
-        internal DictionaryImplLongNoComparer(int capacity, DictionaryImplLongNoComparer<TValue> other)
+        internal DictionaryImplNintNoComparer(int capacity, DictionaryImplNintNoComparer<TValue> other)
             : base(capacity, other)
         {
         }
 
-        protected override bool TryClaimSlotForPut(ref long entryKey, long key)
+        protected override bool TryClaimSlotForPut(ref nint entryKey, nint key)
         {
             return TryClaimSlot(ref entryKey, key);
         }
 
-        protected override bool TryClaimSlotForCopy(ref long entryKey, long key)
+        protected override bool TryClaimSlotForCopy(ref nint entryKey, nint key)
         {
             return TryClaimSlot(ref entryKey, key);
         }
 
-        private bool TryClaimSlot(ref long entryKey, long key)
+        private bool TryClaimSlot(ref nint entryKey, nint key)
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
             if (entryKeyValue == 0 & key != 0)
             {
-                entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, 0);
+                entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, (nint)0);
                 if (entryKeyValue == 0)
                 {
                     // claimed a new slot
@@ -115,29 +115,29 @@ namespace NonBlocking
         }
 
         // inline the base implementation to devirtualize calls to hash and keyEqual
-        internal override object TryGetValue(long key)
+        internal override object TryGetValue(nint key)
         {
             return base.TryGetValue(key);
         }
 
-        protected override int hash(long key)
+        protected override int hash(nint key)
         {
             return (key == 0) ?
                 ZEROHASH :
                 key.GetHashCode() | SPECIAL_HASH_BITS;
         }
 
-        protected override bool keyEqual(long key, long entryKey)
+        protected override bool keyEqual(nint key, nint entryKey)
         {
             return key == entryKey;
         }
 
-        protected override DictionaryImpl<long, long, TValue> CreateNew(int capacity)
+        protected override DictionaryImpl<nint, nint, TValue> CreateNew(int capacity)
         {
-            return new DictionaryImplLongNoComparer<TValue>(capacity, this);
+            return new DictionaryImplNintNoComparer<TValue>(capacity, this);
         }
 
-        protected override long keyFromEntry(long entryKey)
+        protected override nint keyFromEntry(nint entryKey)
         {
             return entryKey;
         }
