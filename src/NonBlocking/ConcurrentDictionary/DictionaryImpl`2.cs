@@ -7,7 +7,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace NonBlocking
@@ -15,7 +14,7 @@ namespace NonBlocking
     internal abstract class DictionaryImpl<TKey, TValue>
         : DictionaryImpl
     {
-        internal readonly bool valueIsValueType = typeof(TValue).GetTypeInfo().IsValueType;
+        internal readonly bool valueIsValueType = typeof(TValue).IsValueType;
         internal IEqualityComparer<TKey> _keyComparer;
 
         internal DictionaryImpl() { }
@@ -75,7 +74,7 @@ namespace NonBlocking
             // ref type
             if (!valueIsValueType)
             {
-                    return Unsafe.As<object, TValue>(ref obj);
+                return Unsafe.As<object, TValue>(ref obj);
             }
 
             // nullable
