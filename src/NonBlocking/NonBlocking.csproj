@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>netstandard2.1</TargetFramework>
 
     <PackageId>NonBlocking</PackageId>
     <PackageVersion>2.0.0</PackageVersion>
@@ -29,7 +29,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>
         Performance improvements.
-        API refinement to match .net 5.0 ConcurrentDictionary
+        API refinement to match .net5.0 ConcurrentDictionary
     </PackageReleaseNotes>
     <Summary>Implementation of a lock-free dictionary on .Net</Summary>
     <Copyright>Copyright 2022 (c) Vladimir Sadov. All rights reserved.</Copyright>
@@ -38,7 +38,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <DocumentationFile>bin\Release\netstandard1.0\NonBlocking.xml</DocumentationFile>
+    <DocumentationFile>bin\Release\netstandard2.1\NonBlocking.xml</DocumentationFile>
     <DebugType>pdbonly</DebugType>
     <DebugSymbols>true</DebugSymbols>
     <LangVersion>9.0</LangVersion>

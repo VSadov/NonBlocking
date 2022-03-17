@@ -29,6 +29,7 @@ namespace NonBlocking
     [DebuggerDisplay("Count = {Count}")]
     public class ConcurrentDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> where TKey : notnull
     {
+        internal readonly bool valueIsValueType = typeof(TValue).IsValueType;
         internal DictionaryImpl<TKey, TValue> _table;
         internal uint _lastResizeTickMillis;
         internal object _sweeperInstance;
@@ -330,6 +331,31 @@ namespace NonBlocking
             return _table.RemoveIfMatch(item.Key, ref oldVal, ValueMatch.OldValue);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private TValue FromObjectValue(object obj)
+        {
+            // regular value type
+            if (default(TValue) != null)
+            {
+                return Unsafe.As<Boxed<TValue>>(obj).Value;
+            }
+
+            // null
+            if (obj == NULLVALUE)
+            {
+                return default(TValue);
+            }
+
+            // ref type
+            if (!valueIsValueType)
+            {
+                return Unsafe.As<object, TValue>(ref obj);
+            }
+
+            // nullable
+            return (TValue)obj;
+        }
+
         /// <summary>
         /// Attempts to get the value associated with the specified key from the <see cref="ConcurrentDictionary{TKey,TValue}"/>.
         /// </summary>
@@ -354,7 +380,7 @@ namespace NonBlocking
 
             if (oldValObj != null)
             {
-                value = _table.FromObjectValue(oldValObj);
+                value = FromObjectValue(oldValObj);
                 return true;
             }
             else
@@ -582,7 +608,7 @@ namespace NonBlocking
                 Debug.Assert(!(oldValObj is Prime));
                 if (oldValObj != null)
                 {
-                    return _table.FromObjectValue(oldValObj);
+                    return FromObjectValue(oldValObj);
                 }
 
                 ThrowKeyNotFoundException(key);
@@ -700,7 +726,7 @@ namespace NonBlocking
 
             if (oldValObj != null)
             {
-                return _table.FromObjectValue(oldValObj);
+                return FromObjectValue(oldValObj);
             }
             else
             {
@@ -742,7 +768,7 @@ namespace NonBlocking
                 return value;
             }
 
-            return _table.FromObjectValue(oldVal);
+            return FromObjectValue(oldVal);
         }
 
 
