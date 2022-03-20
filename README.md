@@ -48,5 +48,5 @@ The following sample benchmarks perform various operations on {int --> string} d
 The machine is configured as 4-node NUMA and Windows scheduler would use cores from one node, then their HT siblings, and only then use another node. Thus we see "steps".
 
 ![Write](/../pictures//Graphs/Write.png?raw=true "Random Write")
-Not taking locks makes writes cheaper.
+Not taking locks makes writes cheaper and scale better as number of threads increases.
 
