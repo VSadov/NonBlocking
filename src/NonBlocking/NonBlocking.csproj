@@ -37,6 +37,13 @@
     <PackageProjectUrl>https://github.com/VSadov/NonBlocking</PackageProjectUrl>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <IsTrimmable>true</IsTrimmable>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+  </PropertyGroup>
+
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DocumentationFile>bin\Release\netstandard2.1\NonBlocking.xml</DocumentationFile>
     <DebugType>pdbonly</DebugType>
