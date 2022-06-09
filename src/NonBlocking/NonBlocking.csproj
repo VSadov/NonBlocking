@@ -65,4 +65,8 @@
     <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.3.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <TrimmerRootDescriptor Include="$(MSBuildThisFileDirectory)ILLink.Descriptors.xml" />
+  </ItemGroup>
+
 </Project>

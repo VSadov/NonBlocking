@@ -1,0 +1,7 @@
+<linker>
+  <assembly fullname="NonBlocking">
+    <type fullname="NonBlocking.DictionaryImpl">
+      <method name="CreateRef" />
+    </type>
+  </assembly>
+</linker>
