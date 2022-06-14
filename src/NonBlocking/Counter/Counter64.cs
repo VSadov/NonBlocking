@@ -29,7 +29,7 @@ namespace NonBlocking
         }
 
         // spaced out counters
-        private Cell[] cells;
+        private Cell[]? cells;
 
         // default counter
         private long count;
@@ -152,7 +152,7 @@ namespace NonBlocking
         {
             ref var countRef = ref count;
 
-            Cell[] cells;
+            Cell[]? cells;
             if ((cells = this.cells) != null && curCellCount > 1)
             {
                 var cell = cells[GetIndex((uint)curCellCount)];
