@@ -144,26 +144,6 @@ namespace NonBlocking
             }
         }
 
-        // We want to call DictionaryImpl.CreateRef<TKey, TValue>(topDict, capacity)
-        // TKey is a reference type, but that is not statically known, so
-        // we use the following to get around "as class" contraint.
-        internal static Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>> CreateRefUnsafe =
-            (ConcurrentDictionary<TKey, TValue> topDict, int capacity) =>
-            {
-                var method = typeof(DictionaryImpl).
-                    GetMethod("CreateRef", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static).
-                    MakeGenericMethod(new Type[] { typeof(TKey), typeof(TValue) });
-
-                var del = (Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>)Delegate.CreateDelegate(
-                    typeof(Func<ConcurrentDictionary<TKey, TValue>, int, DictionaryImpl<TKey, TValue>>),
-                    method);
-
-                var result = del(topDict, capacity);
-                CreateRefUnsafe = del;
-
-                return result;
-            };
-
         /// <summary>
         /// Initializes a new instance of the <see cref="ConcurrentDictionary{TKey,TValue}"/>
         /// class that is empty, has the specified concurrency level, has the specified initial capacity, and
@@ -189,7 +169,7 @@ namespace NonBlocking
 
             if (!typeof(TKey).IsValueType)
             {
-                _table = CreateRefUnsafe(this, capacity);
+                _table = new DictionaryImplRef<TKey, TKey, TValue>(capacity, this);
                 _table._keyComparer = comparer ?? EqualityComparer<TKey>.Default;
                 return;
             }

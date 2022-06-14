@@ -5,21 +5,24 @@
 #nullable disable
 
 using System.Threading;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace NonBlocking
 {
     internal sealed class DictionaryImplRef<TKey, TKeyStore, TValue>
             : DictionaryImpl<TKey, TKey, TValue>
-                    where TKey : class
     {
         internal DictionaryImplRef(int capacity, ConcurrentDictionary<TKey, TValue> topDict)
             : base(capacity, topDict)
         {
+            Debug.Assert(!typeof(TKey).IsValueType);
         }
 
         internal DictionaryImplRef(int capacity, DictionaryImplRef<TKey, TKeyStore, TValue> other)
             : base(capacity, other)
         {
+            Debug.Assert(!typeof(TKey).IsValueType);
         }
 
         protected override bool TryClaimSlotForPut(ref TKey entryKey, TKey key)
@@ -34,10 +37,11 @@ namespace NonBlocking
 
         private bool TryClaimSlot(ref TKey entryKey, TKey key)
         {
-            var entryKeyValue = entryKey;
+            ref object keyLocation = ref Unsafe.As<TKey, object>(ref entryKey);
+            object entryKeyValue = keyLocation;
             if (entryKeyValue == null)
             {
-                entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, null);
+                entryKeyValue = Interlocked.CompareExchange(ref keyLocation, key, null);
                 if (entryKeyValue == null)
                 {
                     // claimed a new slot
@@ -46,7 +50,8 @@ namespace NonBlocking
                 }
             }
 
-            return key == entryKeyValue || _keyComparer.Equals(key, entryKeyValue);
+            return (object)key == entryKeyValue || 
+                _keyComparer.Equals(key, Unsafe.As<object, TKey>(ref entryKeyValue));
         }
 
         // inline the base implementation to devirtualize calls to hash and keyEqual
@@ -62,7 +67,7 @@ namespace NonBlocking
 
         protected override bool keyEqual(TKey key, TKey entryKey)
         {
-            if (key == entryKey)
+            if ((object)key == (object)entryKey)
             {
                 return true;
             }
