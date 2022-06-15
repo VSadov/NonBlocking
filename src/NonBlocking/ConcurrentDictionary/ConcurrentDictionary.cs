@@ -274,7 +274,11 @@ namespace NonBlocking
         /// </param>
         /// <returns>true if an object was removed successfully; otherwise, false.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference (Nothing in Visual Basic).</exception>
+#if NETSTANDARD2_1_OR_GREATER
         public bool TryRemove(TKey key, [MaybeNullWhen(false)] out TValue value)
+#else
+        public bool TryRemove(TKey key, out TValue value)
+#endif
         {
             if (key is null)
             {
@@ -347,7 +351,11 @@ namespace NonBlocking
         /// </param>
         /// <returns>true if the key was found in the <see cref="ConcurrentDictionary{TKey,TValue}"/>; otherwise, false.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="key"/> is a null reference (Nothing in Visual Basic).</exception>
+#if NETSTANDARD2_1_OR_GREATER
         public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
+#else
+        public bool TryGetValue(TKey key, out TValue value)
+#endif
         {
             if (key is null)
             {
@@ -609,7 +617,9 @@ namespace NonBlocking
 
         /// <summary>Throws a KeyNotFoundException.</summary>
         /// <remarks>Separate from ThrowHelper to avoid boxing at call site while reusing this generic instantiation.</remarks>
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         private static void ThrowKeyNotFoundException(TKey key) =>
             throw new KeyNotFoundException();
 
@@ -1426,19 +1436,29 @@ namespace NonBlocking
 
     internal static class ThrowHelper
     {
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         internal static void ThrowKeyNullException() => ThrowArgumentNullException("key");
 
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         internal static void ThrowArgumentNullException(string name) => throw new ArgumentNullException(name);
 
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         internal static void ThrowArgumentNullException(string name, string message) => throw new ArgumentNullException(name, message);
 
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         internal static void ThrowValueNullException() => throw new ArgumentException("value is null");
 
+#if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
+#endif
         internal static void ThrowOutOfMemoryException() => throw new OutOfMemoryException();
     }
 }
