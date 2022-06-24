@@ -98,7 +98,11 @@ namespace NonBlocking
             this._size = new Counter32();
             this._topDict = topDict;
 
+#if NETSTANDARD2_1_OR_GREATER
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<TKey>())
+#else
             if (!typeof(TKeyStore).IsValueType)
+#endif
             {
                 // do not create a real sweeper just yet. Often it is not needed.
                 topDict._sweeperInstance = NULLVALUE;
