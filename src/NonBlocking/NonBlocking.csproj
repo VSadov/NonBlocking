@@ -4,7 +4,7 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
 
     <PackageId>NonBlocking</PackageId>
-    <PackageVersion>2.0.0</PackageVersion>
+    <PackageVersion>2.1.0</PackageVersion>
     <Authors>Vladimir Sadov</Authors> 
     <Description>
       Implementation of a lock-free dictionary on .Net
@@ -28,8 +28,9 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>
-        Performance improvements.
-        API refinement to match .net5.0 ConcurrentDictionary
+        Adds support for netstandard2.0
+        Adds trimming support  (IsTrimmable)
+	NaiveAOT compatibility fixes
     </PackageReleaseNotes>
     <Summary>Implementation of a lock-free dictionary on .Net</Summary>
     <Copyright>Copyright 2022 (c) Vladimir Sadov. All rights reserved.</Copyright>
