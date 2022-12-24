@@ -333,7 +333,7 @@ namespace NonBlocking
                     }
 
                     // no new table, so this is a miss
-                    break;
+                    goto FAILED;
                 }
 
                 // quadratic reprobing
