@@ -167,6 +167,7 @@ namespace NonBlocking
             return (uint)Environment.TickCount;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual int hash(TKey key)
         {
             Debug.Assert(!(key is null));
@@ -219,8 +220,9 @@ namespace NonBlocking
                 // is this our slot?
                 if (fullHash == entry.hash && keyEqual(key, entry.key))
                 {
-                    // read the value before the _newTable.
-                    // if the new table is null later, then the value cannot be forwarded
+                    // read the value before reading the _newTable.
+                    // if the new table is null after we already have value,
+                    // then the value cannot be forwarded
                     // this also orders reads from the table.
                     var entryValue = Volatile.Read(ref entry.value);
                     if (EntryValueNullOrDead(entryValue))
@@ -239,7 +241,7 @@ namespace NonBlocking
                         return entryValue;
                     }
 
-                    // found a prime, that means the copying or sweeping has started
+                    // found a prime, that means the copying or sweeping has started,
                     // help and retry in the new table
                     curTable = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
                     goto tryWithNewTable;
@@ -288,8 +290,8 @@ namespace NonBlocking
                 match == ValueMatch.OldValue ||
                 match == ValueMatch.Any);   // same as NotNullOrDead, but not reporting the old value
 
+            int fullHash = this.hash(key);
             var curTable = this;
-            int fullHash = curTable.hash(key);
 
         tryWithNewTable:
 
@@ -440,8 +442,8 @@ namespace NonBlocking
                 match == ValueMatch.OldValue ||
                 match == ValueMatch.Any);
 
+            int fullHash = this.hash(key);
             var curTable = this;
-            int fullHash = curTable.hash(key);
 
         tryWithNewTable:
 
@@ -636,8 +638,8 @@ namespace NonBlocking
             object newValObj = null;
             TValue result = default(TValue);
 
+            int fullHash = this.hash(key);
             var curTable = this;
-            int fullHash = curTable.hash(key);
 
         TRY_WITH_NEW_TABLE:
 
