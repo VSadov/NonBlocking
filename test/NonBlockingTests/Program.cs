@@ -11,14 +11,19 @@ using System.Diagnostics;
 using NonBlocking;
 using System.Collections.Concurrent;
 using Xunit;
+using System.Runtime.InteropServices;
 
 namespace NonBlockingTests
 {
     public class Program
     {
+        private static readonly bool s_isStrong = 
+            RuntimeInformation.ProcessArchitecture == Architecture.X64 || 
+            RuntimeInformation.ProcessArchitecture == Architecture.X86;
+
         static void Main(string[] args)
         {
-            for (;;)
+            for (; ; )
             {
                 CDTests();
 
@@ -271,7 +276,7 @@ namespace NonBlockingTests
                 return obj.GetHashCode();
             }
         }
-        
+
         [Fact()]
         private static void AddSetRemoveConcurrentNullIntolerant()
         {
@@ -341,7 +346,7 @@ namespace NonBlockingTests
             Parallel.For(0, 10, (i) => dict.TryAdd(i, i));
             Parallel.For(0, 10, (i) => dict[i] = i);
             Parallel.For(0, 10, (i) => { if (dict[i] != i) throw new Exception(); });
-            Parallel.For(0, 10, (i) => { int ii;  if (!dict.TryRemove(i, out ii)) throw new Exception(); });
+            Parallel.For(0, 10, (i) => { int ii; if (!dict.TryRemove(i, out ii)) throw new Exception(); });
 
             Parallel.For(0, 100, (i) => dict[i] = i);
             Parallel.For(0, 100, (i) => { if (dict[i] != i) throw new Exception(); });
@@ -664,12 +669,12 @@ namespace NonBlockingTests
                         {
                             if (dict.TryGetValue(i, out val))
                             {
-                               Assert.True(dict.TryRemove(i, out d));
-                               Assert.Equal(d, i);
+                                Assert.True(dict.TryRemove(i, out d));
+                                Assert.Equal(d, i);
                             }
                             else
                             {
-                               Assert.True(dict.TryAdd(i, i));
+                                Assert.True(dict.TryAdd(i, i));
                             }
                         }
 
@@ -887,7 +892,7 @@ namespace NonBlockingTests
 
             Parallel.For(0, 40000,
                     (i) =>
-                    {   
+                    {
                         switch (i % 8)
                         {
                             case 0:
@@ -945,7 +950,13 @@ namespace NonBlockingTests
                                 {
                                     if (first >= second)
                                     {
-                                        throw new Exception("value relation is incorrect");
+                                        // Order of reads of atomic values is not guaranteed on weak architectures.
+                                        // This is the same as with System.Concurrent -
+                                        //    fetching boxed atomic values is an ordinary read.
+                                        if (s_isStrong)
+                                        {
+                                            throw new Exception("value relation is incorrect");
+                                        }
                                     }
                                 }
                                 else
@@ -990,7 +1001,13 @@ namespace NonBlockingTests
                                 {
                                     if (first >= second)
                                     {
-                                        throw new Exception("value relation is incorrect");
+                                        // Order of reads of atomic values is not guaranteed on weak architectures.
+                                        // This is the same as with System.Concurrent -
+                                        //    fetching boxed atomic values is an ordinary read.
+                                        if (s_isStrong)
+                                        {
+                                            throw new Exception("value relation is incorrect");
+                                        }
                                     }
                                 }
                                 else
@@ -1035,7 +1052,13 @@ namespace NonBlockingTests
                                 {
                                     if (first >= second)
                                     {
-                                        throw new Exception("value relation is incorrect");
+                                        // Order of reads of atomic values is not guaranteed on weak architectures.
+                                        // This is the same as with System.Concurrent -
+                                        //    fetching boxed atomic values is an ordinary read.
+                                        if (s_isStrong)
+                                        {
+                                            throw new Exception("value relation is incorrect");
+                                        }
                                     }
                                 }
                                 else
@@ -1083,7 +1106,13 @@ namespace NonBlockingTests
                                 {
                                     if (first >= second)
                                     {
-                                        throw new Exception("value relation is incorrect");
+                                        // Order of reads of atomic values is not guaranteed on weak architectures.
+                                        // This is the same as with System.Concurrent -
+                                        //    fetching boxed atomic values is an ordinary read.
+                                        if (s_isStrong)
+                                        {
+                                            throw new Exception("value relation is incorrect");
+                                        }
                                     }
                                 }
                                 else
@@ -1112,7 +1141,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<BadHash, int>();
 
-            for(int i = 0; i < 10000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 var o = new BadHash();
                 dict.TryAdd(o, i);

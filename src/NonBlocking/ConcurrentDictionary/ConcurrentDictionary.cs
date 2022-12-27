@@ -758,7 +758,7 @@ namespace NonBlocking
                 return value;
             }
 
-            return FromObjectValue(oldVal);
+            return oldVal;
         }
 
 
