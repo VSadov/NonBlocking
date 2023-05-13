@@ -740,7 +740,7 @@ namespace NonBlockingTests
             // "TestConstructor:  FAILED.  Constructor didn't throw ANE when collection has null key passed");
 
             // Duplicate keys.
-            Assert.Throws<ArgumentException>(null, () => new NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
+            Assert.Throws<ArgumentException>(() => new NonBlocking.ConcurrentDictionary<int, int>(new[] { new KeyValuePair<int, int>(1, 1), new KeyValuePair<int, int>(1, 2) }));
 
             Assert.Throws<ArgumentNullException>(
                () => new NonBlocking.ConcurrentDictionary<int, int>(1, null, EqualityComparer<int>.Default));
@@ -823,7 +823,7 @@ namespace NonBlockingTests
 
             // Duplicate key.
             dictionary.TryAdd("1", 1);
-            Assert.Throws<ArgumentException>(null, () => ((IDictionary<string, int>)dictionary).Add("1", 2));
+            Assert.Throws<ArgumentException>(() => ((IDictionary<string, int>)dictionary).Add("1", 2));
         }
 
         [Fact]
@@ -887,10 +887,10 @@ namespace NonBlockingTests
             // "TestIDictionary:  FAILED.  Add didn't throw ANE when null key is passed");
 
             // Invalid key type.
-            Assert.Throws<ArgumentException>(null, () => dictionary.Add(1, 1));
+            Assert.Throws<ArgumentException>(() => dictionary.Add(1, 1));
 
             // Invalid value type.
-            Assert.Throws<ArgumentException>(null, () => dictionary.Add("1", "1"));
+            Assert.Throws<ArgumentException>(() => dictionary.Add("1", "1"));
 
             Assert.Throws<ArgumentNullException>(
                () => dictionary.Contains(null));
@@ -910,10 +910,10 @@ namespace NonBlockingTests
             // "TestIDictionary:  FAILED.  this[] setter didn't throw ANE when null key is passed");
 
             // Invalid key type.
-            Assert.Throws<ArgumentException>(null, () => dictionary[1] = 0);
+            Assert.Throws<ArgumentException>(() => dictionary[1] = 0);
 
             // Invalid value type.
-            Assert.Throws<ArgumentException>(null, () => dictionary["1"] = "0");
+            Assert.Throws<ArgumentException>(() => dictionary["1"] = "0");
         }
 
         [Fact]
@@ -966,7 +966,7 @@ namespace NonBlockingTests
 
             //add one item to the dictionary
             ((NonBlocking.ConcurrentDictionary<int, int>)dictionary).TryAdd(1, 1);
-            Assert.Throws<ArgumentException>(null, () => dictionary.CopyTo(new object[] { }, 0));
+            Assert.Throws<ArgumentException>(() => dictionary.CopyTo(new object[] { }, 0));
             // "TestICollection:  FAILED.  CopyTo didn't throw AE when the Array size is smaller than the dictionary count");
         }
 
