@@ -174,8 +174,8 @@ namespace NonBlocking
 
             int h = _keyComparer.GetHashCode(key);
 
-            // ensure that hash never matches 0, TOMBPRIMEHASH, ZEROHASH or REGULAR_HASH_BITS
-            return h | (SPECIAL_HASH_BITS | 1);
+            // ensure that hash never matches TOMBPRIMEHASH, ZEROHASH, SPECIAL_HASH_BITS or 0
+            return h | (SPECIAL_HASH_BITS | (1 << 29));
         }
 
         internal sealed override int Count
