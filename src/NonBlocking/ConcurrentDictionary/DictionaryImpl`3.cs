@@ -1271,9 +1271,11 @@ namespace NonBlocking
 
             // First size estimate is 4x of the current size
             int oldsz = Size;
-            int newsz = oldsz < (MAX_SIZE / 4) ?
+            int newsz = oldsz <= (MAX_SIZE / 4) ?
                                         oldsz * 4 :
-                                        oldsz;
+                                        oldsz <= (MAX_SIZE / 2) ?
+                                            oldsz * 2 :
+                                            oldsz;
 
             newsz = Math.Max(newsz, MIN_SIZE);
 
@@ -1283,7 +1285,7 @@ namespace NonBlocking
                 // otherwise we want to double the length to not come here too soon
                 if (allocatedSlotCount.Value < oldsz * 2)
                 {
-                    if (oldlen < (MAX_SIZE / 2))
+                    if (oldlen <= (MAX_SIZE / 2))
                     {
                         newsz = Math.Max(newsz, oldlen * 2);
                     }
@@ -1316,10 +1318,9 @@ namespace NonBlocking
             // Align up to a power of 2
             newsz = Util.AlignToPowerOfTwo(newsz);
 
-            // Size calculation: 2 words (K+V) per table entry, plus a handful.  We
-            // guess at 32-bit pointers; 64-bit pointers screws up the size calc by
-            // 2x but does not screw up the heuristic very much.
-            int kBs4 = (((newsz << 1) + 4) << 3/*word to bytes*/) >> 12/*kBs4*/;
+            // Estimate new array size. This is used for limiting spinwaiting when allocating large tables.
+            // Size calculation: 2 64bit words per table entry for simplicity.
+            int kBs = newsz >> (10 - 4);
 
             var newTable = this._newTable;
 
@@ -1328,7 +1329,7 @@ namespace NonBlocking
             // handful - lest we have 750 threads all trying to allocate a giant
             // resized array.
             // conveniently, Increment is also a full fence
-            if (kBs4 > 0 && Interlocked.Increment(ref _resizers) >= 2)
+            if (kBs > 0 && Interlocked.Increment(ref _resizers) >= 2)
             {
                 // Already 2 guys trying; wait and see
                 // See if resize is already in progress
@@ -1337,7 +1338,10 @@ namespace NonBlocking
                     return newTable;         // Use the new table already
                 }
 
-                SpinWait.SpinUntil(() => this._newTable != null, 8 * kBs4);
+                // spinwait for other allocators at the rate of: 1 msec / 32 kB
+                // 32 kB - > 1 msec
+                // MAX_SIZE -> 512 sec.
+                SpinWait.SpinUntil(() => this._newTable != null, kBs >> 5);
             }
 
             // Last check, since the 'new' below is expensive and there is a chance
