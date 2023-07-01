@@ -50,7 +50,7 @@ namespace NonBlocking
                 }
             }
 
-            return (object)key == entryKeyValue || 
+            return (object)key == entryKeyValue ||
                 _keyComparer.Equals(key, Unsafe.As<object, TKey>(ref entryKeyValue));
         }
 

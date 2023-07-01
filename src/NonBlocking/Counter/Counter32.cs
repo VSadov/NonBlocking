@@ -38,14 +38,6 @@ namespace NonBlocking
         private int lastCount;
 
         /// <summary>
-        /// Initializes a new instance of the <see
-        /// cref="Counter32"/>
-        /// </summary>
-        public Counter32()
-        {
-        }
-
-        /// <summary>
         /// Returns the value of the counter at the time of the call.
         /// </summary>
         /// <remarks>

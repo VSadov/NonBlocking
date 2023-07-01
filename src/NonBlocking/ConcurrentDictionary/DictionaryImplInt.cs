@@ -44,7 +44,7 @@ namespace NonBlocking
                 }
             }
 
-            return key == entryKeyValue || _keyComparer.Equals(key, entryKey);
+            return key == entryKeyValue || _keyComparer.Equals(key, entryKeyValue);
         }
 
         protected override int hash(int key)

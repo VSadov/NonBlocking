@@ -33,7 +33,7 @@ namespace NonBlocking
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
-            if (entryKeyValue == 0 & key != 0)
+            if (entryKeyValue == 0 && key != 0)
             {
                 entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, 0);
                 if (entryKeyValue == 0)
@@ -44,7 +44,7 @@ namespace NonBlocking
                 }
             }
 
-            return key == entryKeyValue || _keyComparer.Equals(key, entryKey);
+            return key == entryKeyValue || _keyComparer.Equals(key, entryKeyValue);
         }
 
         protected override int hash(long key)
@@ -100,7 +100,7 @@ namespace NonBlocking
         {
             var entryKeyValue = entryKey;
             //zero keys are claimed via hash
-            if (entryKeyValue == 0 & key != 0)
+            if (entryKeyValue == 0 && key != 0)
             {
                 entryKeyValue = Interlocked.CompareExchange(ref entryKey, key, 0);
                 if (entryKeyValue == 0)
