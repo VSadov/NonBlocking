@@ -4,14 +4,11 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
-using NonBlocking;
-using System.Collections.Concurrent;
-using Xunit;
+using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace NonBlockingTests
 {
@@ -452,7 +449,7 @@ namespace NonBlockingTests
                         }
                     });
 
-            Parallel.For(0, 1000,
+            Parallel.ForEach(Enumerable.Range(0, 1000),
                 (i) =>
                 {
                     if (i % 2 == 0 && dict[i] != 20000) throw new Exception();
@@ -465,7 +462,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<object, int>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
                 {
                     dict[i] = 0;
@@ -486,7 +483,7 @@ namespace NonBlockingTests
                     }
                 });
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                     (i) =>
                     {
                         if (i % 2 == 0)
@@ -504,7 +501,7 @@ namespace NonBlockingTests
                         }
                     });
 
-            Parallel.For(0, 1000,
+            Parallel.ForEach(Enumerable.Range(0, 1000),
                 (i) =>
                 {
                     if (i % 2 == 0 && dict[i] != 20000) throw new Exception();
@@ -517,7 +514,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, int>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
                 {
                     int val;
@@ -549,7 +546,7 @@ namespace NonBlockingTests
                     }
                 });
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                     (i) =>
                     {
                         int val;
@@ -577,7 +574,7 @@ namespace NonBlockingTests
                         }
                     });
 
-            Parallel.For(0, 1000,
+            Parallel.ForEach(Enumerable.Range(0, 1000),
                     (i) =>
                     {
                         int val;
@@ -590,7 +587,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<object, int>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                 (i) =>
                 {
                     int val;
@@ -621,7 +618,7 @@ namespace NonBlockingTests
                     }
                 });
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                     (i) =>
                     {
                         int val;
@@ -649,7 +646,7 @@ namespace NonBlockingTests
                         }
                     });
 
-            Parallel.For(0, 1000,
+            Parallel.ForEach(Enumerable.Range(0, 1000),
                     (i) =>
                     {
                         int val;
@@ -664,14 +661,14 @@ namespace NonBlockingTests
             var updatedBeforeRemove = new NonBlocking.ConcurrentDictionary<int, bool>();
             var removedValue = new NonBlocking.ConcurrentDictionary<int, int>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                 new ParallelOptions(),
                     (i) =>
                     {
                         dict1[i] = 42;
                     });
 
-            Parallel.For(0, 20000,
+            Parallel.ForEach(Enumerable.Range(0, 20000),
                     (i) =>
                     {
                         if (i < 10000)
@@ -704,14 +701,14 @@ namespace NonBlockingTests
             var updatedBeforeRemove = new NonBlocking.ConcurrentDictionary<int, bool>();
             var removedValue = new NonBlocking.ConcurrentDictionary<int, int>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                 new ParallelOptions(),
                     (i) =>
                     {
                         dict1[i] = 42;
                     });
 
-            Parallel.For(0, 20000,
+            Parallel.ForEach(Enumerable.Range(0, 20000),
                     (i) =>
                     {
                         if (i < 10000)
@@ -744,14 +741,14 @@ namespace NonBlockingTests
             var updated1 = new NonBlocking.ConcurrentDictionary<int, bool>();
             var updated2 = new NonBlocking.ConcurrentDictionary<int, bool>();
 
-            Parallel.For(0, 10000,
+            Parallel.ForEach(Enumerable.Range(0, 10000),
                     (i) =>
                     {
                         dict1[i] = 42;
                     });
 
 
-            Parallel.For(0, 40000,
+            Parallel.ForEach(Enumerable.Range(0, 40000),
                     (i) =>
                     {
                         switch (i % 8)
@@ -787,7 +784,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<int, int>();
 
-            Parallel.For(0, 10001,
+            Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
                 {
                     if (i % 2 == 0)
@@ -838,7 +835,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<object, int>();
 
-            Parallel.For(0, 10001,
+            Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
                 {
                     if (i % 2 == 0)
@@ -889,7 +886,7 @@ namespace NonBlockingTests
         {
             var dict = new NonBlocking.ConcurrentDictionary<S1, int>();
 
-            Parallel.For(0, 10001,
+            Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
                 {
                     if (i % 2 == 0)
@@ -943,7 +940,7 @@ namespace NonBlockingTests
             var keys = new string[30000];
             for (int i = 0; i < keys.Length; i++) keys[i] = i.ToString();
 
-            Parallel.For(0, 10001,
+            Parallel.ForEach(Enumerable.Range(0, 10001),
                 (i) =>
                 {
                     if (i % 2 == 0)
