@@ -4,7 +4,7 @@
     <TargetFrameworks>netstandard2.0;netstandard2.1</TargetFrameworks>
 
     <PackageId>NonBlocking</PackageId>
-    <PackageVersion>2.1.1</PackageVersion>
+    <PackageVersion>2.1.2</PackageVersion>
     <Authors>Vladimir Sadov</Authors> 
     <Description>
       Implementation of a lock-free dictionary on .Net
@@ -28,10 +28,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReleaseNotes>
-        Minor bug fixes.
+        A few bug fixes and performance improvements.
     </PackageReleaseNotes>
     <Summary>Implementation of a lock-free dictionary on .Net</Summary>
-    <Copyright>Copyright 2022 (c) Vladimir Sadov. All rights reserved.</Copyright>
+    <Copyright>Copyright 2023 (c) Vladimir Sadov. All rights reserved.</Copyright>
     <PackageTags>lock-free wait-free dictionary high-performance</PackageTags>
     <PackageProjectUrl>https://github.com/VSadov/NonBlocking</PackageProjectUrl>
   </PropertyGroup>
