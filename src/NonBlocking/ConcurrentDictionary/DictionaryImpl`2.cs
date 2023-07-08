@@ -14,10 +14,11 @@ namespace NonBlocking
     internal abstract class DictionaryImpl<TKey, TValue>
         : DictionaryImpl
     {
-        internal readonly bool valueIsValueType = typeof(TValue).IsValueType;
-        internal IEqualityComparer<TKey> _keyComparer;
+#if NETSTANDARD2_0
+        private readonly bool _valueIsValueType = typeof(TValue).IsValueType;
+#endif
 
-        internal DictionaryImpl() { }
+        internal IEqualityComparer<TKey> _keyComparer;
 
         internal abstract void Clear();
         internal abstract int Count { get; }
@@ -72,7 +73,11 @@ namespace NonBlocking
             }
 
             // ref type
-            if (!valueIsValueType)
+#if NETSTANDARD2_0
+            if (!_valueIsValueType)
+#else
+            if (!typeof(TValue).IsValueType)
+#endif
             {
                 return Unsafe.As<object, TValue>(ref obj);
             }

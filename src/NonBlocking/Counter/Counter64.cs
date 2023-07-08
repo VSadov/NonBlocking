@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 namespace NonBlocking
-{    
+{
     /// <summary>
     /// Scalable 64bit counter that can be used from multiple threads.
     /// </summary>
@@ -36,14 +36,6 @@ namespace NonBlocking
 
         // delayed count
         private long lastCount;
-
-        /// <summary>
-        /// Initializes a new instance of the <see
-        /// cref="Counter32"/>
-        /// </summary>
-        public Counter64()
-        {
-        }
 
         /// <summary>
         /// Returns the value of the counter at the time of the call.

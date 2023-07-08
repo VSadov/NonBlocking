@@ -27,16 +27,11 @@ namespace NonBlocking
                 // linearization point.
                 // if table is quiescent and has no copy in progress,
                 // we can simply iterate over its table.
-                while (true)
+                while (_table._newTable != null)
                 {
-                    if (_table._newTable == null)
-                    {
-                        break;
-                    }
-
                     // there is a copy in progress, finish it and try again
                     _table.HelpCopy(copy_all: true);
-                    this._table = (DictionaryImpl<TKey, TKeyStore, TValue>)(this._table._topDict._table);
+                    this._table = (DictionaryImpl<TKey, TKeyStore, TValue>)this._table._topDict._table;
                 }
             }
 

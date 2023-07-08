@@ -70,7 +70,7 @@ namespace NonBlocking
 
         // targeted time span between resizes.
         // if resizing more often than this, try expanding.
-        private const uint RESIZE_MILLIS_TARGET = (uint)1000;
+        private const uint RESIZE_MILLIS_TARGET = 1000;
 
         // create an empty dictionary
         protected abstract DictionaryImpl<TKey, TKeyStore, TValue> CreateNew(int capacity);
@@ -170,7 +170,7 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected virtual int hash(TKey key)
         {
-            Debug.Assert(!(key is null));
+            Debug.Assert(key is not null);
 
             int h = _keyComparer.GetHashCode(key);
 
@@ -369,7 +369,7 @@ namespace NonBlocking
             // We are finally prepared to update the existing table
             while (true)
             {
-                Debug.Assert(!(entryValue is Prime));
+                Debug.Assert(entryValue is not Prime);
 
                 // can't remove if nothing is there
                 if (EntryValueNullOrDead(entryValue))
@@ -745,10 +745,10 @@ namespace NonBlocking
 
             // prev value is null or dead.
             // let's try install new value
-            newValObj = newValObj ?? ToObjectValue(result = valueFactory(key));
+            newValObj ??= ToObjectValue(result = valueFactory(key));
             while (true)
             {
-                Debug.Assert(!(entryValue is Prime));
+                Debug.Assert(entryValue is not Prime);
 
                 // Actually change the Value
                 var prev = Interlocked.CompareExchange(ref entry.value, newValObj, entryValue);

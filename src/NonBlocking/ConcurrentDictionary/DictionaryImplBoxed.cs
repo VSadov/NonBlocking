@@ -37,7 +37,7 @@ namespace NonBlocking
                 }
             }
 
-            return _keyComparer.Equals(key, entryKey.Value);
+            return _keyComparer.Equals(key, entryKeyValue.Value);
         }
 
         protected override bool TryClaimSlotForCopy(ref Boxed<TKey> entryKey, Boxed<TKey> key)
@@ -54,7 +54,7 @@ namespace NonBlocking
                 }
             }
 
-            return _keyComparer.Equals(key.Value, entryKey.Value);
+            return _keyComparer.Equals(key.Value, entryKeyValue.Value);
         }
 
         protected override bool keyEqual(TKey key, Boxed<TKey> entryKey)

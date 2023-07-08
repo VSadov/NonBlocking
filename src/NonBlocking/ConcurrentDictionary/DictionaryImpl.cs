@@ -10,8 +10,6 @@ namespace NonBlocking
 {
     internal abstract class DictionaryImpl
     {
-        internal DictionaryImpl() { }
-
         internal enum ValueMatch
         {
             Any,            // sets new value unconditionally, used by index set and TryRemove(key)
