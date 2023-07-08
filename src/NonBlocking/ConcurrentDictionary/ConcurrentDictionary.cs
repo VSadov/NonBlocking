@@ -29,7 +29,9 @@ namespace NonBlocking
     [DebuggerDisplay("Count = {Count}")]
     public class ConcurrentDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> where TKey : notnull
     {
-        internal readonly bool valueIsValueType = typeof(TValue).IsValueType;
+#if NETSTANDARD2_0
+        private readonly bool _valueIsValueType = typeof(TValue).IsValueType;
+#endif
         internal DictionaryImpl<TKey, TValue> _table;
         internal uint _lastResizeTickMillis;
         internal object _sweeperInstance;
@@ -331,7 +333,11 @@ namespace NonBlocking
             }
 
             // ref type
-            if (!valueIsValueType)
+#if NETSTANDARD2_0
+            if (!_valueIsValueType)
+#else
+            if (!typeof(TValue).IsValueType)
+#endif
             {
                 return Unsafe.As<object, TValue>(ref obj);
             }
@@ -593,15 +599,11 @@ namespace NonBlocking
                 }
 
                 object oldValObj = _table.TryGetValue(key);
-                Debug.Assert(!(oldValObj is Prime));
-                if (oldValObj != null)
-                {
-                    return FromObjectValue(oldValObj);
-                }
+                Debug.Assert(oldValObj is not Prime);
 
-                ThrowKeyNotFoundException(key);
-                // call above does not return
-                while (true) ;
+                return oldValObj != null
+                    ? FromObjectValue(oldValObj)
+                    : ThrowKeyNotFoundException();
             }
             set
             {
@@ -620,7 +622,7 @@ namespace NonBlocking
 #if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
 #endif
-        private static void ThrowKeyNotFoundException(TKey key) =>
+        private static TValue ThrowKeyNotFoundException() =>
             throw new KeyNotFoundException();
 
         /// <summary>
