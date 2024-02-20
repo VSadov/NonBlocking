@@ -7,7 +7,7 @@
     <TieredPGO>True</TieredPGO>
     <OptimizationPreference>Speed</OptimizationPreference>
 
-    <PublishAot>True</PublishAot>
+    <PublishAot>False</PublishAot>
   </PropertyGroup>
 
   <ItemGroup>
