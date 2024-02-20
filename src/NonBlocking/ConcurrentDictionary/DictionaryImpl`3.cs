@@ -965,16 +965,6 @@ namespace NonBlocking
             return EstimatedSlotsUsed >= (_entries.Length / 4 * 3);
         }
 
-        // Help along an existing resize operation.  This is just a fast cut-out
-        // wrapper, to encourage inlining for the fast no-copy-in-progress case.
-        private void HelpCopyIfNeeded()
-        {
-            if (this._newTable != null)
-            {
-                this.HelpCopy(copy_all: false);
-            }
-        }
-
         // Help along an existing resize operation.
         internal void HelpCopy(bool copy_all = false)
         {
