@@ -21,6 +21,47 @@ using System.Threading.Tasks;
 
 namespace NonBlocking
 {
+    internal static class ConcurrentDictionaryTypeProps<T>
+    {
+        /// <summary>Whether T's type can be written atomically (i.e., with no danger of torn reads).</summary>
+        internal static readonly bool IsWriteAtomic = IsWriteAtomicPrivate();
+
+        private static bool IsWriteAtomicPrivate()
+        {
+            // Section 12.6.6 of ECMA CLI explains which types can be read and written atomically without
+            // the risk of tearing. See https://www.ecma-international.org/publications/files/ECMA-ST/ECMA-335.pdf
+
+            if (!typeof(T).IsValueType ||
+                typeof(T) == typeof(IntPtr) ||
+                typeof(T) == typeof(UIntPtr))
+            {
+                return true;
+            }
+
+            switch (Type.GetTypeCode(typeof(T)))
+            {
+                case TypeCode.Boolean:
+                case TypeCode.Byte:
+                case TypeCode.Char:
+                case TypeCode.Int16:
+                case TypeCode.Int32:
+                case TypeCode.SByte:
+                case TypeCode.Single:
+                case TypeCode.UInt16:
+                case TypeCode.UInt32:
+                    return true;
+
+                case TypeCode.Double:
+                case TypeCode.Int64:
+                case TypeCode.UInt64:
+                    return IntPtr.Size == 8;
+
+                default:
+                    return false;
+            }
+        }
+    }
+
     internal abstract partial class DictionaryImpl<TKey, TKeyStore, TValue>
         : DictionaryImpl<TKey, TValue>
     {
@@ -30,8 +71,6 @@ namespace NonBlocking
         protected readonly ConcurrentDictionary<TKey, TValue> _topDict;
         protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
-
-        internal static readonly bool valueIsAtomic = IsValueAtomicPrimitive();
 
         // Sometimes many threads race to create a new very large table.  Only 1
         // wins the race, but the losers all allocate a junk large table with
@@ -107,8 +146,6 @@ namespace NonBlocking
                 // do not create a real sweeper just yet. Often it is not needed.
                 topDict._sweeperInstance = NULLVALUE;
             }
-
-            _ = valueIsAtomic;
         }
 
         protected DictionaryImpl(int capacity, DictionaryImpl<TKey, TKeyStore, TValue> other)
@@ -118,48 +155,6 @@ namespace NonBlocking
             this._size = other._size;
             this._topDict = other._topDict;
             this._keyComparer = other._keyComparer;
-        }
-
-        /// <summary>
-        /// Determines whether type TValue can be written atomically
-        /// </summary>
-        private static bool IsValueAtomicPrimitive()
-        {
-            // only intereste in primitive value types here.
-            if (default(TValue) == null)
-            {
-                return false;
-            }
-
-            //
-            // Section 12.6.6 of ECMA CLI explains which types can be read and written atomically without
-            // the risk of tearing.
-            //
-            // See http://www.ecma-international.org/publications/files/ECMA-ST/Ecma-335.pdf
-            //
-            if (typeof(TValue) == typeof(bool) ||
-                typeof(TValue) == typeof(byte) ||
-                typeof(TValue) == typeof(char) ||
-                typeof(TValue) == typeof(short) ||
-                typeof(TValue) == typeof(int) ||
-                typeof(TValue) == typeof(sbyte) ||
-                typeof(TValue) == typeof(float) ||
-                typeof(TValue) == typeof(ushort) ||
-                typeof(TValue) == typeof(uint) ||
-                typeof(TValue) == typeof(IntPtr) ||
-                typeof(TValue) == typeof(UIntPtr))
-            {
-                return true;
-            }
-
-            if (typeof(TValue) == typeof(long) ||
-                typeof(TValue) == typeof(double) ||
-                typeof(TValue) == typeof(ulong))
-            {
-                return IntPtr.Size == 8;
-            }
-
-            return false;
         }
 
         private static uint CurrentTickMillis()
@@ -193,6 +188,26 @@ namespace NonBlocking
             _topDict._table = newTable;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        private class RawArrayData
+        {
+            private nint _sizeAndPad;
+            public Entry _firstElement;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static ref Entry GetEntry(Entry[] entries, int idx)
+        {
+#if DEBUG
+            ref Entry element = ref entries[idx];
+#else
+            ref Entry rawData = ref Unsafe.As<RawArrayData>(entries)._firstElement;
+            ref Entry element = ref Unsafe.Add(ref rawData, idx);
+#endif
+
+            return ref element;
+        }
+
         /// <summary>
         /// returns null if value is not present in the table
         /// otherwise returns the actual value or NULLVALUE if null is the actual value
@@ -212,7 +227,7 @@ namespace NonBlocking
             int reprobeCount = 0;
             while (true)
             {
-                ref var entry = ref curTable._entries[idx];
+                ref var entry = ref GetEntry(curTable._entries, idx);
 
                 // an entry is never reused for a different key
                 // key/value/hash all read atomically and order of reads is unimportant
@@ -224,7 +239,7 @@ namespace NonBlocking
                     // if the new table is null after we already have value,
                     // then the value cannot be forwarded
                     // this also orders reads from the table.
-                    var entryValue = Volatile.Read(ref entry.value);
+                    object entryValue = Volatile.Read(ref entry.value);
                     if (EntryValueNullOrDead(entryValue))
                     {
                         break;
@@ -297,7 +312,7 @@ namespace NonBlocking
 
             var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curTable._entries[idx];
+            ref Entry entry = ref GetEntry(curTable._entries, idx);
 
             // Main spin/reprobe loop
             int reprobeCount = 0;
@@ -342,7 +357,7 @@ namespace NonBlocking
                 reprobeCount++;
                 curTable.ResizeOnReprobeCheck(reprobeCount);
                 idx = (idx + reprobeCount) & lenMask;
-                entry = ref curTable._entries[idx];
+                entry = ref GetEntry(curTable._entries, idx);
             }
 
             // Found the proper Key slot, now update the Value.
@@ -449,7 +464,7 @@ namespace NonBlocking
 
             var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curTable._entries[idx];
+            ref Entry entry = ref GetEntry(curTable._entries, idx);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobeCount = 0;
@@ -503,7 +518,7 @@ namespace NonBlocking
                 reprobeCount++;
                 curTable.ResizeOnReprobeCheck(reprobeCount);
                 idx = (idx + reprobeCount) & lenMask;
-                entry = ref curTable._entries[idx];
+                entry = ref GetEntry(curTable._entries, idx);
             }
 
             // Found the proper Key slot, now update the Value.
@@ -563,16 +578,16 @@ namespace NonBlocking
                             goto FAILED;
                         }
 
-                        if (ValueIsAtomicPrimitive() &&
-                            Unsafe.As<Boxed<TValue>>(entryValue).TryCompareExchange(oldVal, newVal, out var changed))
-                        {
-                            return changed;
-                        }
-
                         if (ValueIsAtomicPrimitive())
                         {
+                            Boxed<TValue> boxed = Unsafe.As<Boxed<TValue>>(entryValue);
+                            if (boxed.TryCompareExchange(oldVal, newVal, out var changed))
+                            {
+                                return changed;
+                            }
+
                             // we could not change the value in place (this is rare), fallback to replacing the whole box.
-                            Unsafe.As<Boxed<TValue>>(entryValue).Freeze();
+                            boxed.Freeze();
                         }
 
                         TValue unboxedEntryValue = FromObjectValue(entryValue);
@@ -630,7 +645,7 @@ namespace NonBlocking
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ValueIsAtomicPrimitive()
         {
-            return default(TValue) != null && valueIsAtomic;
+            return default(TValue) != null && ConcurrentDictionaryTypeProps<TValue>.IsWriteAtomic;
         }
 
         internal sealed override TValue GetOrAdd(TKey key, Func<TKey, TValue> valueFactory)
@@ -645,7 +660,7 @@ namespace NonBlocking
 
             var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curTable._entries[idx];
+            ref Entry entry = ref GetEntry(curTable._entries, idx);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobeCount = 0;
@@ -701,7 +716,7 @@ namespace NonBlocking
                 reprobeCount++;
                 curTable.ResizeOnReprobeCheck(reprobeCount);
                 idx = (idx + reprobeCount) & lenMask;
-                entry = ref curTable._entries[idx];
+                entry = ref GetEntry(curTable._entries, idx);
             }
 
             // Found the proper Key slot, now update the Value.
@@ -797,7 +812,7 @@ namespace NonBlocking
 
             var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
-            ref Entry entry = ref curTable._entries[idx];
+            ref Entry entry = ref GetEntry(curTable._entries, idx);
 
             // Spin till we get a slot for the key or force a resizing.
             int reprobeCount = 0;
@@ -849,7 +864,7 @@ namespace NonBlocking
                 // no resize check on reprobe needed.
                 // we always insert a new value (or somebody else inserts)
                 idx = (idx + reprobeCount) & lenMask;
-                entry = ref curTable._entries[idx];
+                entry = ref GetEntry(curTable._entries, idx);
             }
 
             // Found the proper Key slot, now update the Value.
