@@ -60,7 +60,7 @@ namespace NonBlocking
         /// comparer for the key type.
         /// </summary>
         /// <param name="concurrencyLevel">The estimated number of threads that will update the
-        /// <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently.</param>
+        /// <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently, or -1 to indicate a default value.</param>
         /// <param name="capacity">The initial number of elements that the <see cref="ConcurrentDictionary{TKey,TValue}"/> can contain.</param>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="concurrencyLevel"/> is less than 1.</exception>
         /// <exception cref="ArgumentOutOfRangeException"> <paramref name="capacity"/> is less than 0.</exception>
@@ -111,7 +111,7 @@ namespace NonBlocking
         /// <see cref="IEqualityComparer{TKey}"/>.
         /// </summary>
         /// <param name="concurrencyLevel">
-        /// The estimated number of threads that will update the <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently.
+        /// The estimated number of threads that will update the <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently, or -1 to indicate a default value.
         /// </param>
         /// <param name="collection">The <see cref="IEnumerable{T}"/> whose elements are copied to the new
         /// <see cref="ConcurrentDictionary{TKey,TValue}"/>.</param>
@@ -151,7 +151,7 @@ namespace NonBlocking
         /// class that is empty, has the specified concurrency level, has the specified initial capacity, and
         /// uses the specified <see cref="IEqualityComparer{TKey}"/>.
         /// </summary>
-        /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently.</param>
+        /// <param name="concurrencyLevel">The estimated number of threads that will update the <see cref="ConcurrentDictionary{TKey,TValue}"/> concurrently, or -1 to indicate a default value.</param>
         /// <param name="capacity">The initial number of elements that the <see cref="ConcurrentDictionary{TKey,TValue}"/> can contain.</param>
         /// <param name="comparer">The <see cref="IEqualityComparer{TKey}"/> implementation to use when comparing keys.</param>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="concurrencyLevel"/> is less than 1. -or- <paramref name="capacity"/> is less than 0.</exception>
@@ -159,8 +159,12 @@ namespace NonBlocking
         {
             if (concurrencyLevel < 1)
             {
-                throw new ArgumentOutOfRangeException(nameof(concurrencyLevel));
+                if (concurrencyLevel != -1)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(concurrencyLevel),"Concurrency level must be positive or -1");
+                }
             }
+
             if (capacity < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(capacity));
@@ -177,7 +181,7 @@ namespace NonBlocking
             }
             else
             {
-                if (typeof(TKey) == typeof(int) || (typeof(TKey) == typeof(uint) && comparer == null))
+                if (typeof(TKey) == typeof(int))
                 {
                     if (comparer == null)
                     {
@@ -191,7 +195,21 @@ namespace NonBlocking
                     return;
                 }
 
-                if (typeof(TKey) == typeof(long) || (typeof(TKey) == typeof(ulong) && comparer == null))
+                if (typeof(TKey) == typeof(uint))
+                {
+                    if (comparer == null)
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplUintNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<uint, TValue>>(this)));
+                    }
+                    else
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplUint<TValue>(capacity, Unsafe.As<ConcurrentDictionary<uint, TValue>>(this)));
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(long))
                 {
                     if (comparer == null)
                     {
@@ -205,7 +223,21 @@ namespace NonBlocking
                     return;
                 }
 
-                if (typeof(TKey) == typeof(nint) || (typeof(TKey) == typeof(nuint) && comparer == null))
+                if (typeof(TKey) == typeof(ulong))
+                {
+                    if (comparer == null)
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplUlongNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<ulong, TValue>>(this)));
+                    }
+                    else
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplUlong<TValue>(capacity, Unsafe.As<ConcurrentDictionary<ulong, TValue>>(this)));
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(nint))
                 {
                     if (comparer == null)
                     {
@@ -214,6 +246,20 @@ namespace NonBlocking
                     else
                     {
                         _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNint<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nint, TValue>>(this)));
+                        _table._keyComparer = comparer;
+                    }
+                    return;
+                }
+
+                if (typeof(TKey) == typeof(nuint))
+                {
+                    if (comparer == null)
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNuintNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nuint, TValue>>(this)));
+                    }
+                    else
+                    {
+                        _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNuint<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nuint, TValue>>(this)));
                         _table._keyComparer = comparer;
                     }
                     return;
@@ -298,7 +344,7 @@ namespace NonBlocking
         /// found and removed; otherwise, false.
         /// </returns>
         /// <remarks>
-        /// Both the specifed key and value must match the entry in the dictionary for it to be removed.
+        /// Both the specified key and value must match the entry in the dictionary for it to be removed.
         /// The key is compared using the dictionary's comparer (or the default comparer for <typeparamref name="TKey"/>
         /// if no comparer was provided to the dictionary when it was constructed).  The value is compared using the
         /// default comparer for <typeparamref name="TValue"/>.
@@ -618,7 +664,6 @@ namespace NonBlocking
         }
 
         /// <summary>Throws a KeyNotFoundException.</summary>
-        /// <remarks>Separate from ThrowHelper to avoid boxing at call site while reusing this generic instantiation.</remarks>
 #if NETSTANDARD2_1_OR_GREATER
         [DoesNotReturn]
 #endif
@@ -933,7 +978,7 @@ namespace NonBlocking
             }
         }
 
-         /// <summary>
+        /// <summary>
         /// Gets a value that indicates whether the <see cref="ConcurrentDictionary{TKey,TValue}"/> is empty.
         /// </summary>
         /// <value>true if the <see cref="ConcurrentDictionary{TKey,TValue}"/> is empty; otherwise,
@@ -1144,7 +1189,7 @@ namespace NonBlocking
         /// <see cref="IDictionary"/>.</summary>
         /// <returns>An <see cref="IDictionaryEnumerator"/> for the <see
         /// cref="IDictionary"/>.</returns>
-        IDictionaryEnumerator IDictionary.GetEnumerator()=> new SnapshotIDictionaryEnumerator(_table.GetSnapshot());
+        IDictionaryEnumerator IDictionary.GetEnumerator() => new SnapshotIDictionaryEnumerator(_table.GetSnapshot());
 
         /// <summary>
         /// Gets a value indicating whether the <see
@@ -1345,7 +1390,6 @@ namespace NonBlocking
 
         #endregion
 
-
         /// <summary>
         /// Gets a collection containing the keys in the dictionary.
         /// </summary>
@@ -1374,7 +1418,7 @@ namespace NonBlocking
             return new ReadOnlyCollection<TValue>(values);
         }
 
-        internal class SnapshotEnumerator : IEnumerator<KeyValuePair<TKey, TValue>>
+        internal sealed class SnapshotEnumerator : IEnumerator<KeyValuePair<TKey, TValue>>
         {
             private DictionaryImpl<TKey, TValue>.Snapshot _snapshot;
             public SnapshotEnumerator(DictionaryImpl<TKey, TValue>.Snapshot snapshot)
@@ -1390,7 +1434,7 @@ namespace NonBlocking
             public void Dispose() { }
         }
 
-        internal class SnapshotIDictionaryEnumerator : IDictionaryEnumerator
+        internal sealed class SnapshotIDictionaryEnumerator : IDictionaryEnumerator
         {
             private DictionaryImpl<TKey, TValue>.Snapshot _snapshot;
             public SnapshotIDictionaryEnumerator(DictionaryImpl<TKey, TValue>.Snapshot snapshot)
@@ -1406,7 +1450,9 @@ namespace NonBlocking
 
             public bool MoveNext() => _snapshot.MoveNext();
             public void Reset() => _snapshot.Reset();
+#pragma warning disable CA1822 // Mark members as static
             public void Dispose() { }
+#pragma warning restore CA1822 // Mark members as static
         }
     }
 
