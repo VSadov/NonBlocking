@@ -732,9 +732,9 @@ namespace NonBlocking
             // Let CopySlotAndGetNewTable handle that case too.
             if (newTable != null || entryValue == TOMBPRIME)
             {
-                var newTable1 = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
-                Debug.Assert(newTable == newTable1);
-                curTable = newTable;
+                // Without a new table, TOMBPRIME means the sweeper is retiring this slot and the
+                // call returns this table to retry in; newTable is null then, so use the result.
+                curTable = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
                 goto TRY_WITH_NEW_TABLE;
             }
 
@@ -876,12 +876,21 @@ namespace NonBlocking
             // If so, copy our slot and retry in the new table.
             // Seeing TOMBPRIME entry while no newTable means the slot is in a process of being deleted
             // Let CopySlotAndGetNewTable handle that case too.
-            if (newTable != null || entryValue == TOMBPRIME)
+            if (newTable != null)
             {
                 var newTable1 = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: false);
                 Debug.Assert(newTable == newTable1);
                 curTable = newTable;
                 goto TRY_WITH_NEW_TABLE;
+            }
+
+            // TOMBPRIME with no new table means the sweeper is retiring this slot: the key was
+            // copied here by another thread, then removed, then swept. A value for the key has
+            // therefore already appeared in this table, so this copy has nothing to add.
+            // Retrying would claim a fresh slot and bring the removed key back with a stale value.
+            if (entryValue == TOMBPRIME)
+            {
+                return false;
             }
 
             // We are finally prepared to update the existing table
