@@ -732,9 +732,9 @@ namespace NonBlocking
             // Let CopySlotAndGetNewTable handle that case too.
             if (newTable != null || entryValue == TOMBPRIME)
             {
-                var newTable1 = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
-                Debug.Assert(newTable == newTable1);
-                curTable = newTable;
+                // Without a new table, TOMBPRIME means the sweeper is retiring this slot and the
+                // call returns this table to retry in; newTable is null then, so use the result.
+                curTable = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: true);
                 goto TRY_WITH_NEW_TABLE;
             }
 
@@ -784,7 +784,7 @@ namespace NonBlocking
             return result;
         }
 
-        private bool PutSlotCopy(TKeyStore key, object value, int fullHash)
+        private bool PutSlotCopy(TKeyStore key, object value, int fullHash, ref Entry sourceEntry, Prime sourcePrime)
         {
             Debug.Assert(key != null);
             Debug.Assert(value != TOMBSTONE);
@@ -794,6 +794,13 @@ namespace NonBlocking
             var curTable = this;
 
         TRY_WITH_NEW_TABLE:
+
+            // Completed source slots never become active again. Avoid claiming metadata
+            // for a copy already completed by another helper.
+            if (!ReferenceEquals(Volatile.Read(ref sourceEntry.value), sourcePrime))
+            {
+                return false;
+            }
 
             var lenMask = curTable._entries.Length - 1;
             int idx = ReduceHashToIndex(fullHash, lenMask);
@@ -872,16 +879,32 @@ namespace NonBlocking
                 Debug.Assert(curTable._newTable != null && curTable._newTable == newTable);
             }
 
-            // See if we are moving to a new table.
-            // If so, copy our slot and retry in the new table.
-            // Seeing TOMBPRIME entry while no newTable means the slot is in a process of being deleted
-            // Let CopySlotAndGetNewTable handle that case too.
-            if (newTable != null || entryValue == TOMBPRIME)
+            // If this table is being resized, copy the claimed entry forward
+            // and retry in the successor with the original source token.
+            if (newTable != null)
             {
                 var newTable1 = curTable.CopySlotAndGetNewTable(ref entry, shouldHelp: false);
                 Debug.Assert(newTable == newTable1);
                 curTable = newTable;
                 goto TRY_WITH_NEW_TABLE;
+            }
+
+            // TOMBPRIME with no new table means the sweeper is retiring this slot: the key was
+            // copied here by another thread, then removed, then swept. A value for the key has
+            // therefore already appeared in this table, so this copy has nothing to add.
+            // Retrying would claim a fresh slot and bring the removed key back with a stale value.
+            if (entryValue == TOMBPRIME)
+            {
+                return false;
+            }
+
+            // Validate after key claim. Retirement can erase the previous destination's
+            // identity, letting an obsolete copy claim a fresh slot. If completion occurs
+            // after this check, the CAS stays bound to this entry, whose value cannot
+            // become null again after another copy or insertion populates it.
+            if (!ReferenceEquals(Volatile.Read(ref sourceEntry.value), sourcePrime))
+            {
+                return false;
             }
 
             // We are finally prepared to update the existing table
@@ -1231,15 +1254,13 @@ namespace NonBlocking
             // regular read is ok because value is always CASed down after the key
             // and we ensured that we read the key after the value with fences above
             var key = oldEntry.key;
-            bool copiedIntoNew = newTable.PutSlotCopy(key, originalValue, hash);
+            bool copiedIntoNew = newTable.PutSlotCopy(key, originalValue, hash, ref oldEntry, box);
 
-            // Finally, now that any old value is exposed in the new table, we can
-            // forever hide the old-table value by gently inserting TOMBPRIME value.
-            // This will stop other threads from uselessly attempting to copy this slot
-            // (i.e., it's a speed optimization not a correctness issue).
+            // The source completion marker invalidates delayed copy helpers. Publish
+            // it after the destination is resolved, and never reset it in this slot.
             if (oldEntry.value != TOMBPRIME)
             {
-                oldEntry.value = TOMBPRIME;
+                Volatile.Write(ref oldEntry.value, TOMBPRIME);
             }
 
             // if we failed to copy, it means something has already appeared in
