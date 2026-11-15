@@ -65,7 +65,9 @@ namespace NonBlocking
                         // as the empty key: 0 for integer keys, which the lookup below would resolve
                         // to a real key 0 stored elsewhere. The hash is written before the key, so a
                         // key that does not match the slot's hash was never written to this slot.
-                        if (nextV == TOMBPRIME && nextEntry.hash != _table.hash(_curKey))
+                        if (nextV == TOMBPRIME &&
+                            typeof(TKeyStore).IsValueType &&   // only int/long/nint stores read an unwritten key as a valid key
+                            nextEntry.hash != _table.hash(_curKey))
                         {
                             continue;
                         }
