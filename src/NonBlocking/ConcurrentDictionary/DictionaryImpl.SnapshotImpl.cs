@@ -74,12 +74,25 @@ namespace NonBlocking
                             continue;
                         }
 
-                        // A copy or sweep is in progress: resolve through a lookup, which follows
-                        // forwarding to the newer table.
-                        nextV = _table.TryGetValue(_curKey);
-                        if (nextV == null)
+                        _curKey = _table.keyFromEntry(nextKstore);
+
+                        // A copy writes TOMBPRIME over a slot with no value, which can be a slot an
+                        // insert has claimed by its hash but not yet given a key. Its key then reads
+                        // as the empty key: 0 for integer keys, which the lookup below would resolve
+                        // to a real key 0 stored elsewhere. The hash is written before the key, so a
+                        // key that does not match the slot's hash was never written to this slot.
+                        if (nextV == TOMBPRIME &&
+                            typeof(TKeyStore).IsValueType &&   // only int/long/nint stores read an unwritten key as a valid key
+                            nextEntry.hash != _table.hash(_curKey))
                         {
                             continue;
+                        }
+
+                        object value = _table.TryGetValue(_curKey);
+                        if (value != null)
+                        {
+                            _curValue = _table.FromObjectValue(value);
+                            return true;
                         }
                     }
 

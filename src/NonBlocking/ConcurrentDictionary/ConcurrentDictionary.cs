@@ -191,9 +191,12 @@ namespace NonBlocking
                     return;
                 }
 
-                if (typeof(TKey) == typeof(long) || (typeof(TKey) == typeof(ulong) && comparer == null))
+                // The default comparer of a 64-bit key hashes lo ^ hi, so passing it explicitly takes
+                // the same path as passing none, which uses a hash that keeps those keys apart.
+                bool defaultComparer = comparer == null || ReferenceEquals(comparer, EqualityComparer<TKey>.Default);
+                if (typeof(TKey) == typeof(long) || (typeof(TKey) == typeof(ulong) && defaultComparer))
                 {
-                    if (comparer == null)
+                    if (defaultComparer)
                     {
                         _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplLongNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<long, TValue>>(this)));
                     }
@@ -205,9 +208,9 @@ namespace NonBlocking
                     return;
                 }
 
-                if (typeof(TKey) == typeof(nint) || (typeof(TKey) == typeof(nuint) && comparer == null))
+                if (typeof(TKey) == typeof(nint) || (typeof(TKey) == typeof(nuint) && defaultComparer))
                 {
-                    if (comparer == null)
+                    if (defaultComparer)
                     {
                         _table = Unsafe.As<DictionaryImpl<TKey, TValue>>(new DictionaryImplNintNoComparer<TValue>(capacity, Unsafe.As<ConcurrentDictionary<nint, TValue>>(this)));
                     }
