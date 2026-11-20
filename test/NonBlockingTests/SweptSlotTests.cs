@@ -24,10 +24,16 @@ namespace NonBlockingTests
         public static void TableCopyIntoSweptSlotDoesNotThrowOrResurrect()
         {
             var d = new NonBlocking.ConcurrentDictionary<string, object>();
-            var (table, hash) = SweepSlot(d);
+            var (table, hash, slotIndex) = SweepSlot(d);
 
             var copy = FindMethod(table.GetType(), "PutSlotCopy");
             bool copied = (bool)copy.Invoke(table, new object[] { Key, "stale", hash });
+
+            var entries = (Array)FindField(table.GetType(), "_entries").GetValue(table);
+            object entry = entries.GetValue(slotIndex);
+            object specialHashBits = FindField(table.GetType(), "SPECIAL_HASH_BITS").GetValue(null);
+            Assert.Equal(specialHashBits, entry.GetType().GetField("hash", Any).GetValue(entry));
+            Assert.Null(entry.GetType().GetField("key", Any).GetValue(entry));
 
             Assert.False(copied);
             Assert.False(d.ContainsKey(Key));
@@ -70,7 +76,7 @@ namespace NonBlockingTests
 
         // Adds and removes the key, then leaves its slot as the sweeper does after its CAS:
         // value TOMBPRIME, key and hash still set, no new table.
-        private static (object Table, int Hash) SweepSlot(NonBlocking.ConcurrentDictionary<string, object> d)
+        private static (object Table, int Hash, int SlotIndex) SweepSlot(NonBlocking.ConcurrentDictionary<string, object> d)
         {
             // A removal arms the real sweeper, which runs after the next garbage collection and
             // would clear the slot under the test. A pending request keeps SweepCheck from arming it.
@@ -93,7 +99,7 @@ namespace NonBlockingTests
                 {
                     type.GetField("value", Any).SetValue(entry, tombprime);
                     entries.SetValue(entry, i);
-                    return (table, (int)type.GetField("hash", Any).GetValue(entry));
+                    return (table, (int)type.GetField("hash", Any).GetValue(entry), i);
                 }
             }
 

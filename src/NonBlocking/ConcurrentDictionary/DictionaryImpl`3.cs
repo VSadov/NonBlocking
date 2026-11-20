@@ -888,8 +888,12 @@ namespace NonBlocking
             // copied here by another thread, then removed, then swept. A value for the key has
             // therefore already appeared in this table, so this copy has nothing to add.
             // Retrying would claim a fresh slot and bring the removed key back with a stale value.
+            // This copy may have claimed the key after the sweeper cleared it, and later sweeps
+            // only handle TOMBSTONE, so finish retiring the slot in the sweeper's order first.
             if (entryValue == TOMBPRIME)
             {
+                entry.hash = SPECIAL_HASH_BITS;
+                entry.key = default(TKeyStore);
                 return false;
             }
 
