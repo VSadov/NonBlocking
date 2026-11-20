@@ -124,7 +124,7 @@ namespace NonBlocking
         {
             return (key == 0) ?
                 ZEROHASH :
-                key.GetHashCode() | SPECIAL_HASH_BITS;
+                Hash64(key);
         }
 
         protected override bool keyEqual(nint key, nint entryKey)

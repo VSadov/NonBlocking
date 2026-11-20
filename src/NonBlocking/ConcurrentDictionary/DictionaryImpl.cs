@@ -46,6 +46,18 @@ namespace NonBlocking
         // having only these bits set in a case of Ref key means that the slot is permanently deleted.
         protected const int SPECIAL_HASH_BITS = TOMBPRIMEHASH | ZEROHASH;
 
+        // The hash of a nonzero 64-bit key with the default comparer. long.GetHashCode is lo ^ hi,
+        // which gives every key with equal halves the same hash, and packed pairs such as x << 32 | y
+        // only a few. Mixing in the high half rotated by 13 bits gives keys with equal halves distinct
+        // hashes, spreads packed pairs, and moves bits 62 and 63 below the tag, which overwrites bits
+        // 30 and 31. Keys below 2^32 keep the hash they have today.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected static int Hash64(long key)
+        {
+            uint high = (uint)(key >> 32);
+            return ((int)key ^ (int)high ^ (int)((high << 13) | (high >> 19))) | SPECIAL_HASH_BITS;
+        }
+
         // Heuristic to decide if we have reprobed toooo many times.  Running over
         // the reprobe limit on a 'get' call acts as a 'miss'; on a 'put' call it
         // can trigger a table resize.  Several places must have exact agreement on
