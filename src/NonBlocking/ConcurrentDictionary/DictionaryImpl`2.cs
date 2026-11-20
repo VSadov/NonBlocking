@@ -39,6 +39,7 @@ namespace NonBlocking
             public abstract int Count { get; }
             public abstract bool MoveNext();
             public abstract void Reset();
+            public abstract void Dispose();
 
             internal DictionaryEntry Entry
             {

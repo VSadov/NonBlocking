@@ -27,6 +27,107 @@ namespace NonBlocking
         private readonly Entry[] _entries;
         internal DictionaryImpl<TKey, TKeyStore, TValue> _newTable;
 
+        // Enumerations open on this table, counted by generation. Each slot holds a generation in its
+        // high 32 bits and the count of enumerations opened in it in its low 32 bits. Enumerations
+        // open in the newest generation; the sweeper leaves the table alone while the newest or the
+        // one before it counts an enumeration, and moves to a new generation, overwriting the oldest
+        // slot, at most once every ENUMERATION_GRACE_MILLIS. An enumeration moves its count to the
+        // newest generation as it advances, so it keeps the sweeper away while it is in use, and one
+        // dropped without Dispose stops counting after two moves, however many enumerations start
+        // after it. Generations do not repeat in any real lifetime.
+        private long _enumerationsA;
+        private long _enumerationsB;
+
+        // The newest generation. Only the sweeper writes it, so enumerators can check it cheaply.
+        internal int _enumerationGeneration;
+        private const int ENUMERATION_GRACE_MILLIS = 10_000;
+
+        private static int EnumerationGeneration(long slot) => (int)(slot >> 32);
+
+        private static int EnumerationCount(long slot) => (int)slot;
+
+        // Counts an enumeration in the newest generation. Returns false, and counts nothing, if that
+        // generation's count is full.
+        internal bool TryOpenEnumeration(out int generation)
+        {
+            while (true)
+            {
+                long a = Volatile.Read(ref _enumerationsA);
+                long b = Volatile.Read(ref _enumerationsB);
+                bool inA = unchecked(EnumerationGeneration(a) - EnumerationGeneration(b)) >= 0;
+                long cur = inA ? a : b;
+                if (EnumerationCount(cur) == int.MaxValue)
+                {
+                    generation = 0;
+                    return false;
+                }
+
+                ref long slot = ref (inA ? ref _enumerationsA : ref _enumerationsB);
+                if (Interlocked.CompareExchange(ref slot, cur + 1, cur) != cur)
+                {
+                    continue;
+                }
+
+                // The compare-exchange is a full fence. If the sweeper moved to a new generation
+                // after the slots were read, this one may already be on its way out, so count the
+                // enumeration again in the newest. Moves are seconds apart, so this ends.
+                generation = EnumerationGeneration(cur);
+                long other = Volatile.Read(ref (inA ? ref _enumerationsB : ref _enumerationsA));
+                if (unchecked(EnumerationGeneration(other) - generation) <= 0)
+                {
+                    return true;
+                }
+
+                CloseEnumeration(generation);
+            }
+        }
+
+        // Uncounts an enumeration counted in the given generation, unless that generation is gone.
+        internal void CloseEnumeration(int generation)
+        {
+            ref long slot = ref _enumerationsA;
+            long cur = Volatile.Read(ref slot);
+            if (EnumerationGeneration(cur) != generation)
+            {
+                slot = ref _enumerationsB;
+                cur = Volatile.Read(ref slot);
+            }
+
+            while (EnumerationGeneration(cur) == generation && EnumerationCount(cur) != 0)
+            {
+                long seen = Interlocked.CompareExchange(ref slot, cur - 1, cur);
+                if (seen == cur)
+                {
+                    return;
+                }
+
+                cur = seen;
+            }
+        }
+
+        // Whether the newest generation, or the one before it, counts an enumeration.
+        private bool EnumerationsOpen()
+        {
+            long a = Volatile.Read(ref _enumerationsA);
+            long b = Volatile.Read(ref _enumerationsB);
+            long newest = unchecked(EnumerationGeneration(a) - EnumerationGeneration(b)) >= 0 ? a : b;
+            long older = newest == a ? b : a;
+            return EnumerationCount(newest) != 0 ||
+                (EnumerationCount(older) != 0 && unchecked(EnumerationGeneration(newest) - EnumerationGeneration(older)) == 1);
+        }
+
+        // Moves to a new generation: the oldest slot, whose enumerations no longer count, starts
+        // the next generation with none. Only the sweeper calls this, one sweep at a time.
+        private void AdvanceEnumerations()
+        {
+            long a = Volatile.Read(ref _enumerationsA);
+            long b = Volatile.Read(ref _enumerationsB);
+            bool aNewest = unchecked(EnumerationGeneration(a) - EnumerationGeneration(b)) >= 0;
+            int next = unchecked((aNewest ? EnumerationGeneration(a) : EnumerationGeneration(b)) + 1);
+            Interlocked.Exchange(ref (aNewest ? ref _enumerationsB : ref _enumerationsA), (long)next << 32);
+            Volatile.Write(ref _enumerationGeneration, next);
+        }
+
         protected readonly ConcurrentDictionary<TKey, TValue> _topDict;
         protected readonly Counter32 allocatedSlotCount = new Counter32();
         private Counter32 _size;
@@ -1384,6 +1485,9 @@ namespace NonBlocking
         {
             private DictionaryImpl<TKey, TKeyStore, TValue> _dict;
 
+            // When this sweeper last moved a table to a new enumeration generation.
+            private int _lastAdvanceMillis;
+
             public static void TryRearm(DictionaryImpl<TKey, TKeyStore, TValue> dict)
             {
                 ref var sweeperLocation = ref dict._topDict._sweeperInstance;
@@ -1435,6 +1539,27 @@ namespace NonBlocking
                     ref var e = ref entries[i];
                     if (e.value == TOMBSTONE)
                     {
+                        // A retired slot is never reused, so a key added back after the sweep takes
+                        // another slot of this table, and an open enumeration that already yielded it
+                        // here would yield it again there. Postpone the sweep to a later collection
+                        // instead. The fence pairs with the one in the enumerator's count update: either
+                        // this read sees the enumeration, or the enumeration starts after the key was
+                        // removed and cannot have yielded it from this slot.
+                        Interlocked.MemoryBarrier();
+                        if (dict.EnumerationsOpen())
+                        {
+                            // Sweeps run one at a time, so this spaces the moves on every table.
+                            int now = Environment.TickCount;
+                            if (unchecked((uint)(now - _lastAdvanceMillis)) >= ENUMERATION_GRACE_MILLIS)
+                            {
+                                dict.AdvanceEnumerations();
+                                _lastAdvanceMillis = now;
+                            }
+
+                            dict._topDict._sweepRequests = 1;
+                            break;
+                        }
+
                         if (Interlocked.CompareExchange(ref e.value, TOMBPRIME, TOMBSTONE) == TOMBSTONE)
                         {
                             e.hash = SPECIAL_HASH_BITS;
