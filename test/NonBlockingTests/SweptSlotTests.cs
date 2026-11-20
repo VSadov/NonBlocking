@@ -27,7 +27,14 @@ namespace NonBlockingTests
             var (table, hash, slotIndex) = SweepSlot(d);
 
             var copy = FindMethod(table.GetType(), "PutSlotCopy");
-            bool copied = (bool)copy.Invoke(table, new object[] { Key, "stale", hash });
+            // This is a component test for the destination guard. An active source
+            // keeps source-token validation from masking the partially swept slot.
+            object sourcePrime = Activator.CreateInstance(FindField(table.GetType(), "TOMBPRIME").GetValue(null).GetType(),
+                new object[] { "stale" });
+            Type entryType = copy.GetParameters()[3].ParameterType.GetElementType();
+            object sourceEntry = Activator.CreateInstance(entryType);
+            entryType.GetField("value", Any).SetValue(sourceEntry, sourcePrime);
+            bool copied = (bool)copy.Invoke(table, new object[] { Key, "stale", hash, sourceEntry, sourcePrime });
 
             var entries = (Array)FindField(table.GetType(), "_entries").GetValue(table);
             object entry = entries.GetValue(slotIndex);
