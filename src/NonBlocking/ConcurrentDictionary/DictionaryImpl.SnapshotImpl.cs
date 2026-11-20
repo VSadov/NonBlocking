@@ -4,6 +4,7 @@
 
 #nullable disable
 
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace NonBlocking
@@ -47,7 +48,8 @@ namespace NonBlocking
                     if (nextEntry.value != null)
                     {
                         var nextKstore = nextEntry.key;
-                        if (nextKstore == null)
+                        if (EqualityComparer<TKeyStore>.Default.Equals(nextKstore, default) && 
+                            nextEntry.hash != ZEROHASH)
                         {
                             // slot was deleted.
                             continue;
