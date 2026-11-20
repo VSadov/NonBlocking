@@ -448,26 +448,32 @@ namespace NonBlocking
         public KeyValuePair<TKey, TValue>[] ToArray()
         {
             var snapshot = _table.GetSnapshot();
-
-            int count = snapshot.Count;
-            if (count == 0)
+            try
             {
-                return Array.Empty<KeyValuePair<TKey, TValue>>();
-            }
+                int count = snapshot.Count;
+                if (count == 0)
+                {
+                    return Array.Empty<KeyValuePair<TKey, TValue>>();
+                }
 
-            var array = new KeyValuePair<TKey, TValue>[count];
-            int idx = 0;
-            while (snapshot.MoveNext() && idx < array.Length)
+                var array = new KeyValuePair<TKey, TValue>[count];
+                int idx = 0;
+                while (snapshot.MoveNext() && idx < array.Length)
+                {
+                    array[idx++] = snapshot.Current;
+                }
+
+                if (idx != array.Length)
+                {
+                    Array.Resize(ref array, idx);
+                }
+
+                return array;
+            }
+            finally
             {
-                array[idx++] = snapshot.Current;
+                snapshot.Dispose();
             }
-
-            if (idx != array.Length)
-            {
-                Array.Resize(ref array, idx);
-            }
-
-            return array;
         }
 
         /// <summary>Copy dictionary contents to an array.</summary>
@@ -1390,10 +1396,10 @@ namespace NonBlocking
 
             public bool MoveNext() => _snapshot.MoveNext();
             public void Reset() => _snapshot.Reset();
-            public void Dispose() { }
+            public void Dispose() => _snapshot.Dispose();
         }
 
-        internal class SnapshotIDictionaryEnumerator : IDictionaryEnumerator
+        internal class SnapshotIDictionaryEnumerator : IDictionaryEnumerator, IDisposable
         {
             private DictionaryImpl<TKey, TValue>.Snapshot _snapshot;
             public SnapshotIDictionaryEnumerator(DictionaryImpl<TKey, TValue>.Snapshot snapshot)
@@ -1409,7 +1415,7 @@ namespace NonBlocking
 
             public bool MoveNext() => _snapshot.MoveNext();
             public void Reset() => _snapshot.Reset();
-            public void Dispose() { }
+            public void Dispose() => _snapshot.Dispose();
         }
     }
 
